@@ -13,7 +13,7 @@ export interface ProblemStatementData {
   problem_statement: string
   input_format: {
     description: string
-    parameters: any[]
+    parameters: unknown[]
   }
   output_format: {
     description: string
@@ -24,7 +24,7 @@ export interface ProblemStatementData {
     time: string
     space: string
   }
-  test_cases: any[]
+  test_cases: unknown[]
   validation_type: string
   difficulty: string
 }

@@ -221,8 +221,8 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             audioSrc.connect(processor);
             processor.connect(audioContextRef.current.destination);
             processorRef.current = processor;
-        } catch (err: any) {
-            if (err.name === 'NotAllowedError') {
+        } catch (err: unknown) {
+            if (err instanceof Error && err.name === 'NotAllowedError') {
                 throw new Error('Permission denied. Please try again.');
             }
             throw err;
@@ -249,8 +249,8 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             } else {
                 setError(result.error || 'Failed to start Gemini connection');
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to start');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to start');
             await window.electronAPI.liveInterviewStop();
         }
     };

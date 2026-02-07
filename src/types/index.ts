@@ -296,7 +296,7 @@ export interface DebugLog {
   timestamp: number;
   level: 'info' | 'warn' | 'error' | 'success';
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface DebugState {
@@ -361,7 +361,7 @@ export interface WizardStepConfig {
   id: WizardStep;
   title: string;
   description: string;
-  component: React.ComponentType<any>;
+  component: React.ComponentType<StepProps>;
   required: boolean;
   quickMode: boolean;
 }

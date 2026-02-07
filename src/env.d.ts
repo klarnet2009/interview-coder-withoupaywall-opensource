@@ -36,11 +36,11 @@ interface ElectronAPI {
   onResetView: (callback: () => void) => () => void
   onSolutionStart: (callback: () => void) => () => void
   onDebugStart: (callback: () => void) => () => void
-  onDebugSuccess: (callback: (data: any) => void) => () => void
+  onDebugSuccess: (callback: (data: Record<string, unknown>) => void) => () => void
   onSolutionError: (callback: (error: string) => void) => () => void
   onProcessingNoScreenshots: (callback: () => void) => () => void
-  onProblemExtracted: (callback: (data: any) => void) => () => void
-  onSolutionSuccess: (callback: (data: any) => void) => () => void
+  onProblemExtracted: (callback: (data: Record<string, unknown>) => void) => () => void
+  onSolutionSuccess: (callback: (data: Record<string, unknown>) => void) => () => void
   onUnauthorized: (callback: () => void) => () => void
   onDebugError: (callback: (error: string) => void) => () => void
   openExternal: (url: string) => void
@@ -57,16 +57,16 @@ interface ElectronAPI {
   // Add update-related methods
   startUpdate: () => Promise<{ success: boolean; error?: string }>
   installUpdate: () => void
-  onUpdateAvailable: (callback: (info: any) => void) => () => void
-  onUpdateDownloaded: (callback: (info: any) => void) => () => void
+  onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string }) => void) => () => void
+  onUpdateDownloaded: (callback: (info: { version: string; releaseDate?: string }) => void) => () => void
 }
 
 interface Window {
   electronAPI: ElectronAPI
   electron: {
     ipcRenderer: {
-      on(channel: string, func: (...args: any[]) => void): void
-      removeListener(channel: string, func: (...args: any[]) => void): void
+      on(channel: string, func: (...args: unknown[]) => void): void
+      removeListener(channel: string, func: (...args: unknown[]) => void): void
     }
   }
   __CREDITS__: number

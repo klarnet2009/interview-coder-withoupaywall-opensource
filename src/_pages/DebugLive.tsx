@@ -150,8 +150,8 @@ export const DebugLive: React.FC = () => {
             processorRef.current = processor;
 
             addLog('info', 'Audio capture started successfully');
-        } catch (err: any) {
-            addLog('error', `Audio capture failed: ${err.message}`);
+        } catch (err: unknown) {
+            addLog('error', `Audio capture failed: ${err instanceof Error ? err.message : String(err)}`);
             throw err;
         }
     };
@@ -193,8 +193,8 @@ export const DebugLive: React.FC = () => {
                 } else {
                     addLog('error', result.error || 'Failed to start');
                 }
-            } catch (err: any) {
-                addLog('error', err.message);
+            } catch (err: unknown) {
+                addLog('error', err instanceof Error ? err.message : String(err));
             }
         }
     }, [isActive, modelName, audioSource, spokenLanguage]);

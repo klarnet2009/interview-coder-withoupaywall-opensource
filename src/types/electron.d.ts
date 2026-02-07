@@ -2,67 +2,98 @@
  * Type declarations for Electron API
  */
 
+export interface UpdateInfo {
+  version: string;
+  releaseDate?: string;
+  releaseNotes?: string;
+}
+
+export type ListeningState = 'idle' | 'connecting' | 'listening' | 'no_signal' | 'transcribing' | 'generating' | 'error';
+
+export interface LiveInterviewStatus {
+  state: ListeningState;
+  transcript: string;
+  response: string;
+  audioLevel: number;
+  error?: string;
+}
+
+export interface ProblemData {
+  problem_statement?: string;
+  code_block?: string;
+  language?: string;
+  [key: string]: unknown;
+}
+
+export interface SolutionData {
+  code?: string;
+  explanation?: string;
+  language?: string;
+  previews?: Array<{ code: string; language: string }>;
+  [key: string]: unknown;
+}
+
 export interface ElectronAPI {
   // Config
-  getConfig: () => Promise<any>;
-  updateConfig: (config: any) => Promise<any>;
+  getConfig: () => Promise<Record<string, unknown>>;
+  updateConfig: (config: Record<string, unknown>) => Promise<Record<string, unknown>>;
   checkApiKey: () => Promise<boolean>;
   validateApiKey: (apiKey: string) => Promise<{ valid: boolean; error?: string }>;
   testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic") => Promise<{ valid: boolean; error?: string }>;
 
   // Wizard
-  completeWizard: (mode: 'quick' | 'advanced') => Promise<any>;
-  resetWizard: () => Promise<any>;
+  completeWizard: (mode: 'quick' | 'advanced') => Promise<void>;
+  resetWizard: () => Promise<void>;
   isWizardCompleted: () => Promise<boolean>;
 
   // Screenshots
-  triggerScreenshot: () => Promise<any>;
-  getScreenshots: () => Promise<any>;
-  deleteScreenshot: (path: string) => Promise<any>;
-  deleteLastScreenshot: () => Promise<any>;
+  triggerScreenshot: () => Promise<{ success: boolean; error?: string }>;
+  getScreenshots: () => Promise<{ path: string; preview: string }[]>;
+  deleteScreenshot: (path: string) => Promise<{ success: boolean; error?: string }>;
+  deleteLastScreenshot: () => Promise<void>;
   onScreenshotTaken: (callback: (data: { path: string; preview: string }) => void) => () => void;
   onDeleteLastScreenshot: (callback: () => void) => () => void;
 
   // Processing
-  triggerProcessScreenshots: () => Promise<any>;
-  triggerReset: () => Promise<any>;
-  onSolutionSuccess: (callback: (data: any) => void) => () => void;
+  triggerProcessScreenshots: () => Promise<{ success: boolean; error?: string }>;
+  triggerReset: () => Promise<void>;
+  onSolutionSuccess: (callback: (data: SolutionData) => void) => () => void;
   onSolutionError: (callback: (error: string) => void) => () => void;
   onSolutionStart: (callback: () => void) => () => void;
   onDebugStart: (callback: () => void) => () => void;
-  onDebugSuccess: (callback: (data: any) => void) => () => void;
+  onDebugSuccess: (callback: (data: SolutionData) => void) => () => void;
   onDebugError: (callback: (error: string) => void) => () => void;
-  onProblemExtracted: (callback: (data: any) => void) => () => void;
+  onProblemExtracted: (callback: (data: ProblemData) => void) => () => void;
   onProcessingNoScreenshots: (callback: () => void) => () => void;
   onApiKeyInvalid: (callback: () => void) => () => void;
   onReset: (callback: () => void) => () => void;
   onResetView: (callback: () => void) => () => void;
 
   // Window management
-  toggleMainWindow: () => Promise<any>;
-  triggerMoveLeft: () => Promise<any>;
-  triggerMoveRight: () => Promise<any>;
-  triggerMoveUp: () => Promise<any>;
-  triggerMoveDown: () => Promise<any>;
-  updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<any>;
+  toggleMainWindow: () => Promise<void>;
+  triggerMoveLeft: () => Promise<void>;
+  triggerMoveRight: () => Promise<void>;
+  triggerMoveUp: () => Promise<void>;
+  triggerMoveDown: () => Promise<void>;
+  updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<void>;
   setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
 
   // Settings
-  openSettingsPortal: () => Promise<any>;
+  openSettingsPortal: () => Promise<void>;
   onShowSettings: (callback: () => void) => () => void;
 
   // External links
   openLink: (url: string) => void;
-  openExternal: (url: string) => Promise<any>;
+  openExternal: (url: string) => Promise<void>;
 
   // Updates
-  startUpdate: () => Promise<any>;
-  installUpdate: () => Promise<any>;
-  onUpdateAvailable: (callback: (info: any) => void) => () => void;
-  onUpdateDownloaded: (callback: (info: any) => void) => () => void;
+  startUpdate: () => Promise<void>;
+  installUpdate: () => Promise<void>;
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void;
+  onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => () => void;
 
   // Credits
-  decrementCredits: () => Promise<any>;
+  decrementCredits: () => Promise<void>;
 
   // Audio sources for application selection
   getAudioSources: () => Promise<{ id: string; name: string; appIcon: string | null }[]>;
@@ -76,11 +107,11 @@ export interface ElectronAPI {
 
   // Utility
   getPlatform: () => string;
-  removeListener: (eventName: string, callback: (...args: any[]) => void) => void;
-  clearStore: () => Promise<any>;
+  removeListener: (eventName: string, callback: (...args: unknown[]) => void) => void;
+  clearStore: () => Promise<void>;
 
   // Legacy
-  openSubscriptionPortal: (authData: { id: string; email: string }) => Promise<any>;
+  openSubscriptionPortal: (authData: { id: string; email: string }) => Promise<void>;
   onSubscriptionUpdated: (callback: () => void) => () => void;
   onSubscriptionPortalClosed: (callback: () => void) => () => void;
   onUnauthorized: (callback: () => void) => () => void;
@@ -91,6 +122,7 @@ export interface ElectronAPI {
     systemInstruction?: string;
     modelName?: string;
     apiKeyOverride?: string;
+    spokenLanguage?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   liveInterviewStop: () => Promise<{ success: boolean; error?: string }>;
   liveInterviewStatus: () => Promise<{
@@ -101,9 +133,14 @@ export interface ElectronAPI {
   }>;
   liveInterviewSendText: (text: string) => Promise<{ success: boolean; error?: string }>;
   liveInterviewSendAudio: (pcmBase64: string, level: number) => Promise<{ success: boolean }>;
-  onLiveInterviewStatus: (callback: (status: any) => void) => () => void;
-  onLiveInterviewState: (callback: (state: string) => void) => () => void;
+  onLiveInterviewStatus: (callback: (status: LiveInterviewStatus) => void) => () => void;
+  onLiveInterviewState: (callback: (state: ListeningState) => void) => () => void;
   onLiveInterviewError: (callback: (error: string) => void) => () => void;
+
+  // Window management extras
+  quitApp: () => Promise<void>;
+  resetWindowSize: () => Promise<void>;
+  setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
 }
 
 declare global {
