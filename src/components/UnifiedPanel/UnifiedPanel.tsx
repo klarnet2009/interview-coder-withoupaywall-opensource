@@ -109,7 +109,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     // ─── Refs ─────────────────────────────────────────────────────────────────
     const audioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
-    const processorRef = useRef<ScriptProcessorNode | null>(null);
+    const processorRef = useRef<AudioWorkletNode | null>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const audioDropdownRef = useRef<HTMLDivElement>(null);
     const responseRef = useRef<HTMLDivElement>(null);
@@ -203,25 +203,16 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             audioContextRef.current = new AudioContext({ sampleRate: 16000 });
 
             const audioSrc = audioContextRef.current.createMediaStreamSource(stream);
-            const bufferSize = 1024;
-            const processor = audioContextRef.current.createScriptProcessor(bufferSize, 1, 1);
 
-            processor.onaudioprocess = (event) => {
-                const inputData = event.inputBuffer.getChannelData(0);
-                let sum = 0;
-                for (let i = 0; i < inputData.length; i++) {
-                    sum += inputData[i] * inputData[i];
-                }
-                const level = Math.sqrt(sum / inputData.length);
+            // Load AudioWorklet processor module
+            await audioContextRef.current.audioWorklet.addModule('/pcm-capture-processor.js');
+            const processor = new AudioWorkletNode(audioContextRef.current, 'pcm-capture-processor');
+
+            processor.port.onmessage = (event) => {
+                const { pcmBuffer, level } = event.data;
                 setLocalAudioLevel(level);
 
-                const pcmData = new Int16Array(inputData.length);
-                for (let i = 0; i < inputData.length; i++) {
-                    const s = Math.max(-1, Math.min(1, inputData[i]));
-                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
-
-                const uint8Array = new Uint8Array(pcmData.buffer);
+                const uint8Array = new Uint8Array(pcmBuffer);
                 const binary = String.fromCharCode.apply(null, Array.from(uint8Array));
                 const base64 = btoa(binary);
                 window.electronAPI.liveInterviewSendAudio(base64, level);

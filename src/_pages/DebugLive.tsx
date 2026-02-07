@@ -55,7 +55,7 @@ export const DebugLive: React.FC = () => {
     const logsEndRef = useRef<HTMLDivElement>(null);
     const AudioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
-    const processorRef = useRef<ScriptProcessorNode | null>(null);
+    const processorRef = useRef<AudioWorkletNode | null>(null);
 
     const addLog = useCallback((type: LogEntry['type'], message: string) => {
         setLogs(prev => [...prev, {
@@ -129,26 +129,16 @@ export const DebugLive: React.FC = () => {
             AudioContextRef.current = new AudioContext({ sampleRate: 16000 });
 
             const audioSource = AudioContextRef.current.createMediaStreamSource(stream);
-            const bufferSize = 1024;
-            const processor = AudioContextRef.current.createScriptProcessor(bufferSize, 1, 1);
 
-            processor.onaudioprocess = (event) => {
-                const inputData = event.inputBuffer.getChannelData(0);
+            // Load AudioWorklet processor module
+            await AudioContextRef.current.audioWorklet.addModule('/pcm-capture-processor.js');
+            const processor = new AudioWorkletNode(AudioContextRef.current, 'pcm-capture-processor');
 
-                // Calculate level
-                let sum = 0;
-                for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
-                const level = Math.sqrt(sum / inputData.length);
-
-                // Convert to PCM
-                const pcmData = new Int16Array(inputData.length);
-                for (let i = 0; i < inputData.length; i++) {
-                    const s = Math.max(-1, Math.min(1, inputData[i]));
-                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                }
+            processor.port.onmessage = (event) => {
+                const { pcmBuffer, level } = event.data;
 
                 // Send to main process
-                const uint8Array = new Uint8Array(pcmData.buffer);
+                const uint8Array = new Uint8Array(pcmBuffer);
                 const binary = String.fromCharCode.apply(null, Array.from(uint8Array));
                 const base64 = btoa(binary);
 
