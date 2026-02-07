@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import QueueCommands from "../components/Queue/QueueCommands"
+import { LiveInterviewPanel, ResponsePanel } from "../components/LiveInterview"
 
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
@@ -135,16 +136,24 @@ const Queue: React.FC<QueueProps> = ({
   const handleOpenSettings = () => {
     window.electronAPI.openSettingsPortal();
   };
-  
+
   return (
-    <div ref={contentRef} className={`bg-transparent w-1/2`}>
+    <div ref={contentRef} className={`bg-transparent w-full`}>
       <div className="px-4 py-3">
-        <div className="space-y-3 w-fit">
+        <div className="space-y-3">
           <ScreenshotQueue
             isLoading={false}
             screenshots={screenshots}
             onDeleteScreenshot={handleDeleteScreenshot}
           />
+
+          {/* Live Interview Panel - Real-time AI assistance */}
+          <div className="min-h-[250px] max-h-[350px]">
+            <LiveInterviewPanel />
+          </div>
+
+          {/* AI Response Panel - Separate display for hints */}
+          <ResponsePanel />
 
           <QueueCommands
             onTooltipVisibilityChange={handleTooltipVisibilityChange}

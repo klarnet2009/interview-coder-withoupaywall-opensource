@@ -4,27 +4,127 @@ import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
 import { OpenAI } from "openai"
+import { secureStorage } from "./SecureStorage"
+
+// Extended Config interface for UX Redesign 2025
+interface UserProfile {
+  id: string;
+  name: string;
+  cvText?: string;
+  targetRole?: string;
+  yearsExperience?: number;
+  skills: string[];
+  achievements?: string;
+  tone: 'formal' | 'professional' | 'casual';
+  emphasis?: string;
+  avoid?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface InterviewPreferences {
+  mode: 'coding' | 'behavioral' | 'system_design';
+  answerStyle: 'concise' | 'structured' | 'detailed' | 'star' | 'custom';
+  language: string;
+  answerLanguage: string;
+  autoDetectLanguage: boolean;
+  confidenceHelper: boolean;
+}
+
+interface AudioConfig {
+  source: 'microphone' | 'system' | 'application';
+  applicationName?: string;
+  autoStart: boolean;
+  testCompleted: boolean;
+}
+
+interface HotkeyConfig {
+  toggle: string;
+  pause: string;
+  copy: string;
+  compact: string;
+  emergencyHide: string;
+}
+
+interface DisplayConfig {
+  mode: 'standard' | 'overlay' | 'mini' | 'tray';
+  opacity: number;
+  stealthMode: boolean;
+  hideFromTaskbar: boolean;
+  hideTitle: boolean;
+  dimOnMouseAway: boolean;
+  hotkeys: HotkeyConfig;
+}
 
 interface Config {
+  // Existing fields
   apiKey: string;
-  apiProvider: "openai" | "gemini" | "anthropic";  // Added provider selection
+  apiProvider: "openai" | "gemini" | "anthropic";
   extractionModel: string;
   solutionModel: string;
   debuggingModel: string;
   language: string;
   opacity: number;
+
+  // New fields for UX Redesign 2025
+  wizardCompleted: boolean;
+  wizardMode?: 'quick' | 'advanced';
+
+  profiles: UserProfile[];
+  activeProfileId?: string;
+
+  interviewPreferences: InterviewPreferences;
+  audioConfig: AudioConfig;
+  displayConfig: DisplayConfig;
 }
 
 export class ConfigHelper extends EventEmitter {
   private configPath: string;
+
   private defaultConfig: Config = {
+    // Existing defaults
     apiKey: "",
-    apiProvider: "gemini", // Default to Gemini
-    extractionModel: "gemini-2.0-flash", // Default to Flash for faster responses
-    solutionModel: "gemini-2.0-flash",
-    debuggingModel: "gemini-2.0-flash",
+    apiProvider: "gemini",
+    extractionModel: "gemini-3-flash-preview",
+    solutionModel: "gemini-3-flash-preview",
+    debuggingModel: "gemini-3-flash-preview",
     language: "python",
-    opacity: 1.0
+    opacity: 1.0,
+
+    // New defaults
+    wizardCompleted: false,
+    profiles: [],
+
+    interviewPreferences: {
+      mode: 'coding',
+      answerStyle: 'structured',
+      language: 'english',
+      answerLanguage: 'same',
+      autoDetectLanguage: false,
+      confidenceHelper: true
+    },
+
+    audioConfig: {
+      source: 'system',
+      autoStart: true,
+      testCompleted: false
+    },
+
+    displayConfig: {
+      mode: 'standard',
+      opacity: 1.0,
+      stealthMode: false,
+      hideFromTaskbar: false,
+      hideTitle: false,
+      dimOnMouseAway: false,
+      hotkeys: {
+        toggle: 'Ctrl+`',
+        pause: 'Ctrl+Space',
+        copy: 'Ctrl+Shift+C',
+        compact: 'Ctrl+=',
+        emergencyHide: 'Esc Esc Esc'
+      }
+    }
   };
 
   constructor() {
@@ -37,7 +137,7 @@ export class ConfigHelper extends EventEmitter {
       console.warn('Could not access user data path, using fallback');
       this.configPath = path.join(process.cwd(), 'config.json');
     }
-    
+
     // Ensure the initial config file exists
     this.ensureConfigExists();
   }
@@ -60,23 +160,21 @@ export class ConfigHelper extends EventEmitter {
    */
   private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic"): string {
     if (provider === "openai") {
-      // Only allow gpt-4o and gpt-4o-mini for OpenAI
       const allowedModels = ['gpt-4o', 'gpt-4o-mini'];
       if (!allowedModels.includes(model)) {
         console.warn(`Invalid OpenAI model specified: ${model}. Using default model: gpt-4o`);
         return 'gpt-4o';
       }
       return model;
-    } else if (provider === "gemini")  {
-      // Only allow gemini-1.5-pro and gemini-2.0-flash for Gemini
-      const allowedModels = ['gemini-1.5-pro', 'gemini-2.0-flash'];
+    } else if (provider === "gemini") {
+      // Only Gemini 3 family models (2.5 series)
+      const allowedModels = ['gemini-3-flash-preview', 'gemini-3-pro-preview'];
       if (!allowedModels.includes(model)) {
-        console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-2.0-flash`);
-        return 'gemini-2.0-flash'; // Changed default to flash
+        console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-3-flash-preview`);
+        return 'gemini-3-flash-preview';
       }
       return model;
-    }  else if (provider === "anthropic") {
-      // Only allow Claude models
+    } else if (provider === "anthropic") {
       const allowedModels = ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
       if (!allowedModels.includes(model)) {
         console.warn(`Invalid Anthropic model specified: ${model}. Using default model: claude-3-7-sonnet-20250219`);
@@ -84,22 +182,88 @@ export class ConfigHelper extends EventEmitter {
       }
       return model;
     }
-    // Default fallback
     return model;
+  }
+
+  /**
+   * Migrate old config format to new format
+   */
+  private migrateConfig(config: any): Config {
+    // If wizardCompleted doesn't exist, this is an old config
+    if (config.wizardCompleted === undefined) {
+      console.log('Migrating old config format to new format...');
+
+      return {
+        ...this.defaultConfig,
+        // Preserve existing values
+        apiKey: config.apiKey || "",
+        apiProvider: config.apiProvider || "gemini",
+        extractionModel: config.extractionModel || "gemini-3-flash-preview",
+        solutionModel: config.solutionModel || "gemini-3-flash-preview",
+        debuggingModel: config.debuggingModel || "gemini-3-flash-preview",
+        language: config.language || "python",
+        opacity: config.opacity !== undefined ? config.opacity : 1.0,
+        // Mark wizard as completed for existing users
+        wizardCompleted: true
+      };
+    }
+
+    // Ensure all nested objects exist (for partial updates)
+    if (!config.interviewPreferences) {
+      config.interviewPreferences = this.defaultConfig.interviewPreferences;
+    }
+    if (!config.audioConfig) {
+      config.audioConfig = this.defaultConfig.audioConfig;
+    }
+    if (!config.displayConfig) {
+      config.displayConfig = this.defaultConfig.displayConfig;
+    }
+    if (!config.profiles) {
+      config.profiles = [];
+    }
+
+    return config as Config;
   }
 
   public loadConfig(): Config {
     try {
+      console.log('=== LOAD CONFIG DEBUG ===');
+      console.log('Config path:', this.configPath);
+      console.log('Config file exists:', fs.existsSync(this.configPath));
+
       if (fs.existsSync(this.configPath)) {
         const configData = fs.readFileSync(this.configPath, 'utf8');
-        const config = JSON.parse(configData);
-        
-        // Ensure apiProvider is a valid value
-        if (config.apiProvider !== "openai" && config.apiProvider !== "gemini"  && config.apiProvider !== "anthropic") {
-          config.apiProvider = "gemini"; // Default to Gemini if invalid
+        let config = JSON.parse(configData);
+        console.log('Loaded config - apiKey placeholder:', config.apiKey);
+        console.log('Loaded config - apiProvider:', config.apiProvider);
+
+        // Migrate if needed
+        config = this.migrateConfig(config);
+
+        // Load API key from secure storage
+        const secureApiKey = secureStorage.get('apiKey');
+        console.log('SecureStorage apiKey exists:', !!secureApiKey);
+        console.log('SecureStorage encryption available:', secureStorage.isEncryptionAvailable());
+
+        if (secureApiKey) {
+          config.apiKey = secureApiKey;
+          console.log('Loaded API key from secureStorage:', secureApiKey.substring(0, 10) + '...');
+        } else if (config.apiKey && config.apiKey.length > 0 && config.apiKey !== '[ENCRYPTED]') {
+          // Migrate plain-text API key to secure storage
+          console.log('Migrating API key to secure storage...');
+          secureStorage.set('apiKey', config.apiKey);
+          // Clear from plain config (will be saved on next updateConfig)
+        } else {
+          console.log('No API key found in secureStorage or config');
         }
-        
-        // Sanitize model selections to ensure only allowed models are used
+        console.log('=========================');
+
+        // Ensure apiProvider is a valid value
+        if (config.apiProvider !== "openai" && config.apiProvider !== "gemini" && config.apiProvider !== "anthropic") {
+          config.apiProvider = "gemini";
+        }
+
+        // Sanitize model selections
         if (config.extractionModel) {
           config.extractionModel = this.sanitizeModelSelection(config.extractionModel, config.apiProvider);
         }
@@ -109,13 +273,13 @@ export class ConfigHelper extends EventEmitter {
         if (config.debuggingModel) {
           config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
         }
-        
+
         return {
           ...this.defaultConfig,
           ...config
         };
       }
-      
+
       // If no config exists, create a default one
       this.saveConfig(this.defaultConfig);
       return this.defaultConfig;
@@ -127,16 +291,42 @@ export class ConfigHelper extends EventEmitter {
 
   /**
    * Save configuration to disk
+   * API key is stored encrypted separately via SecureStorage
    */
   public saveConfig(config: Config): void {
     try {
-      // Ensure the directory exists
       const configDir = path.dirname(this.configPath);
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-      // Write the config file
-      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+
+      // Debug logging
+      console.log('=== SAVE CONFIG DEBUG ===');
+      console.log('Config path:', this.configPath);
+      console.log('API key provided:', config.apiKey ? `Yes (${config.apiKey.substring(0, 10)}...)` : 'No');
+      console.log('API provider:', config.apiProvider);
+      console.log('Extraction model:', config.extractionModel);
+
+      // Store API key in secure storage instead of plain JSON
+      if (config.apiKey && config.apiKey.length > 0) {
+        secureStorage.set('apiKey', config.apiKey);
+        console.log('API key saved to secureStorage');
+        console.log('SecureStorage encryption available:', secureStorage.isEncryptionAvailable());
+      } else {
+        // Clear the encrypted key from secure storage on logout
+        secureStorage.delete('apiKey');
+        console.log('API key deleted from secureStorage');
+      }
+
+      // Save config without the actual API key value (store placeholder to indicate key exists)
+      const configToSave = {
+        ...config,
+        apiKey: config.apiKey ? '[ENCRYPTED]' : ''
+      };
+
+      fs.writeFileSync(this.configPath, JSON.stringify(configToSave, null, 2));
+      console.log('Config file saved successfully');
+      console.log('=========================');
     } catch (err) {
       console.error("Error saving config:", err);
     }
@@ -149,26 +339,25 @@ export class ConfigHelper extends EventEmitter {
     try {
       const currentConfig = this.loadConfig();
       let provider = updates.apiProvider || currentConfig.apiProvider;
-      
-      // Auto-detect provider based on API key format if a new key is provided
+
+      // Auto-detect provider based on API key format
       if (updates.apiKey && !updates.apiProvider) {
-        // If API key starts with "sk-", it's likely an OpenAI key
         if (updates.apiKey.trim().startsWith('sk-')) {
-          provider = "openai";
-          console.log("Auto-detected OpenAI API key format");
-        } else if (updates.apiKey.trim().startsWith('sk-ant-')) {
-          provider = "anthropic";
-          console.log("Auto-detected Anthropic API key format");
+          if (updates.apiKey.trim().startsWith('sk-ant-')) {
+            provider = "anthropic";
+            console.log("Auto-detected Anthropic API key format");
+          } else {
+            provider = "openai";
+            console.log("Auto-detected OpenAI API key format");
+          }
         } else {
           provider = "gemini";
           console.log("Using Gemini API key format (default)");
         }
-        
-        // Update the provider in the updates object
         updates.apiProvider = provider;
       }
-      
-      // If provider is changing, reset models to the default for that provider
+
+      // If provider is changing, reset models
       if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
         if (updates.apiProvider === "openai") {
           updates.extractionModel = "gpt-4o";
@@ -179,13 +368,13 @@ export class ConfigHelper extends EventEmitter {
           updates.solutionModel = "claude-3-7-sonnet-20250219";
           updates.debuggingModel = "claude-3-7-sonnet-20250219";
         } else {
-          updates.extractionModel = "gemini-2.0-flash";
-          updates.solutionModel = "gemini-2.0-flash";
-          updates.debuggingModel = "gemini-2.0-flash";
+          updates.extractionModel = "gemini-3-flash-preview";
+          updates.solutionModel = "gemini-3-flash-preview";
+          updates.debuggingModel = "gemini-3-flash-preview";
         }
       }
-      
-      // Sanitize model selections in the updates
+
+      // Sanitize model selections
       if (updates.extractionModel) {
         updates.extractionModel = this.sanitizeModelSelection(updates.extractionModel, provider);
       }
@@ -195,23 +384,41 @@ export class ConfigHelper extends EventEmitter {
       if (updates.debuggingModel) {
         updates.debuggingModel = this.sanitizeModelSelection(updates.debuggingModel, provider);
       }
-      
+
       const newConfig = { ...currentConfig, ...updates };
       this.saveConfig(newConfig);
-      
-      // Only emit update event for changes other than opacity
-      // This prevents re-initializing the AI client when only opacity changes
-      if (updates.apiKey !== undefined || updates.apiProvider !== undefined || 
-          updates.extractionModel !== undefined || updates.solutionModel !== undefined || 
-          updates.debuggingModel !== undefined || updates.language !== undefined) {
+
+      // Emit update event for non-opacity changes
+      if (updates.apiKey !== undefined || updates.apiProvider !== undefined ||
+        updates.extractionModel !== undefined || updates.solutionModel !== undefined ||
+        updates.debuggingModel !== undefined || updates.language !== undefined ||
+        updates.wizardCompleted !== undefined || updates.profiles !== undefined) {
         this.emit('config-updated', newConfig);
       }
-      
+
       return newConfig;
     } catch (error) {
       console.error('Error updating config:', error);
       return this.defaultConfig;
     }
+  }
+
+  /**
+   * Mark wizard as completed
+   */
+  public completeWizard(mode: 'quick' | 'advanced'): void {
+    this.updateConfig({
+      wizardCompleted: true,
+      wizardMode: mode
+    });
+    this.emit('wizard-completed', mode);
+  }
+
+  /**
+   * Reset wizard (for testing or if user wants to re-run)
+   */
+  public resetWizard(): void {
+    this.updateConfig({ wizardCompleted: false });
   }
 
   /**
@@ -221,12 +428,19 @@ export class ConfigHelper extends EventEmitter {
     const config = this.loadConfig();
     return !!config.apiKey && config.apiKey.trim().length > 0;
   }
-  
+
+  /**
+   * Check if wizard has been completed
+   */
+  public isWizardCompleted(): boolean {
+    const config = this.loadConfig();
+    return config.wizardCompleted;
+  }
+
   /**
    * Validate the API key format
    */
-  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic" ): boolean {
-    // If provider is not specified, attempt to auto-detect
+  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): boolean {
     if (!provider) {
       if (apiKey.trim().startsWith('sk-')) {
         if (apiKey.trim().startsWith('sk-ant-')) {
@@ -238,21 +452,18 @@ export class ConfigHelper extends EventEmitter {
         provider = "gemini";
       }
     }
-    
+
     if (provider === "openai") {
-      // Basic format validation for OpenAI API keys
       return /^sk-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
     } else if (provider === "gemini") {
-      // Basic format validation for Gemini API keys (usually alphanumeric with no specific prefix)
-      return apiKey.trim().length >= 10; // Assuming Gemini keys are at least 10 chars
+      return apiKey.trim().length >= 10;
     } else if (provider === "anthropic") {
-      // Basic format validation for Anthropic API keys
       return /^sk-ant-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
     }
-    
+
     return false;
   }
-  
+
   /**
    * Get the stored opacity value
    */
@@ -265,11 +476,61 @@ export class ConfigHelper extends EventEmitter {
    * Set the window opacity value
    */
   public setOpacity(opacity: number): void {
-    // Ensure opacity is between 0.1 and 1.0
     const validOpacity = Math.min(1.0, Math.max(0.1, opacity));
     this.updateConfig({ opacity: validOpacity });
-  }  
-  
+  }
+
+  /**
+   * Get display config
+   */
+  public getDisplayConfig(): DisplayConfig {
+    const config = this.loadConfig();
+    return config.displayConfig || this.defaultConfig.displayConfig;
+  }
+
+  /**
+   * Update display config
+   */
+  public updateDisplayConfig(updates: Partial<DisplayConfig>): void {
+    const config = this.loadConfig();
+    const newDisplayConfig = { ...config.displayConfig, ...updates };
+    this.updateConfig({ displayConfig: newDisplayConfig });
+  }
+
+  /**
+   * Get interview preferences
+   */
+  public getInterviewPreferences(): InterviewPreferences {
+    const config = this.loadConfig();
+    return config.interviewPreferences || this.defaultConfig.interviewPreferences;
+  }
+
+  /**
+   * Update interview preferences
+   */
+  public updateInterviewPreferences(updates: Partial<InterviewPreferences>): void {
+    const config = this.loadConfig();
+    const newPreferences = { ...config.interviewPreferences, ...updates };
+    this.updateConfig({ interviewPreferences: newPreferences });
+  }
+
+  /**
+   * Get audio config
+   */
+  public getAudioConfig(): AudioConfig {
+    const config = this.loadConfig();
+    return config.audioConfig || this.defaultConfig.audioConfig;
+  }
+
+  /**
+   * Update audio config
+   */
+  public updateAudioConfig(updates: Partial<AudioConfig>): void {
+    const config = this.loadConfig();
+    const newAudioConfig = { ...config.audioConfig, ...updates };
+    this.updateConfig({ audioConfig: newAudioConfig });
+  }
+
   /**
    * Get the preferred programming language
    */
@@ -284,12 +545,110 @@ export class ConfigHelper extends EventEmitter {
   public setLanguage(language: string): void {
     this.updateConfig({ language });
   }
-  
+
+  // ============================================================================
+  // Profile Management
+  // ============================================================================
+
+  /**
+   * Get all profiles
+   */
+  public getProfiles(): UserProfile[] {
+    const config = this.loadConfig();
+    return config.profiles || [];
+  }
+
+  /**
+   * Get active profile
+   */
+  public getActiveProfile(): UserProfile | null {
+    const config = this.loadConfig();
+    if (!config.activeProfileId) return null;
+    return config.profiles.find(p => p.id === config.activeProfileId) || null;
+  }
+
+  /**
+   * Create a new profile
+   */
+  public createProfile(profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): UserProfile {
+    const config = this.loadConfig();
+    const newProfile: UserProfile = {
+      ...profile,
+      id: `profile_${Date.now()}`,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    const profiles = [...config.profiles, newProfile];
+    this.updateConfig({ profiles });
+
+    // If this is the first profile, set it as active
+    if (profiles.length === 1) {
+      this.setActiveProfile(newProfile.id);
+    }
+
+    return newProfile;
+  }
+
+  /**
+   * Update a profile
+   */
+  public updateProfile(id: string, updates: Partial<Omit<UserProfile, 'id' | 'createdAt'>>): UserProfile | null {
+    const config = this.loadConfig();
+    const profileIndex = config.profiles.findIndex(p => p.id === id);
+
+    if (profileIndex === -1) return null;
+
+    const updatedProfile: UserProfile = {
+      ...config.profiles[profileIndex],
+      ...updates,
+      updatedAt: Date.now()
+    };
+
+    const profiles = [...config.profiles];
+    profiles[profileIndex] = updatedProfile;
+    this.updateConfig({ profiles });
+
+    return updatedProfile;
+  }
+
+  /**
+   * Delete a profile
+   */
+  public deleteProfile(id: string): boolean {
+    const config = this.loadConfig();
+    const profiles = config.profiles.filter(p => p.id !== id);
+
+    if (profiles.length === config.profiles.length) return false;
+
+    const updates: Partial<Config> = { profiles };
+
+    // If deleted profile was active, clear activeProfileId
+    if (config.activeProfileId === id) {
+      updates.activeProfileId = profiles.length > 0 ? profiles[0].id : undefined;
+    }
+
+    this.updateConfig(updates);
+    return true;
+  }
+
+  /**
+   * Set active profile
+   */
+  public setActiveProfile(id: string): boolean {
+    const config = this.loadConfig();
+    const profile = config.profiles.find(p => p.id === id);
+
+    if (!profile) return false;
+
+    this.updateConfig({ activeProfileId: id });
+    return true;
+  }
+
   /**
    * Test API key with the selected provider
    */
-  public async testApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): Promise<{valid: boolean, error?: string}> {
-    // Auto-detect provider based on key format if not specified
+  public async testApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): Promise<{ valid: boolean, error?: string }> {
     if (!provider) {
       if (apiKey.trim().startsWith('sk-')) {
         if (apiKey.trim().startsWith('sk-ant-')) {
@@ -304,7 +663,7 @@ export class ConfigHelper extends EventEmitter {
         console.log("Using Gemini API key format for testing (default)");
       }
     }
-    
+
     if (provider === "openai") {
       return this.testOpenAIKey(apiKey);
     } else if (provider === "gemini") {
@@ -312,25 +671,23 @@ export class ConfigHelper extends EventEmitter {
     } else if (provider === "anthropic") {
       return this.testAnthropicKey(apiKey);
     }
-    
+
     return { valid: false, error: "Unknown API provider" };
   }
-  
+
   /**
    * Test OpenAI API key
    */
-  private async testOpenAIKey(apiKey: string): Promise<{valid: boolean, error?: string}> {
+  private async testOpenAIKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
     try {
       const openai = new OpenAI({ apiKey });
-      // Make a simple API call to test the key
       await openai.models.list();
       return { valid: true };
     } catch (error: any) {
       console.error('OpenAI API key test failed:', error);
-      
-      // Determine the specific error type for better error messages
+
       let errorMessage = 'Unknown error validating OpenAI API key';
-      
+
       if (error.status === 401) {
         errorMessage = 'Invalid API key. Please check your OpenAI key and try again.';
       } else if (error.status === 429) {
@@ -340,57 +697,90 @@ export class ConfigHelper extends EventEmitter {
       } else if (error.message) {
         errorMessage = `Error: ${error.message}`;
       }
-      
-      return { valid: false, error: errorMessage };
-    }
-  }
-  
-  /**
-   * Test Gemini API key
-   * Note: This is a simplified implementation since we don't have the actual Gemini client
-   */
-  private async testGeminiKey(apiKey: string): Promise<{valid: boolean, error?: string}> {
-    try {
-      // For now, we'll just do a basic check to ensure the key exists and has valid format
-      // In production, you would connect to the Gemini API and validate the key
-      if (apiKey && apiKey.trim().length >= 20) {
-        // Here you would actually validate the key with a Gemini API call
-        return { valid: true };
-      }
-      return { valid: false, error: 'Invalid Gemini API key format.' };
-    } catch (error: any) {
-      console.error('Gemini API key test failed:', error);
-      let errorMessage = 'Unknown error validating Gemini API key';
-      
-      if (error.message) {
-        errorMessage = `Error: ${error.message}`;
-      }
-      
+
       return { valid: false, error: errorMessage };
     }
   }
 
   /**
-   * Test Anthropic API key
-   * Note: This is a simplified implementation since we don't have the actual Anthropic client
+   * Test Gemini API key by making an actual API call
    */
-  private async testAnthropicKey(apiKey: string): Promise<{valid: boolean, error?: string}> {
+  private async testGeminiKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
     try {
-      // For now, we'll just do a basic check to ensure the key exists and has valid format
-      // In production, you would connect to the Anthropic API and validate the key
-      if (apiKey && /^sk-ant-[a-zA-Z0-9]{32,}$/.test(apiKey.trim())) {
-        // Here you would actually validate the key with an Anthropic API call
+      if (!apiKey || apiKey.trim().length < 20) {
+        return { valid: false, error: 'Invalid Gemini API key format.' };
+      }
+
+      // Make an actual API call to verify the key works
+      const axios = require('axios');
+      const response = await axios.get(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`,
+        { timeout: 10000 }
+      );
+
+      if (response.status === 200 && response.data?.models) {
         return { valid: true };
       }
-      return { valid: false, error: 'Invalid Anthropic API key format.' };
+
+      return { valid: false, error: 'Unable to verify Gemini API key.' };
+    } catch (error: any) {
+      console.error('Gemini API key test failed:', error);
+
+      let errorMessage = 'Unknown error validating Gemini API key';
+
+      if (error.response?.status === 400 || error.response?.status === 403) {
+        errorMessage = 'Invalid Gemini API key. Please check your key and try again.';
+      } else if (error.response?.status === 429) {
+        errorMessage = 'Gemini API rate limit exceeded. Please try again later.';
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        errorMessage = 'Unable to connect to Gemini API. Check your internet connection.';
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+
+      return { valid: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Test Anthropic API key by making an actual API call
+   */
+  private async testAnthropicKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
+    try {
+      if (!apiKey || !/^sk-ant-[a-zA-Z0-9-_]{32,}$/.test(apiKey.trim())) {
+        return { valid: false, error: 'Invalid Anthropic API key format. Keys should start with sk-ant-' };
+      }
+
+      // Use the Anthropic SDK that's already a dependency
+      const Anthropic = require('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey: apiKey.trim(), timeout: 10000 });
+
+      // Make a minimal API call to verify the key works
+      // Using a very short prompt to minimize token usage
+      await client.messages.create({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'Hi' }]
+      });
+
+      return { valid: true };
     } catch (error: any) {
       console.error('Anthropic API key test failed:', error);
       let errorMessage = 'Unknown error validating Anthropic API key';
-      
-      if (error.message) {
+
+      if (error.status === 401) {
+        errorMessage = 'Invalid Anthropic API key. Please check your key and try again.';
+      } else if (error.status === 429) {
+        errorMessage = 'Anthropic API rate limit exceeded. Please try again later.';
+      } else if (error.status === 400) {
+        // Bad request but key is valid
+        return { valid: true };
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        errorMessage = 'Unable to connect to Anthropic API. Check your internet connection.';
+      } else if (error.message) {
         errorMessage = `Error: ${error.message}`;
       }
-      
+
       return { valid: false, error: errorMessage };
     }
   }

@@ -172,7 +172,8 @@ export class ScreenshotHelper {
       return buffer;
     } catch (error) {
       console.error("Error capturing screenshot:", error);
-      throw new Error(`Failed to capture screenshot: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to capture screenshot: ${errorMessage}`);
     }
   }
 
@@ -403,7 +404,8 @@ export class ScreenshotHelper {
       return { success: true };
     } catch (error) {
       console.error("Error deleting file:", error);
-      return { success: false, error: error.message };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   }
 

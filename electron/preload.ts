@@ -202,11 +202,13 @@ const electronAPI = {
     }
   },
   getPlatform: () => process.platform,
-  
+
   // New methods for OpenAI API integration
   getConfig: () => ipcRenderer.invoke("get-config"),
-  updateConfig: (config: { apiKey?: string; model?: string; language?: string; opacity?: number }) => 
+  updateConfig: (config: { apiKey?: string; model?: string; language?: string; opacity?: number }) =>
     ipcRenderer.invoke("update-config", config),
+  setWindowOpacity: (opacity: number) =>
+    ipcRenderer.invoke("set-window-opacity", opacity),
   onShowSettings: (callback: () => void) => {
     const subscription = () => callback()
     ipcRenderer.on("show-settings-dialog", subscription)
@@ -215,9 +217,9 @@ const electronAPI = {
     }
   },
   checkApiKey: () => ipcRenderer.invoke("check-api-key"),
-  validateApiKey: (apiKey: string) => 
+  validateApiKey: (apiKey: string) =>
     ipcRenderer.invoke("validate-api-key", apiKey),
-  openExternal: (url: string) => 
+  openExternal: (url: string) =>
     ipcRenderer.invoke("openExternal", url),
   onApiKeyInvalid: (callback: () => void) => {
     const subscription = () => callback()
@@ -236,7 +238,73 @@ const electronAPI = {
       ipcRenderer.removeListener("delete-last-screenshot", subscription)
     }
   },
-  deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot")
+  deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot"),
+
+  // Wizard and API key testing (UX Redesign 2025)
+  testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic") =>
+    ipcRenderer.invoke("test-api-key", apiKey, provider),
+  completeWizard: (mode: 'quick' | 'advanced') =>
+    ipcRenderer.invoke("wizard-complete", mode),
+  resetWizard: () =>
+    ipcRenderer.invoke("wizard-reset"),
+  isWizardCompleted: () =>
+    ipcRenderer.invoke("is-wizard-completed"),
+
+  // Audio sources for application selection
+  getAudioSources: () =>
+    ipcRenderer.invoke("get-audio-sources"),
+
+  // Audio processing APIs
+  testAudio: (audioData: { buffer: number[]; mimeType: string }) =>
+    ipcRenderer.invoke("test-audio", audioData),
+  transcribeAudio: (audioData: { buffer: number[]; mimeType: string }) =>
+    ipcRenderer.invoke("transcribe-audio", audioData),
+  generateHints: (transcript: string) =>
+    ipcRenderer.invoke("generate-hints", transcript),
+
+  // ========== Live Interview APIs ==========
+  liveInterviewStart: (config?: {
+    systemInstruction?: string;
+    modelName?: string;
+    apiKeyOverride?: string;
+  }) => ipcRenderer.invoke("live-interview-start", config || {}),
+
+  liveInterviewStop: () =>
+    ipcRenderer.invoke("live-interview-stop"),
+
+  liveInterviewStatus: () =>
+    ipcRenderer.invoke("live-interview-status"),
+
+  liveInterviewSendText: (text: string) =>
+    ipcRenderer.invoke("live-interview-send-text", text),
+
+  liveInterviewSendAudio: (pcmBase64: string, level: number) =>
+    ipcRenderer.invoke("live-interview-send-audio", pcmBase64, level),
+
+  // Live Interview event listeners
+  onLiveInterviewStatus: (callback: (status: any) => void) => {
+    const subscription = (_: any, status: any) => callback(status)
+    ipcRenderer.on("live-interview-status", subscription)
+    return () => {
+      ipcRenderer.removeListener("live-interview-status", subscription)
+    }
+  },
+
+  onLiveInterviewState: (callback: (state: string) => void) => {
+    const subscription = (_: any, state: string) => callback(state)
+    ipcRenderer.on("live-interview-state", subscription)
+    return () => {
+      ipcRenderer.removeListener("live-interview-state", subscription)
+    }
+  },
+
+  onLiveInterviewError: (callback: (error: string) => void) => {
+    const subscription = (_: any, error: string) => callback(error)
+    ipcRenderer.on("live-interview-error", subscription)
+    return () => {
+      ipcRenderer.removeListener("live-interview-error", subscription)
+    }
+  }
 }
 
 // Before exposing the API

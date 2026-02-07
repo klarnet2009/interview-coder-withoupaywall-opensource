@@ -1,5 +1,9 @@
 import SubscribedApp from "./_pages/SubscribedApp"
+import DebugLive from "./_pages/DebugLive"
+import { Routes, Route } from "react-router-dom"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import { UpdateNotification } from "./components/UpdateNotification"
+import { WizardContainer } from "./components/Wizard/WizardContainer"
 import {
   QueryClient,
   QueryClientProvider
@@ -15,6 +19,7 @@ import {
 import { ToastContext } from "./contexts/toast"
 import { WelcomeScreen } from "./components/WelcomeScreen"
 import { SettingsDialog } from "./components/Settings/SettingsDialog"
+import { AppConfig, WizardMode } from "./types"
 
 // Create a React Query client
 const queryClient = new QueryClient({
@@ -44,26 +49,26 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
-  // Note: Model selection is now handled via separate extraction/solution/debugging model settings
+
+  // Wizard state
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardCompleted, setWizardCompleted] = useState(false)
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Set unlimited credits
   const updateCredits = useCallback(() => {
     setCredits(999) // No credit limit in this version
-    window.__CREDITS__ = 999
   }, [])
 
   // Helper function to safely update language
   const updateLanguage = useCallback((newLanguage: string) => {
     setCurrentLanguage(newLanguage)
-    window.__LANGUAGE__ = newLanguage
   }, [])
 
   // Helper function to mark initialization complete
   const markInitialized = useCallback(() => {
     setIsInitialized(true)
-    window.__IS_INITIALIZED__ = true
   }, [])
 
   // Show toast method
@@ -83,26 +88,40 @@ function App() {
     []
   )
 
-  // Check for OpenAI API key and prompt if not found
+  // Check for wizard completion and API key
   useEffect(() => {
-    const checkApiKey = async () => {
+    const checkAppState = async () => {
       try {
-        const hasKey = await window.electronAPI.checkApiKey()
+        const [hasKey, isWizardDone] = await Promise.all([
+          window.electronAPI.checkApiKey(),
+          window.electronAPI.isWizardCompleted()
+        ])
+
         setHasApiKey(hasKey)
-        
-        // If no API key is found, show the settings dialog after a short delay
-        if (!hasKey) {
+        setWizardCompleted(isWizardDone)
+
+        console.log("App state check:", { hasKey, isWizardDone })
+
+        // Show wizard if not completed (even if has API key - for new users)
+        if (!isWizardDone) {
+          console.log("Wizard not completed, showing wizard")
+          setShowWizard(true)
+        } else if (!hasKey) {
+          // Wizard done but no API key - show settings
+          console.log("No API key, opening settings automatically")
           setTimeout(() => {
             setIsSettingsOpen(true)
           }, 1000)
+        } else {
+          console.log("App ready - hasKey:", hasKey, "wizardDone:", isWizardDone)
         }
       } catch (error) {
-        console.error("Failed to check API key:", error)
+        console.error("Failed to check app state:", error)
       }
     }
-    
+
     if (isInitialized) {
-      checkApiKey()
+      checkAppState()
     }
   }, [isInitialized])
 
@@ -114,12 +133,12 @@ function App() {
         // Find both native select elements and custom dropdowns
         const selectElements = document.querySelectorAll('select');
         const customDropdowns = document.querySelectorAll('.dropdown-trigger, [role="combobox"], button:has(.dropdown)');
-        
+
         // Enable native selects
         selectElements.forEach(dropdown => {
           dropdown.disabled = false;
         });
-        
+
         // Enable custom dropdowns by removing any disabled attributes
         customDropdowns.forEach(dropdown => {
           if (dropdown instanceof HTMLElement) {
@@ -127,10 +146,10 @@ function App() {
             dropdown.setAttribute('aria-disabled', 'false');
           }
         });
-        
+
         console.log(`Enabled ${selectElements.length} select elements and ${customDropdowns.length} custom dropdowns`);
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isInitialized]);
@@ -141,7 +160,7 @@ function App() {
       console.log("Show settings dialog requested");
       setIsSettingsOpen(true);
     });
-    
+
     return () => {
       unsubscribeSettings();
     };
@@ -154,20 +173,17 @@ function App() {
       try {
         // Set unlimited credits
         updateCredits()
-        
+
         // Load config including language and model settings
         const config = await window.electronAPI.getConfig()
-        
+
         // Load language preference
         if (config && config.language) {
           updateLanguage(config.language)
         } else {
           updateLanguage("python")
         }
-        
-        // Model settings are now managed through the settings dialog
-        // and stored in config as extractionModel, solutionModel, and debuggingModel
-        
+
         markInitialized()
       } catch (error) {
         console.error("Failed to initialize app:", error)
@@ -176,7 +192,7 @@ function App() {
         markInitialized()
       }
     }
-    
+
     initializeApp()
 
     // Event listeners for process events
@@ -204,17 +220,54 @@ function App() {
     return () => {
       window.electronAPI.removeListener("API_KEY_INVALID", onApiKeyInvalid)
       unsubscribeSolutionSuccess()
-      window.__IS_INITIALIZED__ = false
       setIsInitialized(false)
     }
   }, [updateCredits, updateLanguage, markInitialized, showToast])
+
+  // Wizard handlers
+  const handleWizardComplete = useCallback(async (config: Partial<AppConfig>, mode: WizardMode) => {
+    try {
+      // Save all config updates
+      await window.electronAPI.updateConfig(config)
+
+      // Mark wizard as completed
+      await window.electronAPI.completeWizard(mode)
+
+      setWizardCompleted(true)
+      setHasApiKey(true)
+      setShowWizard(false)
+
+      showToast("Success", "Setup completed! Welcome to Interview Assistant.", "success")
+
+      // Reload to apply all settings
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
+    } catch (error) {
+      console.error("Failed to complete wizard:", error)
+      showToast("Error", "Failed to save settings", "error")
+    }
+  }, [showToast])
+
+  const handleWizardSkip = useCallback(() => {
+    // User chose to skip wizard - still mark as completed so we don't show it again
+    window.electronAPI.completeWizard('quick').then(() => {
+      setWizardCompleted(true)
+      setShowWizard(false)
+
+      // If no API key, show settings
+      if (!hasApiKey) {
+        setIsSettingsOpen(true)
+      }
+    })
+  }, [hasApiKey])
 
   // API Key dialog management
   const handleOpenSettings = useCallback(() => {
     console.log('Opening settings dialog');
     setIsSettingsOpen(true);
   }, []);
-  
+
   const handleCloseSettings = useCallback((open: boolean) => {
     console.log('Settings dialog state changed:', open);
     setIsSettingsOpen(open);
@@ -225,7 +278,7 @@ function App() {
       await window.electronAPI.updateConfig({ apiKey })
       setHasApiKey(true)
       showToast("Success", "API key saved successfully", "success")
-      
+
       // Reload app after a short delay to reinitialize with the new API key
       setTimeout(() => {
         window.location.reload()
@@ -240,36 +293,52 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ToastContext.Provider value={{ showToast }}>
-          <div className="relative">
-            {isInitialized ? (
-              hasApiKey ? (
-                <SubscribedApp
-                  credits={credits}
-                  currentLanguage={currentLanguage}
-                  setLanguage={updateLanguage}
-                />
-              ) : (
-                <WelcomeScreen onOpenSettings={handleOpenSettings} />
-              )
-            ) : (
-              <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-white/20 border-t-white/80 rounded-full animate-spin"></div>
-                  <p className="text-white/60 text-sm">
-                    Initializing...
-                  </p>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/debug-live" element={<DebugLive />} />
+              <Route path="*" element={
+                <div className="relative">
+                  {isInitialized ? (
+                    hasApiKey && wizardCompleted ? (
+                      <SubscribedApp
+                        credits={credits}
+                        currentLanguage={currentLanguage}
+                        setLanguage={updateLanguage}
+                      />
+                    ) : (
+                      <WelcomeScreen onOpenSettings={handleOpenSettings} />
+                    )
+                  ) : (
+                    <div className="min-h-screen bg-black flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white/80 rounded-full animate-spin"></div>
+                        <p className="text-white/60 text-sm">
+                          Initializing...
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <UpdateNotification />
                 </div>
-              </div>
-            )}
-            <UpdateNotification />
-          </div>
-          
+              } />
+            </Routes>
+          </ErrorBoundary>
+
+          {/* Wizard */}
+          {showWizard && (
+            <WizardContainer
+              initialMode="quick"
+              onComplete={handleWizardComplete}
+              onSkip={handleWizardSkip}
+            />
+          )}
+
           {/* Settings Dialog */}
-          <SettingsDialog 
-            open={isSettingsOpen} 
-            onOpenChange={handleCloseSettings} 
+          <SettingsDialog
+            open={isSettingsOpen}
+            onOpenChange={handleCloseSettings}
           />
-          
+
           <Toast
             open={toastState.open}
             onOpenChange={(open) =>

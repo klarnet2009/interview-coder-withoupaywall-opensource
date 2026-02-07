@@ -13,17 +13,14 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     e: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const newLanguage = e.target.value
-    
+
     try {
       // Save language preference to electron store
       await window.electronAPI.updateConfig({ language: newLanguage })
-      
-      // Update global language variable
-      window.__LANGUAGE__ = newLanguage
-      
+
       // Update state in React
       setLanguage(newLanguage)
-      
+
       console.log(`Language changed to ${newLanguage}`);
     } catch (error) {
       console.error("Error updating language:", error)

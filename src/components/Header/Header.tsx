@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, LogOut, ChevronDown, ChevronUp, GripHorizontal } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useToast } from '../../contexts/toast';
 
@@ -53,7 +53,7 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
     // Also save the language preference to config
     window.electronAPI.updateConfig({
       language: lang
-    }).catch(error => {
+    }).catch((error: any) => {
       console.error('Failed to save language preference:', error);
     });
   };
@@ -66,8 +66,21 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
   const currentLangObj = LANGUAGES.find(lang => lang.value === currentLanguage) || LANGUAGES[0];
 
   return (
-    <div className="bg-black p-2 border-b border-white/10 flex items-center justify-between">
-      <div className="flex items-center space-x-1">
+    <>
+      {/* Drag Handle */}
+      <div 
+        className="h-5 bg-white/[0.02] border-b border-white/5 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/[0.04] transition-colors"
+        style={{ ['WebkitAppRegion' as string]: 'drag', ['appRegion' as string]: 'drag' }}
+        title="Drag to move window"
+      >
+        <GripHorizontal className="w-4 h-4 text-white/20" />
+      </div>
+      
+      <div 
+        className="bg-black p-2 border-b border-white/10 flex items-center justify-between"
+        style={{ ['WebkitAppRegion' as string]: 'drag', ['appRegion' as string]: 'drag' }}
+      >
+      <div className="flex items-center space-x-1" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
         <span className="text-white text-sm mr-2">Language:</span>
         <div className="relative">
           <button
@@ -104,7 +117,7 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
         <Button
           variant="ghost"
           size="sm"
@@ -128,5 +141,6 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
         </Button>
       </div>
     </div>
+    </>
   );
 }

@@ -154,42 +154,9 @@ function initializeHelpers() {
   } as IShortcutsHelperDeps)
 }
 
-// Auth callback handler
-
-// Register the interview-coder protocol
-if (process.platform === "darwin") {
-  app.setAsDefaultProtocolClient("interview-coder")
-} else {
-  app.setAsDefaultProtocolClient("interview-coder", process.execPath, [
-    path.resolve(process.argv[1] || "")
-  ])
-}
-
-// Handle the protocol. In this case, we choose to show an Error Box.
-if (process.defaultApp && process.argv.length >= 2) {
-  app.setAsDefaultProtocolClient("interview-coder", process.execPath, [
-    path.resolve(process.argv[1])
-  ])
-}
-
-// Force Single Instance Lock
-const gotTheLock = app.requestSingleInstanceLock()
-
-if (!gotTheLock) {
-  app.quit()
-} else {
-  app.on("second-instance", (event, commandLine) => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (state.mainWindow) {
-      if (state.mainWindow.isMinimized()) state.mainWindow.restore()
-      state.mainWindow.focus()
-
-      // Protocol handler removed - no longer using auth callbacks
-    }
-  })
-}
-
 // Auth callback removed as we no longer use Supabase authentication
+
+// Single instance handling is done at the end of the file
 
 // Window management functions
 async function createWindow(): Promise<void> {
@@ -268,7 +235,7 @@ async function createWindow(): Promise<void> {
       // Fallback to local file if dev server is not available
       const indexPath = path.join(__dirname, "../dist/index.html")
       console.log("Falling back to:", indexPath)
-      if (fs.existsSync(indexPath)) {
+      if (fs.existsSync(indexPath) && state.mainWindow) {
         state.mainWindow.loadFile(indexPath)
       } else {
         console.error("Could not find index.html in dist folder")
@@ -389,34 +356,36 @@ function handleWindowClosed(): void {
 
 // Window visibility functions
 function hideMainWindow(): void {
-  if (!state.mainWindow?.isDestroyed()) {
-    const bounds = state.mainWindow.getBounds();
+  const win = state.mainWindow;
+  if (win && !win.isDestroyed()) {
+    const bounds = win.getBounds();
     state.windowPosition = { x: bounds.x, y: bounds.y };
     state.windowSize = { width: bounds.width, height: bounds.height };
-    state.mainWindow.setIgnoreMouseEvents(true, { forward: true });
-    state.mainWindow.setOpacity(0);
+    win.setIgnoreMouseEvents(true, { forward: true });
+    win.setOpacity(0);
     state.isWindowVisible = false;
     console.log('Window hidden, opacity set to 0');
   }
 }
 
 function showMainWindow(): void {
-  if (!state.mainWindow?.isDestroyed()) {
+  const win = state.mainWindow;
+  if (win && !win.isDestroyed()) {
     if (state.windowPosition && state.windowSize) {
-      state.mainWindow.setBounds({
+      win.setBounds({
         ...state.windowPosition,
         ...state.windowSize
       });
     }
-    state.mainWindow.setIgnoreMouseEvents(false);
-    state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
-    state.mainWindow.setVisibleOnAllWorkspaces(true, {
+    win.setIgnoreMouseEvents(false);
+    win.setAlwaysOnTop(true, "screen-saver", 1);
+    win.setVisibleOnAllWorkspaces(true, {
       visibleOnFullScreen: true
     });
-    state.mainWindow.setContentProtection(true);
-    state.mainWindow.setOpacity(0); // Set opacity to 0 before showing
-    state.mainWindow.showInactive(); // Use showInactive instead of show+focus
-    state.mainWindow.setOpacity(1); // Then set opacity to 1 after showing
+    win.setContentProtection(true);
+    win.setOpacity(0); // Set opacity to 0 before showing
+    win.showInactive(); // Use showInactive instead of show+focus
+    win.setOpacity(1); // Then set opacity to 1 after showing
     state.isWindowVisible = true;
     console.log('Window shown with showInactive(), opacity set to 1');
   }
@@ -472,13 +441,14 @@ function moveWindowVertical(updateFn: (y: number) => number): void {
 
 // Window dimension functions
 function setWindowDimensions(width: number, height: number): void {
-  if (!state.mainWindow?.isDestroyed()) {
-    const [currentX, currentY] = state.mainWindow.getPosition()
+  const win = state.mainWindow;
+  if (win && !win.isDestroyed()) {
+    const [currentX, currentY] = win.getPosition()
     const primaryDisplay = screen.getPrimaryDisplay()
     const workArea = primaryDisplay.workAreaSize
     const maxWidth = Math.floor(workArea.width * 0.5)
 
-    state.mainWindow.setBounds({
+    win.setBounds({
       x: Math.min(currentX, workArea.width - maxWidth),
       y: currentY,
       width: Math.min(width + 32, maxWidth),
@@ -505,6 +475,44 @@ function loadEnvVariables() {
 // Initialize application
 async function initializeApp() {
   try {
+    // Check for single instance
+    const gotTheLock = app.requestSingleInstanceLock()
+    if (!gotTheLock) {
+      console.log("Another instance is already running, quitting...")
+      app.quit()
+      return
+    }
+
+    // Handle second instance
+    app.on("second-instance", (event, commandLine) => {
+      console.log("second-instance event received:", commandLine)
+      if (!state.mainWindow) {
+        createWindow()
+      } else {
+        if (state.mainWindow.isMinimized()) state.mainWindow.restore()
+        state.mainWindow.focus()
+      }
+    })
+
+    // Auth callback handling removed
+    app.on("open-url", (event, url) => {
+      console.log("open-url event received:", url)
+      event.preventDefault()
+    })
+
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") {
+        app.quit()
+        state.mainWindow = null
+      }
+    })
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
+
     // Set custom cache directory to prevent permission issues
     const appDataPath = path.join(app.getPath('appData'), 'interview-coder-v1')
     const sessionPath = path.join(appDataPath, 'session')
@@ -524,6 +532,19 @@ async function initializeApp() {
     app.setPath('cache', cachePath)
       
     loadEnvVariables()
+    
+    // Register the interview-coder protocol (after app is ready)
+    try {
+      if (process.platform === "darwin") {
+        app.setAsDefaultProtocolClient("interview-coder")
+      } else {
+        app.setAsDefaultProtocolClient("interview-coder", process.execPath, [
+          path.resolve(process.argv[1] || "")
+        ])
+      }
+    } catch (error) {
+      console.error("Failed to register protocol:", error)
+    }
     
     // Ensure a configuration file exists
     if (!configHelper.hasApiKey()) {
@@ -575,42 +596,7 @@ async function initializeApp() {
   }
 }
 
-// Auth callback handling removed - no longer needed
-app.on("open-url", (event, url) => {
-  console.log("open-url event received:", url)
-  event.preventDefault()
-})
-
-// Handle second instance (removed auth callback handling)
-app.on("second-instance", (event, commandLine) => {
-  console.log("second-instance event received:", commandLine)
-  
-  // Focus or create the main window
-  if (!state.mainWindow) {
-    createWindow()
-  } else {
-    if (state.mainWindow.isMinimized()) state.mainWindow.restore()
-    state.mainWindow.focus()
-  }
-})
-
-// Prevent multiple instances of the app
-if (!app.requestSingleInstanceLock()) {
-  app.quit()
-} else {
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") {
-      app.quit()
-      state.mainWindow = null
-    }
-  })
-}
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
-})
+// App event handlers will be set up after single instance check in initializeApp
 
 // State getter/setter functions
 function getMainWindow(): BrowserWindow | null {
@@ -711,4 +697,10 @@ export {
   getHasDebugged
 }
 
-app.whenReady().then(initializeApp)
+// Start the application when Electron is ready
+if (app && app.whenReady) {
+  app.whenReady().then(initializeApp)
+} else {
+  console.error("Electron app is not available. Make sure you're running this with Electron.")
+  process.exit(1)
+}

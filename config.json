@@ -1,0 +1,39 @@
+{
+  "apiKey": "",
+  "apiProvider": "gemini",
+  "extractionModel": "gemini-2.0-flash",
+  "solutionModel": "gemini-2.0-flash",
+  "debuggingModel": "gemini-2.0-flash",
+  "language": "python",
+  "opacity": 1,
+  "wizardCompleted": false,
+  "profiles": [],
+  "interviewPreferences": {
+    "mode": "coding",
+    "answerStyle": "structured",
+    "language": "english",
+    "answerLanguage": "same",
+    "autoDetectLanguage": false,
+    "confidenceHelper": true
+  },
+  "audioConfig": {
+    "source": "system",
+    "autoStart": true,
+    "testCompleted": false
+  },
+  "displayConfig": {
+    "mode": "standard",
+    "opacity": 1,
+    "stealthMode": false,
+    "hideFromTaskbar": false,
+    "hideTitle": false,
+    "dimOnMouseAway": false,
+    "hotkeys": {
+      "toggle": "Ctrl+`",
+      "pause": "Ctrl+Space",
+      "copy": "Ctrl+Shift+C",
+      "compact": "Ctrl+=",
+      "emergencyHide": "Esc Esc Esc"
+    }
+  }
+}
