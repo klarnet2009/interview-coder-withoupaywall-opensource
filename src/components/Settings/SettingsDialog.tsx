@@ -606,13 +606,22 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
           >
             Cancel
           </Button>
-          <Button
-            className="px-4 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors"
-            onClick={handleSave}
-            disabled={isLoading || !apiKey}
-          >
-            {isLoading ? "Saving..." : "Save Settings"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.electronAPI.quitApp()}
+              className="border-red-500/30 hover:bg-red-500/10 text-red-400"
+            >
+              Quit
+            </Button>
+            <Button
+              className="px-4 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors"
+              onClick={handleSave}
+              disabled={isLoading || !apiKey}
+            >
+              {isLoading ? "Saving..." : "Save Settings"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

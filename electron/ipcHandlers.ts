@@ -343,6 +343,12 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return { success: false, error: "Main window not available" };
   })
 
+  // Quit application handler
+  ipcMain.handle("quit-app", () => {
+    const { app } = require("electron");
+    app.quit();
+  })
+
   // Window management handlers
   ipcMain.handle("toggle-window", () => {
     try {

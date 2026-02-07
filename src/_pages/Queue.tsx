@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
-import QueueCommands from "../components/Queue/QueueCommands"
-import { LiveInterviewPanel, ResponsePanel } from "../components/LiveInterview"
-
+import { UnifiedPanel } from "../components/UnifiedPanel"
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
 
@@ -57,7 +54,7 @@ const Queue: React.FC<QueueProps> = ({
       )
 
       if (response.success) {
-        refetch() // Refetch screenshots instead of managing state directly
+        refetch()
       } else {
         console.error("Failed to delete screenshot:", response.error)
         showToast("Error", "Failed to delete the screenshot file", "error")
@@ -96,9 +93,7 @@ const Queue: React.FC<QueueProps> = ({
       window.electronAPI.onResetView(() => refetch()),
       window.electronAPI.onDeleteLastScreenshot(async () => {
         if (screenshots.length > 0) {
-          const lastScreenshot = screenshots[screenshots.length - 1];
           await handleDeleteScreenshot(screenshots.length - 1);
-          // Toast removed as requested
         } else {
           showToast("No Screenshots", "There are no screenshots to delete", "neutral");
         }
@@ -109,7 +104,7 @@ const Queue: React.FC<QueueProps> = ({
           "There was an error processing your screenshots.",
           "error"
         )
-        setView("queue") // Revert to queue if processing fails
+        setView("queue")
         console.error("Processing error:", error)
       }),
       window.electronAPI.onProcessingNoScreenshots(() => {
@@ -119,7 +114,6 @@ const Queue: React.FC<QueueProps> = ({
           "neutral"
         )
       }),
-      // Removed out of credits handler - unlimited credits in this version
     ]
 
     return () => {
@@ -133,36 +127,18 @@ const Queue: React.FC<QueueProps> = ({
     setTooltipHeight(height)
   }
 
-  const handleOpenSettings = () => {
-    window.electronAPI.openSettingsPortal();
-  };
-
   return (
-    <div ref={contentRef} className={`bg-transparent w-full`}>
+    <div ref={contentRef} className="bg-transparent w-full">
       <div className="px-4 py-3">
-        <div className="space-y-3">
-          <ScreenshotQueue
-            isLoading={false}
-            screenshots={screenshots}
-            onDeleteScreenshot={handleDeleteScreenshot}
-          />
-
-          {/* Live Interview Panel - Real-time AI assistance */}
-          <div className="min-h-[250px] max-h-[350px]">
-            <LiveInterviewPanel />
-          </div>
-
-          {/* AI Response Panel - Separate display for hints */}
-          <ResponsePanel />
-
-          <QueueCommands
-            onTooltipVisibilityChange={handleTooltipVisibilityChange}
-            screenshotCount={screenshots.length}
-            credits={credits}
-            currentLanguage={currentLanguage}
-            setLanguage={setLanguage}
-          />
-        </div>
+        <UnifiedPanel
+          screenshots={screenshots}
+          onDeleteScreenshot={handleDeleteScreenshot}
+          screenshotCount={screenshots.length}
+          credits={credits}
+          currentLanguage={currentLanguage}
+          setLanguage={setLanguage}
+          onTooltipVisibilityChange={handleTooltipVisibilityChange}
+        />
       </div>
     </div>
   )

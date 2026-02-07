@@ -48,6 +48,7 @@ export class LiveInterviewService extends EventEmitter {
     private hintTriggerTimeout: NodeJS.Timeout | null = null;
     private lastTranscriptTime: number = 0;
     private lastHintTranscript: string = '';
+    private pendingHint: boolean = false;
 
     // Minimum time to stay in 'transcribing' before allowing transition back
     private static readonly TRANSCRIBE_HOLD_MS = 2000;
@@ -56,7 +57,7 @@ export class LiveInterviewService extends EventEmitter {
     // Minimum new transcript length to trigger new hint generation
     private static readonly MIN_NEW_CHARS_FOR_HINT = 10;
     // Silence duration after last transcript token to auto-trigger hint
-    private static readonly HINT_TRIGGER_SILENCE_MS = 2000;
+    private static readonly HINT_TRIGGER_SILENCE_MS = 1500;
 
     constructor(config: LiveInterviewConfig) {
         super();
@@ -221,6 +222,16 @@ export class LiveInterviewService extends EventEmitter {
                 this.responseHistory = this.currentResponse;
                 this.scheduleTranscriptClear();
                 this.setState('listening');
+
+                // If a hint was requested while this one was streaming, fire it now
+                if (this.pendingHint) {
+                    this.pendingHint = false;
+                    const newContent = this.currentTranscript.length - this.lastHintTranscript.length;
+                    if (newContent >= LiveInterviewService.MIN_NEW_CHARS_FOR_HINT) {
+                        log.info('LiveInterviewService: Firing pending hint generation');
+                        this.triggerHintGeneration();
+                    }
+                }
             }
             this.emitStatus();
         });
@@ -238,9 +249,10 @@ export class LiveInterviewService extends EventEmitter {
     private triggerHintGeneration(): void {
         if (!this.hintService || !this.currentTranscript) return;
 
-        // Don't interrupt an in-flight hint — let it finish streaming
+        // Don't interrupt an in-flight hint — queue it for after completion
         if (this.hintService.isActive()) {
-            log.info('LiveInterviewService: Hint generation already in progress, skipping');
+            log.info('LiveInterviewService: Hint generation in progress, queuing for later');
+            this.pendingHint = true;
             return;
         }
 

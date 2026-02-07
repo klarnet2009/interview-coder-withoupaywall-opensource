@@ -304,7 +304,10 @@ const electronAPI = {
     return () => {
       ipcRenderer.removeListener("live-interview-error", subscription)
     }
-  }
+  },
+
+  // Quit application
+  quitApp: () => ipcRenderer.invoke("quit-app")
 }
 
 // Before exposing the API
