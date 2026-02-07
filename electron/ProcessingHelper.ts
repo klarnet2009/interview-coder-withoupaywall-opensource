@@ -1,13 +1,13 @@
 // ProcessingHelper.ts
 import fs from "node:fs"
-import path from "node:path"
 import { ScreenshotHelper } from "./ScreenshotHelper"
 import { IProcessingHelperDeps } from "./main"
 import * as axios from "axios"
-import { app, BrowserWindow, dialog } from "electron"
+import { BrowserWindow } from "electron"
 import { OpenAI } from "openai"
 import { configHelper } from "./ConfigHelper"
 import Anthropic from '@anthropic-ai/sdk';
+import { appendSessionHistoryEntry } from "./store"
 
 // Interface for Gemini API requests
 interface GeminiMessage {
@@ -29,18 +29,6 @@ interface GeminiResponse {
       }>;
     };
     finishReason: string;
-  }>;
-}
-interface AnthropicMessage {
-  role: 'user' | 'assistant';
-  content: Array<{
-    type: 'text' | 'image';
-    text?: string;
-    source?: {
-      type: 'base64';
-      media_type: string;
-      data: string;
-    };
   }>;
 }
 export class ProcessingHelper {
@@ -127,6 +115,66 @@ export class ProcessingHelper {
       this.geminiApiKey = null;
       this.anthropicClient = null;
     }
+  }
+
+  private recordSessionHistoryEntry(payload: {
+    question: string
+    answer: string
+    tags: string[]
+    notes?: string
+    workspace?: {
+      type: "solution" | "debug"
+      code?: string
+      keyPoints?: string[]
+      timeComplexity?: string
+      spaceComplexity?: string
+      issues?: string[]
+      fixes?: string[]
+      why?: string[]
+      verify?: string[]
+    }
+  }): void {
+    try {
+      const config = configHelper.loadConfig() as {
+        activeProfileId?: string
+        profiles?: Array<{ id: string; name?: string; targetRole?: string }>
+        interviewPreferences?: { mode?: string }
+      }
+
+      const activeProfile = config.profiles?.find(
+        (profile) => profile.id === config.activeProfileId
+      )
+
+      appendSessionHistoryEntry({
+        question: payload.question,
+        answer: payload.answer,
+        tags: payload.tags,
+        company: activeProfile?.name,
+        role:
+          activeProfile?.targetRole ||
+          config.interviewPreferences?.mode ||
+          "coding",
+        notes: payload.notes,
+        workspace: payload.workspace
+      })
+    } catch (storeError) {
+      console.error("Failed to persist session history entry:", storeError)
+    }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+      return error.message
+    }
+    return fallback
+  }
+
+  private getErrorStatus(error: unknown): number | undefined {
+    if (typeof error !== "object" || error === null) {
+      return undefined
+    }
+    const maybeAxios = error as { response?: { status?: number }; status?: number }
+    return maybeAxios.response?.status ?? maybeAxios.status
   }
 
   private async waitForInitialization(
@@ -321,7 +369,7 @@ export class ProcessingHelper {
           result.data
         )
         this.deps.setView("solutions")
-      } catch (error: any) {
+      } catch (error: unknown) {
         mainWindow.webContents.send(
           this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
           error
@@ -335,7 +383,7 @@ export class ProcessingHelper {
         } else {
           mainWindow.webContents.send(
             this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
-            error.message || "Server error. Please try again."
+            this.getErrorMessage(error, "Server error. Please try again.")
           )
         }
         // Reset view back to queue on error
@@ -429,7 +477,7 @@ export class ProcessingHelper {
             result.error
           )
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (axios.isCancel(error)) {
           mainWindow.webContents.send(
             this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
@@ -438,7 +486,7 @@ export class ProcessingHelper {
         } else {
           mainWindow.webContents.send(
             this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
-            error.message
+            this.getErrorMessage(error, "Debug processing failed")
           )
         }
       } finally {
@@ -629,16 +677,18 @@ export class ProcessingHelper {
           const responseText = (response.content[0] as { type: 'text', text: string }).text;
           const jsonText = responseText.replace(/```json|```/g, '').trim();
           problemInfo = JSON.parse(jsonText);
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Error using Anthropic API:", error);
+          const status = this.getErrorStatus(error);
+          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
 
           // Add specific handling for Claude's limitations
-          if (error.status === 429) {
+          if (status === 429) {
             return {
               success: false,
               error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
             };
-          } else if (error.status === 413 || (error.message && error.message.includes("token"))) {
+          } else if (status === 413 || message.includes("token")) {
             return {
               success: false,
               error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
@@ -695,7 +745,7 @@ export class ProcessingHelper {
       }
 
       return { success: false, error: "Failed to process screenshots" };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If the request was cancelled, don't retry
       if (axios.isCancel(error)) {
         return {
@@ -705,17 +755,18 @@ export class ProcessingHelper {
       }
 
       // Handle OpenAI API errors specifically
-      if (error?.response?.status === 401) {
+      const status = this.getErrorStatus(error);
+      if (status === 401) {
         return {
           success: false,
           error: "Invalid OpenAI API key. Please check your settings."
         };
-      } else if (error?.response?.status === 429) {
+      } else if (status === 429) {
         return {
           success: false,
           error: "OpenAI API rate limit exceeded or insufficient credits. Please try again later."
         };
-      } else if (error?.response?.status === 500) {
+      } else if (status === 500) {
         return {
           success: false,
           error: "OpenAI server error. Please try again later."
@@ -725,7 +776,10 @@ export class ProcessingHelper {
       console.error("API Error Details:", error);
       return {
         success: false,
-        error: error.message || "Failed to process screenshots. Please try again."
+        error: this.getErrorMessage(
+          error,
+          "Failed to process screenshots. Please try again."
+        )
       };
     }
   }
@@ -885,16 +939,18 @@ Your solution should be efficient, well-commented, and handle edge cases.
           });
 
           responseContent = (response.content[0] as { type: 'text', text: string }).text;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Error using Anthropic API for solution:", error);
+          const status = this.getErrorStatus(error);
+          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
 
           // Add specific handling for Claude's limitations
-          if (error.status === 429) {
+          if (status === 429) {
             return {
               success: false,
               error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
             };
-          } else if (error.status === 413 || (error.message && error.message.includes("token"))) {
+          } else if (status === 413 || message.includes("token")) {
             return {
               success: false,
               error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
@@ -984,8 +1040,25 @@ Your solution should be efficient, well-commented, and handle edge cases.
         space_complexity: spaceComplexity
       };
 
+      this.recordSessionHistoryEntry({
+        question:
+          typeof problemInfo.problem_statement === "string"
+            ? problemInfo.problem_statement
+            : "Coding interview question",
+        answer: formattedResponse.code,
+        tags: ["solution", language],
+        notes: `Provider: ${config.apiProvider}; Mode: ${config.interviewPreferences?.mode || "coding"}`,
+        workspace: {
+          type: "solution",
+          code: formattedResponse.code,
+          keyPoints: formattedResponse.thoughts,
+          timeComplexity: formattedResponse.time_complexity,
+          spaceComplexity: formattedResponse.space_complexity
+        }
+      });
+
       return { success: true, data: formattedResponse };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (axios.isCancel(error)) {
         return {
           success: false,
@@ -993,12 +1066,13 @@ Your solution should be efficient, well-commented, and handle edge cases.
         };
       }
 
-      if (error?.response?.status === 401) {
+      const status = this.getErrorStatus(error);
+      if (status === 401) {
         return {
           success: false,
           error: "Invalid OpenAI API key. Please check your settings."
         };
-      } else if (error?.response?.status === 429) {
+      } else if (status === 429) {
         return {
           success: false,
           error: "OpenAI API rate limit exceeded or insufficient credits. Please try again later."
@@ -1006,7 +1080,10 @@ Your solution should be efficient, well-commented, and handle edge cases.
       }
 
       console.error("Solution generation error:", error);
-      return { success: false, error: error.message || "Failed to generate solution" };
+      return {
+        success: false,
+        error: this.getErrorMessage(error, "Failed to generate solution")
+      };
     }
   }
 
@@ -1034,6 +1111,33 @@ Your solution should be efficient, well-commented, and handle edge cases.
 
       // Prepare the images for the API call
       const imageDataList = screenshots.map(screenshot => screenshot.data);
+      const debugPrompt = `
+You are a coding interview debugging assistant.
+
+I am solving this problem:
+"${problemInfo.problem_statement}"
+Language: ${language}
+
+Analyze the screenshots and return a debugging report using this exact structure and headings:
+
+### Issue
+- Clear, concrete problems in the current solution.
+
+### Fix
+- Exact corrections or code changes required.
+
+### Why
+- Why each fix is needed and how it improves correctness/performance.
+
+### Verify
+- Concrete validation steps and test checks to confirm the fix.
+
+Rules:
+1. Keep each section actionable and concise.
+2. Use bullet points for every section.
+3. If you include code, put it in a fenced markdown code block with language.
+4. Do not omit any of the four sections.
+`;
 
       let debugContent;
 
@@ -1048,36 +1152,14 @@ Your solution should be efficient, well-commented, and handle edge cases.
         const messages = [
           {
             role: "system" as const,
-            content: `You are a coding interview assistant helping debug and improve solutions. Analyze these screenshots which include either error messages, incorrect outputs, or test cases, and provide detailed debugging help.
-
-Your response MUST follow this exact structure with these section headers (use ### for headers):
-### Issues Identified
-- List each issue as a bullet point with clear explanation
-
-### Specific Improvements and Corrections
-- List specific code changes needed as bullet points
-
-### Optimizations
-- List any performance optimizations if applicable
-
-### Explanation of Changes Needed
-Here provide a clear explanation of why the changes are needed
-
-### Key Points
-- Summary bullet points of the most important takeaways
-
-If you include code examples, use proper markdown code blocks with language specification (e.g. \`\`\`java).`
+            content: "Follow the user's required debug report format exactly. Do not skip section headers."
           },
           {
             role: "user" as const,
             content: [
               {
                 type: "text" as const,
-                text: `I'm solving this coding problem: "${problemInfo.problem_statement}" in ${language}. I need help with debugging or improving my solution. Here are screenshots of my code, the errors or test cases. Please provide a detailed analysis with:
-1. What issues you found in my code
-2. Specific improvements and corrections
-3. Any optimizations that would make the solution better
-4. A clear explanation of the changes needed`
+                text: debugPrompt
               },
               ...imageDataList.map(data => ({
                 type: "image_url" as const,
@@ -1111,30 +1193,6 @@ If you include code examples, use proper markdown code blocks with language spec
         }
 
         try {
-          const debugPrompt = `
-You are a coding interview assistant helping debug and improve solutions. Analyze these screenshots which include either error messages, incorrect outputs, or test cases, and provide detailed debugging help.
-
-I'm solving this coding problem: "${problemInfo.problem_statement}" in ${language}. I need help with debugging or improving my solution.
-
-YOUR RESPONSE MUST FOLLOW THIS EXACT STRUCTURE WITH THESE SECTION HEADERS:
-### Issues Identified
-- List each issue as a bullet point with clear explanation
-
-### Specific Improvements and Corrections
-- List specific code changes needed as bullet points
-
-### Optimizations
-- List any performance optimizations if applicable
-
-### Explanation of Changes Needed
-Here provide a clear explanation of why the changes are needed
-
-### Key Points
-- Summary bullet points of the most important takeaways
-
-If you include code examples, use proper markdown code blocks with language specification (e.g. \`\`\`java).
-`;
-
           const geminiMessages = [
             {
               role: "user",
@@ -1192,30 +1250,6 @@ If you include code examples, use proper markdown code blocks with language spec
         }
 
         try {
-          const debugPrompt = `
-You are a coding interview assistant helping debug and improve solutions. Analyze these screenshots which include either error messages, incorrect outputs, or test cases, and provide detailed debugging help.
-
-I'm solving this coding problem: "${problemInfo.problem_statement}" in ${language}. I need help with debugging or improving my solution.
-
-YOUR RESPONSE MUST FOLLOW THIS EXACT STRUCTURE WITH THESE SECTION HEADERS:
-### Issues Identified
-- List each issue as a bullet point with clear explanation
-
-### Specific Improvements and Corrections
-- List specific code changes needed as bullet points
-
-### Optimizations
-- List any performance optimizations if applicable
-
-### Explanation of Changes Needed
-Here provide a clear explanation of why the changes are needed
-
-### Key Points
-- Summary bullet points of the most important takeaways
-
-If you include code examples, use proper markdown code blocks with language specification.
-`;
-
           const messages = [
             {
               role: "user" as const,
@@ -1251,16 +1285,18 @@ If you include code examples, use proper markdown code blocks with language spec
           });
 
           debugContent = (response.content[0] as { type: 'text', text: string }).text;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error("Error using Anthropic API for debugging:", error);
+          const status = this.getErrorStatus(error);
+          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
 
           // Add specific handling for Claude's limitations
-          if (error.status === 429) {
+          if (status === 429) {
             return {
               success: false,
               error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
             };
-          } else if (error.status === 413 || (error.message && error.message.includes("token"))) {
+          } else if (status === 413 || message.includes("token")) {
             return {
               success: false,
               error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
@@ -1299,29 +1335,158 @@ If you include code examples, use proper markdown code blocks with language spec
 
       if (!debugContent.includes('# ') && !debugContent.includes('## ')) {
         formattedDebugContent = debugContent
-          .replace(/issues identified|problems found|bugs found/i, '## Issues Identified')
-          .replace(/code improvements|improvements|suggested changes/i, '## Code Improvements')
-          .replace(/optimizations|performance improvements/i, '## Optimizations')
-          .replace(/explanation|detailed analysis/i, '## Explanation');
+          .replace(/issues identified|problems found|bugs found/i, '### Issue')
+          .replace(/specific improvements and corrections|code improvements|improvements|suggested changes/i, '### Fix')
+          .replace(/explanation of changes needed|explanation|detailed analysis|rationale/i, '### Why')
+          .replace(/verify|validation|key points|checks/i, '### Verify');
       }
 
-      const bulletPoints = formattedDebugContent.match(/(?:^|\n)[ ]*(?:[-*•]|\d+\.)[ ]+([^\n]+)/g);
-      const thoughts = bulletPoints
-        ? bulletPoints.map(point => point.replace(/^[ ]*(?:[-*•]|\d+\.)[ ]+/, '').trim()).slice(0, 5)
-        : ["Debug analysis based on your screenshots"];
+      const normalizeHeading = (line: string) =>
+        line
+          .replace(/^#+\s*/, "")
+          .replace(/\*\*/g, "")
+          .replace(/[:-]+$/, "")
+          .trim()
+          .toLowerCase();
+
+      const isPotentialHeading = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return false;
+        if (/^#{1,3}\s+/.test(trimmed)) return true;
+        if (/^\*\*.+\*\*$/.test(trimmed)) return true;
+        return /^[A-Za-z][A-Za-z\s/&()-]{2,48}:?$/.test(trimmed);
+      };
+
+      const toBulletList = (raw: string): string[] => {
+        const normalized = raw
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        const bullets = normalized
+          .filter((line) => /^[-*•]\s+/.test(line) || /^\d+\.\s+/.test(line))
+          .map((line) => line.replace(/^[-*•]\s+|^\d+\.\s+/, "").trim())
+          .filter(Boolean);
+
+        if (bullets.length > 0) {
+          return bullets;
+        }
+
+        return normalized
+          .join(" ")
+          .split(/(?<=\.)\s+/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+      };
+
+      const extractSection = (analysis: string, aliases: string[]): string[] => {
+        const lines = analysis.split(/\r?\n/);
+        let start = -1;
+        let end = lines.length;
+
+        for (let index = 0; index < lines.length; index += 1) {
+          const normalized = normalizeHeading(lines[index] || "");
+          if (aliases.some((alias) => normalized.includes(alias))) {
+            start = index + 1;
+            break;
+          }
+        }
+
+        if (start === -1) {
+          return [];
+        }
+
+        for (let index = start; index < lines.length; index += 1) {
+          const line = lines[index];
+          if (
+            isPotentialHeading(line) &&
+            !aliases.some((alias) => normalizeHeading(line).includes(alias))
+          ) {
+            end = index;
+            break;
+          }
+        }
+
+        return toBulletList(lines.slice(start, end).join("\n"));
+      };
+
+      const issues = extractSection(formattedDebugContent, [
+        "issue",
+        "issues identified",
+        "problems",
+        "bugs"
+      ]);
+      const fixes = extractSection(formattedDebugContent, [
+        "fix",
+        "specific improvements",
+        "corrections",
+        "improvements"
+      ]);
+      const why = extractSection(formattedDebugContent, [
+        "why",
+        "explanation",
+        "rationale",
+        "changes needed"
+      ]);
+      const verify = extractSection(formattedDebugContent, [
+        "verify",
+        "validation",
+        "test plan",
+        "checks",
+        "key points"
+      ]);
+
+      const keyPoints = extractSection(formattedDebugContent, ["key points", "summary"]).slice(0, 5);
+      const thoughts =
+        keyPoints.length > 0
+          ? keyPoints
+          : [...issues, ...fixes].slice(0, 5);
+      const nextSteps =
+        verify.length > 0
+          ? verify
+          : ["Re-run failing tests and compare with expected output after applying fixes."];
 
       const response = {
         code: extractedCode,
         debug_analysis: formattedDebugContent,
         thoughts: thoughts,
+        issues,
+        fixes,
+        why,
+        verify,
+        next_steps: nextSteps,
         time_complexity: "N/A - Debug mode",
         space_complexity: "N/A - Debug mode"
       };
 
+      this.recordSessionHistoryEntry({
+        question:
+          typeof problemInfo.problem_statement === "string"
+            ? problemInfo.problem_statement
+            : "Debug interview solution",
+        answer: response.debug_analysis,
+        tags: ["debug", language],
+        notes: `Provider: ${config.apiProvider}; Debug session`,
+        workspace: {
+          type: "debug",
+          code: response.code,
+          keyPoints: response.thoughts,
+          timeComplexity: response.time_complexity,
+          spaceComplexity: response.space_complexity,
+          issues: response.issues,
+          fixes: response.fixes,
+          why: response.why,
+          verify: response.verify
+        }
+      });
+
       return { success: true, data: response };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Debug processing error:", error);
-      return { success: false, error: error.message || "Failed to process debug request" };
+      return {
+        success: false,
+        error: this.getErrorMessage(error, "Failed to process debug request")
+      };
     }
   }
 

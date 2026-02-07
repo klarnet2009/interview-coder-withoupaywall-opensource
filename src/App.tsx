@@ -21,6 +21,12 @@ import { WelcomeScreen } from "./components/WelcomeScreen"
 import { SettingsDialog } from "./components/Settings/SettingsDialog"
 import { AppConfig, WizardMode } from "./types"
 
+interface ProcessingStatusState {
+  visible: boolean
+  message: string
+  progress: number
+}
+
 // Create a React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,7 +54,11 @@ function App() {
   const [currentLanguage, setCurrentLanguage] = useState<string>("python")
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
-  const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatusState>({
+    visible: false,
+    message: "",
+    progress: 0
+  })
 
   // Wizard state
   const [showWizard, setShowWizard] = useState(false)
@@ -166,6 +176,40 @@ function App() {
     };
   }, []);
 
+  // Global processing status visibility
+  useEffect(() => {
+    const hideProcessingStatus = () => {
+      setProcessingStatus({
+        visible: false,
+        message: "",
+        progress: 0
+      })
+    }
+
+    const unsubscribeStatus = window.electronAPI.onProcessingStatus((status) => {
+      const progress = Math.max(0, Math.min(100, Number(status.progress) || 0))
+      setProcessingStatus({
+        visible: true,
+        message: status.message || "Processing...",
+        progress
+      })
+    })
+
+    const cleanupFunctions = [
+      window.electronAPI.onSolutionSuccess(hideProcessingStatus),
+      window.electronAPI.onSolutionError(hideProcessingStatus),
+      window.electronAPI.onDebugSuccess(hideProcessingStatus),
+      window.electronAPI.onDebugError(hideProcessingStatus),
+      window.electronAPI.onResetView(hideProcessingStatus),
+      window.electronAPI.onProcessingNoScreenshots(hideProcessingStatus)
+    ]
+
+    return () => {
+      unsubscribeStatus()
+      cleanupFunctions.forEach((fn) => fn())
+    }
+  }, [])
+
   // Initialize basic app state
   useEffect(() => {
     // Load config and set values
@@ -184,6 +228,15 @@ function App() {
           updateLanguage("python")
         }
 
+        const typedConfig = config as {
+          opacity?: number
+          displayConfig?: { opacity?: number }
+        }
+        const preferredOpacity = typedConfig.displayConfig?.opacity ?? typedConfig.opacity
+        if (typeof preferredOpacity === "number") {
+          await window.electronAPI.setWindowOpacity(preferredOpacity)
+        }
+
         markInitialized()
       } catch (error) {
         console.error("Failed to initialize app:", error)
@@ -199,10 +252,10 @@ function App() {
     const onApiKeyInvalid = () => {
       showToast(
         "API Key Invalid",
-        "Your OpenAI API key appears to be invalid or has insufficient credits",
+        "Your configured API key appears invalid or unavailable",
         "error"
       )
-      setApiKeyDialogOpen(true)
+      setIsSettingsOpen(true)
     }
 
     // Setup API key invalid listener
@@ -273,22 +326,6 @@ function App() {
     setIsSettingsOpen(open);
   }, []);
 
-  const handleApiKeySave = useCallback(async (apiKey: string) => {
-    try {
-      await window.electronAPI.updateConfig({ apiKey })
-      setHasApiKey(true)
-      showToast("Success", "API key saved successfully", "success")
-
-      // Reload app after a short delay to reinitialize with the new API key
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
-    } catch (error) {
-      console.error("Failed to save API key:", error)
-      showToast("Error", "Failed to save API key", "error")
-    }
-  }, [showToast])
-
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -298,6 +335,19 @@ function App() {
               <Route path="/debug-live" element={<DebugLive />} />
               <Route path="*" element={
                 <div className="relative">
+                  {processingStatus.visible && (
+                    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] w-[min(520px,90vw)] rounded-xl border border-white/10 bg-black/90 backdrop-blur-md shadow-xl functional-enter">
+                      <div className="px-4 py-2.5 text-xs text-white/80">
+                        {processingStatus.message}
+                      </div>
+                      <div className="h-1 w-full bg-white/10 rounded-b-xl overflow-hidden">
+                        <div
+                          className="h-full bg-blue-400 transition-all duration-300"
+                          style={{ width: `${processingStatus.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {isInitialized ? (
                     hasApiKey && wizardCompleted ? (
                       <SubscribedApp

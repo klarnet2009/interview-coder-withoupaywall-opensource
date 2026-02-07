@@ -1,10 +1,6 @@
 /// <reference types="vite/client" />
 
-import { ToastMessage } from "./components/ui/toast"
-
 interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL: string
-  readonly VITE_SUPABASE_ANON_KEY: string
   readonly NODE_ENV: string
 }
 
@@ -13,10 +9,6 @@ interface ImportMeta {
 }
 
 interface ElectronAPI {
-  openSubscriptionPortal: (authData: {
-    id: string
-    email: string
-  }) => Promise<{ success: boolean; error?: string }>
   updateContentDimensions: (dimensions: {
     width: number
     height: number
@@ -39,6 +31,9 @@ interface ElectronAPI {
   onDebugSuccess: (callback: (data: Record<string, unknown>) => void) => () => void
   onSolutionError: (callback: (error: string) => void) => () => void
   onProcessingNoScreenshots: (callback: () => void) => () => void
+  onProcessingStatus: (
+    callback: (status: { message: string; progress: number }) => void
+  ) => () => void
   onProblemExtracted: (callback: (data: Record<string, unknown>) => void) => () => void
   onSolutionSuccess: (callback: (data: Record<string, unknown>) => void) => () => void
   onUnauthorized: (callback: () => void) => () => void
@@ -52,13 +47,43 @@ interface ElectronAPI {
   triggerMoveRight: () => Promise<{ success: boolean; error?: string }>
   triggerMoveUp: () => Promise<{ success: boolean; error?: string }>
   triggerMoveDown: () => Promise<{ success: boolean; error?: string }>
-  onSubscriptionUpdated: (callback: () => void) => () => void
-  onSubscriptionPortalClosed: (callback: () => void) => () => void
   // Add update-related methods
   startUpdate: () => Promise<{ success: boolean; error?: string }>
   installUpdate: () => void
   onUpdateAvailable: (callback: (info: { version: string; releaseDate?: string }) => void) => () => void
   onUpdateDownloaded: (callback: (info: { version: string; releaseDate?: string }) => void) => () => void
+  getSessionHistory: () => Promise<Array<{
+    id: string
+    date: number
+    company?: string
+    role?: string
+    notes?: string
+    snippets: Array<{
+      id: string
+      question: string
+      answer: string
+      timestamp: number
+      tags: string[]
+      workspace?: {
+        type: "solution" | "debug"
+        code?: string
+        keyPoints?: string[]
+        timeComplexity?: string
+        spaceComplexity?: string
+        issues?: string[]
+        fixes?: string[]
+        why?: string[]
+        verify?: string[]
+      }
+    }>
+  }>>
+  getSessionHistoryItem: (sessionId: string) => Promise<{
+    id: string
+    date: number
+    snippets: Array<{ id: string; question: string; answer: string; timestamp: number; tags: string[] }>
+  } | null>
+  deleteSessionHistoryItem: (sessionId: string) => Promise<{ success: boolean }>
+  clearSessionHistory: () => Promise<{ success: boolean }>
 }
 
 interface Window {
@@ -72,5 +97,4 @@ interface Window {
   __CREDITS__: number
   __LANGUAGE__: string
   __IS_INITIALIZED__: boolean
-  __AUTH_TOKEN__: string
 }

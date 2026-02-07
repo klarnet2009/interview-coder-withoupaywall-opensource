@@ -1,73 +1,12 @@
-// Debug.tsx
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import React, { useEffect, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
-import { Screenshot } from "../types/screenshots"
-import { ComplexitySection, ContentSection } from "./Solutions"
 import { useToast } from "../contexts/toast"
-
-const CodeSection = ({
-  title,
-  code,
-  isLoading,
-  currentLanguage
-}: {
-  title: string
-  code: React.ReactNode
-  isLoading: boolean
-  currentLanguage: string
-}) => (
-  <div className="space-y-2">
-    <h2 className="text-[13px] font-medium text-white tracking-wide"></h2>
-    {isLoading ? (
-      <div className="space-y-1.5">
-        <div className="mt-4 flex">
-          <p className="text-xs bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
-            Loading solutions...
-          </p>
-        </div>
-      </div>
-    ) : (
-      <div className="w-full">
-        <SyntaxHighlighter
-          showLineNumbers
-          language={currentLanguage == "golang" ? "go" : currentLanguage}
-          style={dracula}
-          customStyle={{
-            maxWidth: "100%",
-            margin: 0,
-            padding: "1rem",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-all",
-            backgroundColor: "rgba(22, 27, 34, 0.5)"
-          }}
-          wrapLongLines={true}
-        >
-          {code as string}
-        </SyntaxHighlighter>
-      </div>
-    )}
-  </div>
-)
-
-async function fetchScreenshots(): Promise<Screenshot[]> {
-  try {
-    const existing = await window.electronAPI.getScreenshots()
-    console.log("Raw screenshot data in Debug:", existing)
-    return (Array.isArray(existing) ? existing : []).map((p) => ({
-      id: p.path,
-      path: p.path,
-      preview: p.preview,
-      timestamp: Date.now()
-    }))
-  } catch (error) {
-    console.error("Error loading screenshots:", error)
-    throw error
-  }
-}
+import { Screenshot } from "../types/screenshots"
+import { ComplexitySection } from "./Solutions"
 
 interface DebugProps {
   isProcessing: boolean
@@ -77,6 +16,213 @@ interface DebugProps {
   credits: number
 }
 
+interface DebugPayload {
+  code?: string
+  debug_analysis?: string
+  thoughts?: string[]
+  time_complexity?: string
+  space_complexity?: string
+  issues?: string[]
+  fixes?: string[]
+  why?: string[]
+  verify?: string[]
+  next_steps?: string[]
+}
+
+interface DebugSections {
+  issues: string[]
+  fixes: string[]
+  why: string[]
+  verify: string[]
+}
+
+const normalizeHeading = (line: string) =>
+  line
+    .replace(/^#+\s*/, "")
+    .replace(/\*\*/g, "")
+    .replace(/[:-]+$/, "")
+    .trim()
+    .toLowerCase()
+
+const isPotentialHeading = (line: string) => {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  if (/^#{1,3}\s+/.test(trimmed)) return true
+  if (/^\*\*.+\*\*$/.test(trimmed)) return true
+  return /^[A-Za-z][A-Za-z\s/&()-]{2,48}:?$/.test(trimmed)
+}
+
+const toBulletList = (raw: string): string[] => {
+  const normalized = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  const bullets = normalized
+    .filter((line) => /^[-*•]\s+/.test(line) || /^\d+\.\s+/.test(line))
+    .map((line) => line.replace(/^[-*•]\s+|^\d+\.\s+/, "").trim())
+    .filter(Boolean)
+
+  if (bullets.length > 0) {
+    return bullets
+  }
+
+  return normalized
+    .join(" ")
+    .split(/(?<=\.)\s+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+const extractSection = (analysis: string, aliases: string[]): string[] => {
+  const lines = analysis.split(/\r?\n/)
+  let start = -1
+  let end = lines.length
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const normalized = normalizeHeading(lines[index] || "")
+    if (aliases.some((alias) => normalized.includes(alias))) {
+      start = index + 1
+      break
+    }
+  }
+
+  if (start === -1) {
+    return []
+  }
+
+  for (let index = start; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (isPotentialHeading(line) && !aliases.some((alias) => normalizeHeading(line).includes(alias))) {
+      end = index
+      break
+    }
+  }
+
+  return toBulletList(lines.slice(start, end).join("\n"))
+}
+
+const parseSectionsFromAnalysis = (analysis: string): DebugSections => ({
+  issues: extractSection(analysis, ["issues identified", "issue", "problems", "bugs"]),
+  fixes: extractSection(analysis, ["specific improvements", "fix", "corrections", "improvements"]),
+  why: extractSection(analysis, ["why", "explanation", "changes needed", "rationale"]),
+  verify: extractSection(analysis, ["verify", "validation", "test plan", "key points", "checks"])
+})
+
+const resolveDebugSections = (payload: DebugPayload): DebugSections => {
+  const fromPayload: DebugSections = {
+    issues: Array.isArray(payload.issues) ? payload.issues : [],
+    fixes: Array.isArray(payload.fixes) ? payload.fixes : [],
+    why: Array.isArray(payload.why) ? payload.why : [],
+    verify: Array.isArray(payload.verify)
+      ? payload.verify
+      : Array.isArray(payload.next_steps)
+      ? payload.next_steps
+      : []
+  }
+
+  if (
+    fromPayload.issues.length > 0 ||
+    fromPayload.fixes.length > 0 ||
+    fromPayload.why.length > 0 ||
+    fromPayload.verify.length > 0
+  ) {
+    return fromPayload
+  }
+
+  if (payload.debug_analysis) {
+    return parseSectionsFromAnalysis(payload.debug_analysis)
+  }
+
+  return {
+    issues: [],
+    fixes: [],
+    why: [],
+    verify: []
+  }
+}
+
+const StructuredListCard = ({
+  title,
+  items,
+  loadingText,
+  fallbackText
+}: {
+  title: string
+  items: string[]
+  loadingText: string
+  fallbackText: string
+}) => (
+  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+    <h2 className="text-[13px] font-medium text-white tracking-wide">{title}</h2>
+    {items.length === 0 ? (
+      <p className="text-[13px] text-white/45">{loadingText || fallbackText}</p>
+    ) : (
+      <div className="space-y-1.5">
+        {items.map((item, index) => (
+          <div key={`${title}-${index}`} className="flex items-start gap-2 text-[13px] leading-[1.45] text-gray-100">
+            <div className="w-1 h-1 rounded-full bg-blue-400/80 mt-2 shrink-0" />
+            <div>{item}</div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)
+
+const CodeSection = ({
+  code,
+  isLoading,
+  currentLanguage
+}: {
+  code: string | null
+  isLoading: boolean
+  currentLanguage: string
+}) => (
+  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+    <h2 className="text-[13px] font-medium text-white tracking-wide">Code</h2>
+    {isLoading ? (
+      <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+        Generating updated code...
+      </p>
+    ) : (
+      <div className="w-full overflow-hidden rounded-md">
+        <SyntaxHighlighter
+          showLineNumbers
+          language={currentLanguage === "golang" ? "go" : currentLanguage}
+          style={dracula}
+          customStyle={{
+            maxWidth: "100%",
+            margin: 0,
+            padding: "1rem",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+            backgroundColor: "rgba(22, 27, 34, 0.5)"
+          }}
+          wrapLongLines
+        >
+          {code || "// Debug mode - see analysis below"}
+        </SyntaxHighlighter>
+      </div>
+    )}
+  </div>
+)
+
+async function fetchScreenshots(): Promise<Screenshot[]> {
+  try {
+    const existing = await window.electronAPI.getScreenshots()
+    return (Array.isArray(existing) ? existing : []).map((preview) => ({
+      id: preview.path,
+      path: preview.path,
+      preview: preview.preview,
+      timestamp: Date.now()
+    }))
+  } catch (error) {
+    console.error("Error loading screenshots:", error)
+    throw error
+  }
+}
+
 const Debug: React.FC<DebugProps> = ({
   isProcessing,
   setIsProcessing,
@@ -84,9 +230,23 @@ const Debug: React.FC<DebugProps> = ({
   setLanguage,
   credits
 }) => {
+  const { showToast } = useToast()
+  const queryClient = useQueryClient()
+  const contentRef = useRef<HTMLDivElement>(null)
+
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [tooltipHeight, setTooltipHeight] = useState(0)
-  const { showToast } = useToast()
+  const [newCode, setNewCode] = useState<string | null>(null)
+  const [thoughtsData, setThoughtsData] = useState<string[]>([])
+  const [timeComplexityData, setTimeComplexityData] = useState<string | null>(null)
+  const [spaceComplexityData, setSpaceComplexityData] = useState<string | null>(null)
+  const [debugAnalysis, setDebugAnalysis] = useState<string | null>(null)
+  const [debugSections, setDebugSections] = useState<DebugSections>({
+    issues: [],
+    fixes: [],
+    why: [],
+    verify: []
+  })
 
   const { data: screenshots = [], refetch } = useQuery<Screenshot[]>({
     queryKey: ["screenshots"],
@@ -96,106 +256,47 @@ const Debug: React.FC<DebugProps> = ({
     refetchOnWindowFocus: false
   })
 
-  const [newCode, setNewCode] = useState<string | null>(null)
-  const [thoughtsData, setThoughtsData] = useState<string[] | null>(null)
-  const [timeComplexityData, setTimeComplexityData] = useState<string | null>(
-    null
-  )
-  const [spaceComplexityData, setSpaceComplexityData] = useState<string | null>(
-    null
-  )
-  const [debugAnalysis, setDebugAnalysis] = useState<string | null>(null)
+  const applyDebugPayload = useCallback(
+    (payload: DebugPayload | null) => {
+      if (!payload) {
+        return
+      }
 
-  const queryClient = useQueryClient()
-  const contentRef = useRef<HTMLDivElement>(null)
+      const resolvedSections = resolveDebugSections(payload)
+      const keyPointsFromPayload = Array.isArray(payload.thoughts) ? payload.thoughts.filter(Boolean) : []
+      const keyPoints =
+        keyPointsFromPayload.length > 0
+          ? keyPointsFromPayload
+          : [...resolvedSections.issues, ...resolvedSections.fixes].slice(0, 5)
+
+      setDebugSections(resolvedSections)
+      setThoughtsData(keyPoints)
+      setDebugAnalysis(payload.debug_analysis || null)
+      setNewCode(payload.code || "// Debug mode - see analysis below")
+      setTimeComplexityData(payload.time_complexity || "N/A - Debug mode")
+      setSpaceComplexityData(payload.space_complexity || "N/A - Debug mode")
+      setIsProcessing(false)
+    },
+    [setIsProcessing]
+  )
 
   useEffect(() => {
-    // Try to get the new solution data from cache first
-    const newSolution = queryClient.getQueryData(["new_solution"]) as {
-      code: string
-      debug_analysis: string
-      thoughts: string[]
-      time_complexity: string
-      space_complexity: string
-    } | null
+    const cachedDebugData = queryClient.getQueryData(["new_solution"]) as DebugPayload | null
+    applyDebugPayload(cachedDebugData)
 
-    // If we have cached data, set all state variables to the cached data
-    if (newSolution) {
-      console.log("Found cached debug solution:", newSolution);
-
-      if (newSolution.debug_analysis) {
-        // Store the debug analysis in its own state variable
-        setDebugAnalysis(newSolution.debug_analysis);
-        // Set code separately for the code section
-        setNewCode(newSolution.code || "// Debug mode - see analysis below");
-
-        // Process thoughts/analysis points
-        if (newSolution.debug_analysis.includes('\n\n')) {
-          const sections = newSolution.debug_analysis.split('\n\n').filter(Boolean);
-          // Pick first few sections as thoughts
-          setThoughtsData(sections.slice(0, 3));
-        } else {
-          setThoughtsData(["Debug analysis based on your screenshots"]);
-        }
-      } else {
-        // Fallback to code or default
-        setNewCode(newSolution.code || "// No analysis available");
-        setThoughtsData(newSolution.thoughts || ["Debug analysis based on your screenshots"]);
-      }
-      setTimeComplexityData(newSolution.time_complexity || "N/A - Debug mode")
-      setSpaceComplexityData(newSolution.space_complexity || "N/A - Debug mode")
-      setIsProcessing(false)
-    }
-
-    // Set up event listeners
     const cleanupFunctions = [
       window.electronAPI.onScreenshotTaken(() => refetch()),
-      window.electronAPI.onResetView(() => refetch()),
-      window.electronAPI.onDebugSuccess((data: any) => {
-        console.log("Debug success event received with data:", data);
-        queryClient.setQueryData(["new_solution"], data);
-
-        // Also update local state for immediate rendering
-        if (data.debug_analysis) {
-          // Store the debug analysis in its own state variable
-          setDebugAnalysis(data.debug_analysis);
-          // Set code separately for the code section
-          setNewCode(data.code || "// Debug mode - see analysis below");
-
-          // Process thoughts/analysis points
-          if (data.debug_analysis.includes('\n\n')) {
-            const sections = data.debug_analysis.split('\n\n').filter(Boolean);
-            // Pick first few sections as thoughts
-            setThoughtsData(sections.slice(0, 3));
-          } else if (data.debug_analysis.includes('\n')) {
-            // Try to find bullet points or numbered lists
-            const lines = data.debug_analysis.split('\n');
-            const bulletPoints = lines.filter((line: string) =>
-              line.trim().match(/^[\d*\-•]+\s/) ||
-              line.trim().match(/^[A-Z][\d\.\)\:]/) ||
-              line.includes(':') && line.length < 100
-            );
-
-            if (bulletPoints.length > 0) {
-              setThoughtsData(bulletPoints.slice(0, 5));
-            } else {
-              setThoughtsData(["Debug analysis based on your screenshots"]);
-            }
-          } else {
-            setThoughtsData(["Debug analysis based on your screenshots"]);
-          }
-        } else {
-          // Fallback to code or default
-          setNewCode(data.code || "// No analysis available");
-          setThoughtsData(data.thoughts || ["Debug analysis based on your screenshots"]);
-          setDebugAnalysis(null);
-        }
-        setTimeComplexityData(data.time_complexity || "N/A - Debug mode");
-        setSpaceComplexityData(data.space_complexity || "N/A - Debug mode");
-
-        setIsProcessing(false);
+      window.electronAPI.onResetView(() => {
+        refetch()
+        setNewCode(null)
+        setThoughtsData([])
+        setDebugAnalysis(null)
+        setDebugSections({ issues: [], fixes: [], why: [], verify: [] })
       }),
-
+      window.electronAPI.onDebugSuccess((data: DebugPayload) => {
+        queryClient.setQueryData(["new_solution"], data)
+        applyDebugPayload(data)
+      }),
       window.electronAPI.onDebugStart(() => {
         setIsProcessing(true)
       }),
@@ -210,7 +311,6 @@ const Debug: React.FC<DebugProps> = ({
       })
     ]
 
-    // Set up resize observer
     const updateDimensions = () => {
       if (contentRef.current) {
         let contentHeight = contentRef.current.scrollHeight
@@ -235,7 +335,15 @@ const Debug: React.FC<DebugProps> = ({
       resizeObserver.disconnect()
       cleanupFunctions.forEach((cleanup) => cleanup())
     }
-  }, [queryClient, setIsProcessing])
+  }, [
+    applyDebugPayload,
+    queryClient,
+    refetch,
+    setIsProcessing,
+    showToast,
+    tooltipHeight,
+    tooltipVisible
+  ])
 
   const handleTooltipVisibilityChange = (visible: boolean, height: number) => {
     setTooltipVisible(visible)
@@ -244,12 +352,8 @@ const Debug: React.FC<DebugProps> = ({
 
   const handleDeleteExtraScreenshot = async (index: number) => {
     const screenshotToDelete = screenshots[index]
-
     try {
-      const response = await window.electronAPI.deleteScreenshot(
-        screenshotToDelete.path
-      )
-
+      const response = await window.electronAPI.deleteScreenshot(screenshotToDelete.path)
       if (response.success) {
         refetch()
       } else {
@@ -260,10 +364,26 @@ const Debug: React.FC<DebugProps> = ({
     }
   }
 
+  const handleCapture = async () => {
+    await window.electronAPI.triggerScreenshot()
+  }
+
+  const handleDebugAgain = async () => {
+    await window.electronAPI.triggerProcessScreenshots()
+  }
+
+  const handleReset = async () => {
+    await window.electronAPI.triggerReset()
+  }
+
+  const verifySteps =
+    debugSections.verify.length > 0
+      ? debugSections.verify
+      : ["Re-run the failing test case and compare output with expected results."]
+
   return (
     <div ref={contentRef} className="relative">
       <div className="space-y-3 px-4 py-3">
-        {/* Conditionally render the screenshot queue */}
         <div className="bg-transparent w-fit">
           <div className="pb-3">
             <div className="space-y-3 w-fit">
@@ -276,7 +396,6 @@ const Debug: React.FC<DebugProps> = ({
           </div>
         </div>
 
-        {/* Navbar of commands with the tooltip */}
         <SolutionCommands
           screenshots={screenshots}
           onTooltipVisibilityChange={handleTooltipVisibilityChange}
@@ -287,176 +406,97 @@ const Debug: React.FC<DebugProps> = ({
           setLanguage={setLanguage}
         />
 
-        {/* Main Content */}
         <div className="w-full text-sm text-black bg-black/60 rounded-md">
           <div className="rounded-lg overflow-hidden">
             <div className="px-4 py-3 space-y-4">
-              {/* Thoughts Section */}
-              <ContentSection
-                title="What I Changed"
-                content={
-                  thoughtsData && (
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        {thoughtsData.map((thought, index) => (
-                          <div key={index} className="flex items-start gap-2">
-                            <div className="w-1 h-1 rounded-full bg-blue-400/80 mt-2 shrink-0" />
-                            <div>{thought}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                }
-                isLoading={!thoughtsData}
+              <StructuredListCard
+                title="Key Points"
+                items={thoughtsData}
+                loadingText="Analyzing key findings..."
+                fallbackText="No key points available yet."
               />
 
-              {/* Code Section */}
+              <div className="grid gap-3 md:grid-cols-2">
+                <StructuredListCard
+                  title="Issue"
+                  items={debugSections.issues}
+                  loadingText="Detecting root issues..."
+                  fallbackText="No explicit issues identified."
+                />
+                <StructuredListCard
+                  title="Fix"
+                  items={debugSections.fixes}
+                  loadingText="Preparing code fixes..."
+                  fallbackText="No explicit fixes listed yet."
+                />
+                <StructuredListCard
+                  title="Why"
+                  items={debugSections.why}
+                  loadingText="Building reasoning..."
+                  fallbackText="No explanation provided yet."
+                />
+                <StructuredListCard
+                  title="Verify"
+                  items={debugSections.verify}
+                  loadingText="Preparing verification checklist..."
+                  fallbackText="No verification checklist found yet."
+                />
+              </div>
+
               <CodeSection
-                title="Original Code"
                 code={newCode}
                 isLoading={!newCode}
                 currentLanguage={currentLanguage}
               />
 
-              {/* Debug Analysis Section */}
-              <div className="space-y-2">
-                <h2 className="text-[13px] font-medium text-white tracking-wide">Analysis & Improvements</h2>
-                {!debugAnalysis ? (
-                  <div className="space-y-1.5">
-                    <div className="mt-4 flex">
-                      <p className="text-xs bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
-                        Loading debug analysis...
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full bg-black/30 rounded-md p-4 text-[13px] leading-[1.4] text-gray-100 whitespace-pre-wrap overflow-auto max-h-[600px]">
-                    {/* Process the debug analysis text by sections and lines */}
-                    {(() => {
-                      // First identify key sections based on common patterns in the debug output
-                      const sections: { title: string; content: string[] }[] = [];
-                      let currentSection = { title: '', content: [] };
-
-                      // Split by possible section headers (### or ##)
-                      const mainSections = debugAnalysis.split(/(?=^#{1,3}\s|^\*\*\*|^\s*[A-Z][\w\s]+\s*$)/m);
-
-                      // Filter out empty sections and process each one
-                      mainSections.filter(Boolean).forEach((sectionText: string) => {
-                        // First line might be a header
-                        const lines = sectionText.split('\n');
-                        let title = '';
-                        let startLineIndex = 0;
-
-                        // Check if first line is a header
-                        if (lines[0] && (lines[0].startsWith('#') || lines[0].startsWith('**') ||
-                          lines[0].match(/^[A-Z][\w\s]+$/) || lines[0].includes('Issues') ||
-                          lines[0].includes('Improvements') || lines[0].includes('Optimizations'))) {
-                          title = lines[0].replace(/^#+\s*|\*\*/g, '');
-                          startLineIndex = 1;
-                        }
-
-                        // Add the section
-                        sections.push({
-                          title,
-                          content: lines.slice(startLineIndex).filter(Boolean)
-                        });
-                      });
-
-                      // Render the processed sections
-                      return sections.map((section: { title: string; content: string[] }, sectionIndex: number) => (
-                        <div key={sectionIndex} className="mb-6">
-                          {section.title && (
-                            <div className="font-bold text-white/90 text-[14px] mb-2 pb-1 border-b border-white/10">
-                              {section.title}
-                            </div>
-                          )}
-                          <div className="pl-1">
-                            {section.content.map((line: string, lineIndex: number) => {
-                              // Handle code blocks - detect full code blocks
-                              if (line.trim().startsWith('```')) {
-                                // If we find the start of a code block, collect all lines until the end
-                                if (line.trim() === '```' || line.trim().startsWith('```')) {
-                                  // Find end of this code block
-                                  const codeBlockEndIndex = section.content.findIndex(
-                                    (l: string, i: number) => i > lineIndex && l.trim() === '```'
-                                  );
-
-                                  if (codeBlockEndIndex > lineIndex) {
-                                    // Extract language if specified
-                                    const langMatch = line.trim().match(/```(\w+)/);
-                                    const language = langMatch ? langMatch[1] : '';
-
-                                    // Get the code content
-                                    const codeContent = section.content
-                                      .slice(lineIndex + 1, codeBlockEndIndex)
-                                      .join('\n');
-
-                                    // Skip ahead in our loop
-                                    lineIndex = codeBlockEndIndex;
-
-                                    return (
-                                      <div key={lineIndex} className="font-mono text-xs bg-black/50 p-3 my-2 rounded overflow-x-auto">
-                                        {codeContent}
-                                      </div>
-                                    );
-                                  }
-                                }
-                              }
-
-                              // Handle bullet points
-                              if (line.trim().match(/^[\-*•]\s/) || line.trim().match(/^\d+\.\s/)) {
-                                return (
-                                  <div key={lineIndex} className="flex items-start gap-2 my-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400/80 mt-2 shrink-0" />
-                                    <div className="flex-1">
-                                      {line.replace(/^[\-*•]\s|^\d+\.\s/, '')}
-                                    </div>
-                                  </div>
-                                );
-                              }
-
-                              // Handle inline code
-                              if (line.includes('`')) {
-                                const parts = line.split(/(`[^`]+`)/g);
-                                return (
-                                  <div key={lineIndex} className="my-1.5">
-                                    {parts.map((part: string, partIndex: number) => {
-                                      if (part.startsWith('`') && part.endsWith('`')) {
-                                        return <span key={partIndex} className="font-mono bg-black/30 px-1 py-0.5 rounded">{part.slice(1, -1)}</span>;
-                                      }
-                                      return <span key={partIndex}>{part}</span>;
-                                    })}
-                                  </div>
-                                );
-                              }
-
-                              // Handle sub-headers
-                              if (line.trim().match(/^#+\s/) || (line.trim().match(/^[A-Z][\w\s]+:/) && line.length < 60)) {
-                                return (
-                                  <div key={lineIndex} className="font-semibold text-white/80 mt-3 mb-1">
-                                    {line.replace(/^#+\s+/, '')}
-                                  </div>
-                                );
-                              }
-
-                              // Regular text
-                              return <div key={lineIndex} className="my-1.5">{line}</div>;
-                            })}
-                          </div>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                )}
-              </div>
-
-              {/* Complexity Section */}
               <ComplexitySection
                 timeComplexity={timeComplexityData}
                 spaceComplexity={spaceComplexityData}
                 isLoading={!timeComplexityData || !spaceComplexityData}
               />
+
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                <h2 className="text-[13px] font-medium text-white tracking-wide">Next Step</h2>
+                <div className="space-y-1.5">
+                  {verifySteps.map((step, index) => (
+                    <div key={`verify-${index}`} className="flex items-start gap-2 text-[13px] leading-[1.45] text-gray-100">
+                      <div className="w-1 h-1 rounded-full bg-emerald-400 mt-2 shrink-0" />
+                      <div>{step}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-1 flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleCapture}
+                    className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/90 hover:bg-white/10 transition-colors"
+                  >
+                    Capture More Context
+                  </button>
+                  <button
+                    onClick={handleDebugAgain}
+                    className="h-8 px-3 rounded-md border border-blue-400/35 bg-blue-500/15 text-[12px] text-blue-200 hover:bg-blue-500/25 transition-colors"
+                  >
+                    Run Debug Again
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    Reset Session
+                  </button>
+                </div>
+              </div>
+
+              {debugAnalysis && (
+                <details className="rounded-lg border border-white/10 bg-black/25 p-3">
+                  <summary className="text-[13px] text-white/70 cursor-pointer">
+                    Raw debug analysis
+                  </summary>
+                  <div className="mt-2 text-[12px] leading-[1.45] whitespace-pre-wrap text-white/75 max-h-[320px] overflow-auto pr-2">
+                    {debugAnalysis}
+                  </div>
+                </details>
+              )}
             </div>
           </div>
         </div>

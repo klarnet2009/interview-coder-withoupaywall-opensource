@@ -33,10 +33,44 @@ export interface SolutionData {
   [key: string]: unknown;
 }
 
+export interface SessionWorkspaceSnapshot {
+  type: "solution" | "debug";
+  code?: string;
+  keyPoints?: string[];
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  issues?: string[];
+  fixes?: string[];
+  why?: string[];
+  verify?: string[];
+}
+
+export interface SessionSnippet {
+  id: string;
+  question: string;
+  answer: string;
+  timestamp: number;
+  tags: string[];
+  workspace?: SessionWorkspaceSnapshot;
+}
+
+export interface SessionHistoryItem {
+  id: string;
+  date: number;
+  company?: string;
+  role?: string;
+  notes?: string;
+  snippets: SessionSnippet[];
+}
+
 export interface ElectronAPI {
   // Config
   getConfig: () => Promise<Record<string, unknown>>;
   updateConfig: (config: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  getSessionHistory: () => Promise<SessionHistoryItem[]>;
+  getSessionHistoryItem: (sessionId: string) => Promise<SessionHistoryItem | null>;
+  deleteSessionHistoryItem: (sessionId: string) => Promise<{ success: boolean }>;
+  clearSessionHistory: () => Promise<{ success: boolean }>;
   checkApiKey: () => Promise<boolean>;
   validateApiKey: (apiKey: string) => Promise<{ valid: boolean; error?: string }>;
   testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic") => Promise<{ valid: boolean; error?: string }>;
@@ -65,6 +99,7 @@ export interface ElectronAPI {
   onDebugError: (callback: (error: string) => void) => () => void;
   onProblemExtracted: (callback: (data: ProblemData) => void) => () => void;
   onProcessingNoScreenshots: (callback: () => void) => () => void;
+  onProcessingStatus: (callback: (status: { message: string; progress: number }) => void) => () => void;
   onApiKeyInvalid: (callback: () => void) => () => void;
   onReset: (callback: () => void) => () => void;
   onResetView: (callback: () => void) => () => void;
@@ -92,9 +127,6 @@ export interface ElectronAPI {
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void;
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => () => void;
 
-  // Credits
-  decrementCredits: () => Promise<void>;
-
   // Audio sources for application selection
   getAudioSources: () => Promise<{ id: string; name: string; appIcon: string | null }[]>;
 
@@ -103,19 +135,13 @@ export interface ElectronAPI {
   transcribeAudio: (audioData: { buffer: number[]; mimeType: string }) => Promise<{ success: boolean; text?: string; timestamp?: number; error?: string }>;
   generateHints: (transcript: string) => Promise<{ success: boolean; hints?: string; error?: string }>;
 
-  onCreditsUpdated: (callback: (credits: number) => void) => () => void;
-
   // Utility
   getPlatform: () => string;
   removeListener: (eventName: string, callback: (...args: unknown[]) => void) => void;
   clearStore: () => Promise<void>;
 
-  // Legacy
-  openSubscriptionPortal: (authData: { id: string; email: string }) => Promise<void>;
-  onSubscriptionUpdated: (callback: () => void) => () => void;
-  onSubscriptionPortalClosed: (callback: () => void) => () => void;
+  // Legacy compatibility
   onUnauthorized: (callback: () => void) => () => void;
-  onOutOfCredits: (callback: () => void) => () => void;
 
   // Live Interview
   liveInterviewStart: (config?: {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useToast } from "../../contexts/toast"
 import { Screenshot } from "../../types/screenshots"
-import { supabase } from "../../lib/supabase"
 import { LanguageSelector } from "../shared/LanguageSelector"
 import { COMMAND_KEY } from "../../utils/platform"
 
@@ -13,20 +12,6 @@ export interface SolutionCommandsProps {
   credits: number
   currentLanguage: string
   setLanguage: (language: string) => void
-}
-
-const handleSignOut = async () => {
-  try {
-    // Clear any local storage or electron-specific data first
-    localStorage.clear()
-    sessionStorage.clear()
-
-    // Then sign out from Supabase
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  } catch (err) {
-    console.error("Error signing out:", err)
-  }
 }
 
 const SolutionCommands: React.FC<SolutionCommandsProps> = ({
@@ -59,6 +44,24 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
     setIsTooltipVisible(false)
   }
 
+  const handleSignOut = async () => {
+    try {
+      await window.electronAPI.updateConfig({ apiKey: "" })
+      await window.electronAPI.triggerReset()
+      showToast(
+        "Signed Out",
+        "API key removed. Configure a new key to continue.",
+        "success"
+      )
+      setTimeout(() => {
+        window.location.reload()
+      }, 700)
+    } catch (error) {
+      console.error("Error signing out:", error)
+      showToast("Error", "Failed to log out", "error")
+    }
+  }
+
   return (
     <div>
       <div className="pt-2 w-fit">
@@ -79,12 +82,12 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
               }
             }}
           >
-            <span className="text-[11px] leading-none">Show/Hide</span>
+            <span className="text-[12px] leading-none">Show/Hide</span>
             <div className="flex gap-1">
-              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                 {COMMAND_KEY}
               </button>
-              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                 B
               </button>
             </div>
@@ -108,16 +111,16 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                   }
                 }}
               >
-                <span className="text-[11px] leading-none truncate">
+                <span className="text-[12px] leading-none truncate">
                   {extraScreenshots.length === 0
                     ? "Screenshot your code"
                     : "Screenshot"}
                 </span>
                 <div className="flex gap-1">
-                  <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+                  <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                     {COMMAND_KEY}
                   </button>
-                  <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+                  <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                     H
                   </button>
                 </div>
@@ -151,12 +154,12 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                     }
                   }}
                 >
-                  <span className="text-[11px] leading-none">Debug</span>
+                  <span className="text-[12px] leading-none">Debug</span>
                   <div className="flex gap-1">
-                    <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+                    <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                       {COMMAND_KEY}
                     </button>
-                    <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+                    <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                       ↵
                     </button>
                   </div>
@@ -181,12 +184,12 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
               }
             }}
           >
-            <span className="text-[11px] leading-none">Start Over</span>
+            <span className="text-[12px] leading-none">Start Over</span>
             <div className="flex gap-1">
-              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                 {COMMAND_KEY}
               </button>
-              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[11px] leading-none text-white/70">
+              <button className="bg-white/10 rounded-md px-1.5 py-1 text-[12px] leading-none text-white/70">
                 R
               </button>
             </div>
@@ -326,8 +329,18 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
 
                           {extraScreenshots.length > 0 && (
                             <div
-                              className="cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors"
+                              className={`cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors ${
+                                credits <= 0 ? "opacity-50 pointer-events-none" : ""
+                              }`}
                               onClick={async () => {
+                                if (credits <= 0) {
+                                  showToast(
+                                    "No credits",
+                                    "Add credits before processing screenshots.",
+                                    "error"
+                                  )
+                                  return
+                                }
                                 try {
                                   const result =
                                     await window.electronAPI.triggerProcessScreenshots()
@@ -419,9 +432,9 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                       {/* API Key Settings */}
                       <div className="mb-3 px-2 space-y-1">
                         <div className="flex items-center justify-between text-[13px] font-medium text-white/90">
-                          <span>OpenAI API Settings</span>
+                          <span>API Settings</span>
                           <button
-                            className="bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-[11px]"
+                            className="bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-[12px]"
                             onClick={() => window.electronAPI.openSettingsPortal()}
                           >
                             Settings
@@ -431,7 +444,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
 
                       <button
                         onClick={handleSignOut}
-                        className="flex items-center gap-2 text-[11px] text-red-400 hover:text-red-300 transition-colors w-full"
+                        className="flex items-center gap-2 text-[12px] text-red-400 hover:text-red-300 transition-colors w-full"
                       >
                         <div className="w-4 h-4 flex items-center justify-center">
                           <svg

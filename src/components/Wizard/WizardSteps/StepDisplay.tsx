@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Monitor, Minimize2, EyeOff, Keyboard, Check, Info } from 'lucide-react';
 import { StepProps } from '../../../types';
+import { COMMAND_KEY } from '../../../utils/platform';
 
 interface StepDisplayProps extends StepProps {
   setCanProceed: (can: boolean) => void;
@@ -35,11 +36,15 @@ const DISPLAY_MODES = [
 ];
 
 const HOTKEYS = [
-  { id: 'toggle', label: 'Show/Hide App', defaultValue: 'Ctrl + `' },
-  { id: 'pause', label: 'Pause/Resume', defaultValue: 'Ctrl + Space' },
-  { id: 'copy', label: 'Copy Last Answer', defaultValue: 'Ctrl + Shift + C' },
-  { id: 'compact', label: 'Toggle Compact Mode', defaultValue: 'Ctrl + =' },
-  { id: 'emergencyHide', label: 'Emergency Hide (press 3x)', defaultValue: 'Esc Esc Esc' }
+  { id: 'toggle', label: 'Show/Hide App', defaultValue: `${COMMAND_KEY} + B` },
+  { id: 'screenshot', label: 'Take Screenshot', defaultValue: `${COMMAND_KEY} + H` },
+  { id: 'process', label: 'Process Screenshots', defaultValue: `${COMMAND_KEY} + Enter` },
+  { id: 'reset', label: 'Reset View', defaultValue: `${COMMAND_KEY} + R` },
+  { id: 'delete', label: 'Delete Last Screenshot', defaultValue: `${COMMAND_KEY} + L` },
+  { id: 'move', label: 'Move Window', defaultValue: `${COMMAND_KEY} + Arrow Keys` },
+  { id: 'opacity', label: 'Opacity +/-', defaultValue: `${COMMAND_KEY} + [ / ]` },
+  { id: 'zoom', label: 'Zoom Out/Reset/In', defaultValue: `${COMMAND_KEY} + - / 0 / =` },
+  { id: 'quit', label: 'Quit App', defaultValue: `${COMMAND_KEY} + Q` }
 ];
 
 export const StepDisplay: React.FC<StepDisplayProps> = ({
@@ -63,11 +68,11 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
         hideTitle: data.displayConfig?.hideTitle || false,
         dimOnMouseAway,
         hotkeys: data.displayConfig?.hotkeys || {
-          toggle: 'Ctrl+`',
-          pause: 'Ctrl+Space',
-          copy: 'Ctrl+Shift+C',
-          compact: 'Ctrl+=',
-          emergencyHide: 'Esc Esc Esc'
+          toggle: 'Ctrl+B',
+          pause: 'N/A',
+          copy: 'N/A',
+          compact: 'Ctrl+0',
+          emergencyHide: 'Ctrl+B'
         }
       }
     });

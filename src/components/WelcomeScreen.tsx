@@ -16,7 +16,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
         
         <div className="mb-8">
           <h2 className="text-lg font-medium text-white mb-3">Welcome to Interview Coder</h2>
-          <p className="text-white/70 text-sm mb-4">
+          <p className="text-white/70 text-[13px] mb-4">
             This application helps you ace technical interviews by providing AI-powered
             solutions to coding problems.
           </p>
@@ -53,8 +53,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
         
         <div className="bg-white/5 border border-white/10 rounded-lg p-4 mb-6">
           <h3 className="text-white/90 font-medium mb-2">Getting Started</h3>
-          <p className="text-white/70 text-sm mb-3">
-            Before using the application, you need to configure your OpenAI API key.
+          <p className="text-white/70 text-[13px] mb-3">
+            Before using the application, configure your provider API key.
           </p>
           <Button 
             className="w-full px-4 py-3 bg-white text-black rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2"
@@ -64,7 +64,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
           </Button>
         </div>
         
-        <div className="text-white/40 text-xs text-center">
+        <div className="text-white/40 text-[13px] text-center">
           Start by taking screenshots of your coding problem (Ctrl+H / Cmd+H)
         </div>
       </div>

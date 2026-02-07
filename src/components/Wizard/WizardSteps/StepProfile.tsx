@@ -7,7 +7,6 @@ interface StepProfileProps extends StepProps {
 }
 
 export const StepProfile: React.FC<StepProfileProps> = ({
-  data,
   onUpdate,
   setCanProceed
 }) => {
@@ -25,27 +24,28 @@ export const StepProfile: React.FC<StepProfileProps> = ({
     setCanProceed(true);
   }, [setCanProceed]);
 
+  useEffect(() => {
+    // Keep wizard config in sync with form changes.
+    if (!(profile.name || profile.targetRole || profile.skills || profile.achievements)) {
+      return;
+    }
+
+    const newProfile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> = {
+      name: profile.name || 'Default Profile',
+      targetRole: profile.targetRole,
+      yearsExperience: profile.yearsExperience ? parseInt(profile.yearsExperience, 10) : undefined,
+      skills: profile.skills.split(',').map(s => s.trim()).filter(Boolean),
+      achievements: profile.achievements,
+      tone: profile.tone
+    };
+
+    onUpdate({
+      profiles: [newProfile as UserProfile]
+    });
+  }, [profile, onUpdate]);
+
   const handleChange = (field: keyof typeof profile, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = () => {
-    // Create profile if user filled in any info
-    if (profile.name || profile.targetRole || profile.skills) {
-      const newProfile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: profile.name || 'Default Profile',
-        targetRole: profile.targetRole,
-        yearsExperience: profile.yearsExperience ? parseInt(profile.yearsExperience) : undefined,
-        skills: profile.skills.split(',').map(s => s.trim()).filter(Boolean),
-        achievements: profile.achievements,
-        tone: profile.tone
-      };
-      
-      // Save to config
-      onUpdate({
-        profiles: [newProfile as UserProfile]
-      });
-    }
   };
 
   return (

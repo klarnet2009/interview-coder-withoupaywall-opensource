@@ -28,17 +28,15 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
   // Handle logout - clear API key and reload app
   const handleLogout = async () => {
     try {
-      // Update config with empty API key
       await window.electronAPI.updateConfig({
         apiKey: '',
       });
-      
-      showToast('Success', 'Logged out successfully', 'success');
-      
-      // Reload the app after a short delay
+      await window.electronAPI.triggerReset();
+      showToast('Signed Out', 'API key removed. Configure a new key to continue.', 'success');
+
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 700);
     } catch (error) {
       console.error('Error logging out:', error);
       showToast('Error', 'Failed to log out', 'error');
@@ -53,7 +51,7 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
     // Also save the language preference to config
     window.electronAPI.updateConfig({
       language: lang
-    }).catch((error: any) => {
+    }).catch((error: unknown) => {
       console.error('Failed to save language preference:', error);
     });
   };

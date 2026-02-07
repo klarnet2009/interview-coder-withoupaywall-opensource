@@ -82,7 +82,7 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
         setTestStatus('error');
         setTestError(result?.error || 'Failed to validate API key');
       }
-    } catch (error) {
+    } catch {
       setTestStatus('error');
       setTestError('Network error. Please check your connection.');
     }
@@ -230,9 +230,9 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
           <span className="text-sm font-medium text-white/70">Security</span>
         </div>
         <p className="text-xs text-white/40 leading-relaxed">
-          Your API key is stored locally on your device using OS-level encryption. 
-          It is never sent to our servers and is only used to make API calls directly 
-          from your machine to {providerInfo?.name.split(' ')[0]}.
+          Your API key is stored locally on your device and is never sent to our servers.
+          Depending on your operating system, local encryption may be unavailable.
+          The key is used only for direct API calls from your machine to {providerInfo?.name.split(' ')[0]}.
         </p>
       </div>
 

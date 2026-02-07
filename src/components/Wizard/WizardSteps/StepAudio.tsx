@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Mic, Monitor, Headphones, Check, Volume2, Search, RefreshCw } from 'lucide-react';
+import { Mic, Monitor, Headphones, Check, Volume2, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import { StepProps } from '../../../types';
 
 interface StepAudioProps extends StepProps {
   setCanProceed: (can: boolean) => void;
 }
+
+type AudioTestStatus = 'idle' | 'testing' | 'success' | 'error';
 
 const AUDIO_SOURCES = [
   {
@@ -44,28 +46,42 @@ export const StepAudio: React.FC<StepAudioProps> = ({
   const [autoStart, setAutoStart] = useState(data.audioConfig?.autoStart ?? true);
   const [isTesting, setIsTesting] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [testStatus, setTestStatus] = useState<AudioTestStatus>('idle');
+  const [testError, setTestError] = useState('');
+  const [testCompleted, setTestCompleted] = useState(data.audioConfig?.testCompleted || false);
+
   const [availableWindows, setAvailableWindows] = useState<AudioSource[]>([]);
   const [isLoadingWindows, setIsLoadingWindows] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    setCanProceed(true);
+    const hasRequiredSelection =
+      selectedSource !== 'application' || selectedApp.trim().length > 0;
+
+    setCanProceed(hasRequiredSelection);
+
     onUpdate({
       audioConfig: {
         source: selectedSource,
         applicationName: selectedSource === 'application' ? selectedApp : undefined,
         autoStart,
-        testCompleted: data.audioConfig?.testCompleted || false
+        testCompleted
       }
     });
-  }, [selectedSource, selectedApp, autoStart, setCanProceed]);
+  }, [selectedSource, selectedApp, autoStart, testCompleted, onUpdate, setCanProceed]);
 
-  // Fetch available windows when application source is selected
   useEffect(() => {
     if (selectedSource === 'application') {
       fetchAudioSources();
     }
   }, [selectedSource]);
+
+  // Changing source/app invalidates previous test result.
+  useEffect(() => {
+    setTestCompleted(false);
+    setTestStatus('idle');
+    setTestError('');
+  }, [selectedSource, selectedApp]);
 
   const fetchAudioSources = async () => {
     setIsLoadingWindows(true);
@@ -79,45 +95,103 @@ export const StepAudio: React.FC<StepAudioProps> = ({
     }
   };
 
-  const testAudio = () => {
+  const testAudio = async () => {
     setIsTesting(true);
-    const interval = setInterval(() => {
-      setAudioLevel(Math.random() * 100);
-    }, 100);
+    setTestStatus('testing');
+    setTestError('');
+    setAudioLevel(0);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setIsTesting(false);
-      setAudioLevel(0);
-      onUpdate({
-        audioConfig: {
-          source: selectedSource,
-          applicationName: selectedSource === 'application' ? selectedApp : undefined,
-          autoStart,
-          testCompleted: true
+    let stream: MediaStream | null = null;
+    let audioContext: AudioContext | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    try {
+      if (selectedSource === 'application' && !selectedApp) {
+        throw new Error('Select an application before running the audio test.');
+      }
+
+      if (selectedSource === 'microphone') {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true
+          }
+        });
+      } else {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+
+        // We only need audio for validation.
+        stream.getVideoTracks().forEach((track) => track.stop());
+
+        if (stream.getAudioTracks().length === 0) {
+          throw new Error('No audio track detected. Enable audio sharing and try again.');
         }
+      }
+
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      await new Promise<void>((resolve) => {
+        const startedAt = Date.now();
+        intervalId = setInterval(() => {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+          setAudioLevel(Math.min(100, (average / 160) * 100));
+
+          if (Date.now() - startedAt >= 3000) {
+            resolve();
+          }
+        }, 100);
       });
-    }, 3000);
+
+      setTestCompleted(true);
+      setTestStatus('success');
+    } catch (error) {
+      console.error('Audio test failed:', error);
+      setTestCompleted(false);
+      setTestStatus('error');
+      setTestError(error instanceof Error ? error.message : 'Failed to test audio input.');
+    } finally {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+      if (audioContext) {
+        audioContext.close().catch(() => undefined);
+      }
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      setAudioLevel(0);
+      setIsTesting(false);
+    }
   };
 
   const filteredWindows = availableWindows.filter(window =>
     window.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Common apps for quick selection
   const commonApps = ['Zoom', 'Teams', 'Meet', 'Chrome', 'Edge', 'Firefox', 'Discord', 'Slack'];
-  const quickSelectApps = availableWindows.filter(w => 
+  const quickSelectApps = availableWindows.filter(w =>
     commonApps.some(app => w.name.toLowerCase().includes(app.toLowerCase()))
   );
 
   return (
     <div className="space-y-5">
       <div className="text-sm text-white/60">
-        Choose how the app will listen to your interview. System Audio works for most cases, 
-        but you can select a specific app for better isolation.
+        Choose how the app listens during interviews. Use this step to verify that
+        your selected audio source is accessible on this machine.
       </div>
 
-      {/* Audio source selection */}
       <div className="space-y-2">
         {AUDIO_SOURCES.map((source) => (
           <div
@@ -160,7 +234,6 @@ export const StepAudio: React.FC<StepAudioProps> = ({
         ))}
       </div>
 
-      {/* Application selector */}
       {selectedSource === 'application' && (
         <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-4">
           <div className="flex items-center justify-between">
@@ -177,8 +250,7 @@ export const StepAudio: React.FC<StepAudioProps> = ({
               <RefreshCw className={`w-4 h-4 ${isLoadingWindows ? 'animate-spin' : ''}`} />
             </button>
           </div>
-          
-          {/* Search */}
+
           <div className="relative">
             <input
               type="text"
@@ -190,7 +262,6 @@ export const StepAudio: React.FC<StepAudioProps> = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
           </div>
 
-          {/* Quick select - common apps */}
           {!searchQuery && quickSelectApps.length > 0 && (
             <div className="space-y-2">
               <span className="text-xs text-white/40">Quick Select:</span>
@@ -216,13 +287,12 @@ export const StepAudio: React.FC<StepAudioProps> = ({
             </div>
           )}
 
-          {/* All windows list */}
           <div className="space-y-2">
             <span className="text-xs text-white/40">
-              {searchQuery ? 'Search Results' : 'All Windows'} 
-              <span className="text-white/30">({filteredWindows.length})</span>
+              {searchQuery ? 'Search Results' : 'All Windows'}
+              <span className="text-white/30"> ({filteredWindows.length})</span>
             </span>
-            
+
             <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1">
               {isLoadingWindows ? (
                 <div className="flex items-center justify-center py-8">
@@ -264,7 +334,6 @@ export const StepAudio: React.FC<StepAudioProps> = ({
             </div>
           </div>
 
-          {/* Selected app indicator */}
           {selectedApp && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <Check className="w-4 h-4 text-green-400" />
@@ -274,7 +343,6 @@ export const StepAudio: React.FC<StepAudioProps> = ({
         </div>
       )}
 
-      {/* Audio test */}
       <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -290,7 +358,6 @@ export const StepAudio: React.FC<StepAudioProps> = ({
           </button>
         </div>
 
-        {/* VU Meter */}
         <div className="space-y-1">
           <div className="h-2 bg-white/10 rounded-full overflow-hidden">
             <div
@@ -309,15 +376,25 @@ export const StepAudio: React.FC<StepAudioProps> = ({
           </div>
         </div>
 
-        {data.audioConfig?.testCompleted && !isTesting && (
+        {testStatus === 'success' && testCompleted && !isTesting && (
           <div className="flex items-center gap-2 text-sm text-green-400">
             <Check className="w-4 h-4" />
-            Audio test completed
+            Audio source is accessible and ready.
           </div>
         )}
+
+        {testStatus === 'error' && (
+          <div className="flex items-start gap-2 text-sm text-red-400">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{testError}</span>
+          </div>
+        )}
+
+        <p className="text-xs text-white/40">
+          This test checks real access to your selected audio source. It is not a simulated check.
+        </p>
       </div>
 
-      {/* Auto-start option */}
       <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
         <input
           type="checkbox"

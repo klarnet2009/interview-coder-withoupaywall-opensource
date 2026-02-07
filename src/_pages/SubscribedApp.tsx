@@ -1,6 +1,7 @@
 // file: src/components/SubscribedApp.tsx
 import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
+import type React from "react"
 import Queue from "../_pages/Queue"
 import Solutions from "../_pages/Solutions"
 import { useToast } from "../contexts/toast"
@@ -17,32 +18,9 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
   setLanguage
 }) => {
   const queryClient = useQueryClient()
-  const [view, setView] = useState<"queue" | "solutions" | "debug">("queue")
+  const [view, setView] = useState<"queue" | "solutions">("queue")
   const containerRef = useRef<HTMLDivElement>(null)
   const { showToast } = useToast()
-
-  // Let's ensure we reset queries etc. if some electron signals happen
-  useEffect(() => {
-    const cleanup = window.electronAPI.onResetView(() => {
-      queryClient.invalidateQueries({
-        queryKey: ["screenshots"]
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["problem_statement"]
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["solution"]
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["new_solution"]
-      })
-      setView("queue")
-    })
-
-    return () => {
-      cleanup()
-    }
-  }, [])
 
   // Dynamically update the window size
   useEffect(() => {
@@ -114,12 +92,13 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
         queryClient.removeQueries({
           queryKey: ["problem_statement"]
         })
+        queryClient.removeQueries({
+          queryKey: ["new_solution"]
+        })
+        queryClient.setQueryData(["problem_statement"], null)
         setView("queue")
       }),
-      window.electronAPI.onResetView(() => {
-        queryClient.setQueryData(["problem_statement"], null)
-      }),
-      window.electronAPI.onProblemExtracted((data: any) => {
+      window.electronAPI.onProblemExtracted((data: Record<string, unknown>) => {
         if (view === "queue") {
           queryClient.invalidateQueries({
             queryKey: ["problem_statement"]
@@ -132,7 +111,7 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
       })
     ]
     return () => cleanupFunctions.forEach((fn) => fn())
-  }, [view])
+  }, [queryClient, showToast, view])
 
   return (
     <div ref={containerRef} className="min-h-0">

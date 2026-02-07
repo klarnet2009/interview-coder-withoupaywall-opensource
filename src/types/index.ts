@@ -3,6 +3,8 @@
  * UX Redesign 2025
  */
 
+import type { ComponentType } from 'react';
+
 // ============================================================================
 // Wizard Types
 // ============================================================================
@@ -218,11 +220,11 @@ export const DEFAULT_CONFIG: AppConfig = {
     hideTitle: false,
     dimOnMouseAway: false,
     hotkeys: {
-      toggle: 'Ctrl+`',
-      pause: 'Ctrl+Space',
-      copy: 'Ctrl+Shift+C',
-      compact: 'Ctrl+=',
-      emergencyHide: 'Esc Esc Esc'
+      toggle: 'Ctrl+B',
+      pause: 'N/A',
+      copy: 'N/A',
+      compact: 'Ctrl+0',
+      emergencyHide: 'Ctrl+B'
     }
   }
 };
@@ -325,6 +327,17 @@ export interface SavedSnippet {
   answer: string;
   timestamp: number;
   tags: string[];
+  workspace?: {
+    type: 'solution' | 'debug';
+    code?: string;
+    keyPoints?: string[];
+    timeComplexity?: string;
+    spaceComplexity?: string;
+    issues?: string[];
+    fixes?: string[];
+    why?: string[];
+    verify?: string[];
+  };
 }
 
 // ============================================================================
@@ -361,7 +374,7 @@ export interface WizardStepConfig {
   id: WizardStep;
   title: string;
   description: string;
-  component: React.ComponentType<StepProps>;
+  component: ComponentType<StepProps>;
   required: boolean;
   quickMode: boolean;
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Check, AlertCircle, Loader2, Terminal, MessageSquare, Code } from 'lucide-react';
+import { Play, Check, AlertCircle, Loader2, Terminal, MessageSquare, Code, XCircle } from 'lucide-react';
 import { StepProps } from '../../../types';
 
 interface StepTestProps extends StepProps {
@@ -27,46 +27,87 @@ const TEST_SCENARIOS = [
   }
 ];
 
+interface ReadinessCheck {
+  apiKeyPresent: boolean;
+  apiConnection: boolean;
+  audioConfigured: boolean;
+  audioSourceReady: boolean;
+}
+
 export const StepTest: React.FC<StepTestProps> = ({
   data,
   setCanProceed
 }) => {
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<{
-    extraction?: number;
-    solution?: number;
-    total?: number;
-  }>({});
+  const [testResults, setTestResults] = useState<ReadinessCheck | null>(null);
+  const [testError, setTestError] = useState('');
 
   useEffect(() => {
-    // Allow proceeding even without test
+    // This step is optional.
     setCanProceed(true);
   }, [setCanProceed]);
 
   const runTest = async () => {
     setTestStatus('running');
-    
-    // Simulate test
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setTestResults({
-      extraction: 320,
-      solution: 890,
-      total: 1210
-    });
-    
-    setTestStatus('success');
+    setTestError('');
+    setTestResults(null);
+
+    try {
+      const provider = (data.apiProvider || 'gemini') as 'openai' | 'gemini' | 'anthropic';
+      const apiKey = (data.apiKey || '').trim();
+      const apiKeyPresent = apiKey.length > 0;
+      let localError = '';
+
+      let apiConnection = false;
+      if (apiKeyPresent) {
+        const result = await window.electronAPI.testApiKey(apiKey, provider);
+        apiConnection = !!result.valid;
+        if (!apiConnection && result.error) {
+          localError = result.error;
+        }
+      }
+
+      const audioConfigured = !!data.audioConfig?.source;
+      const audioSourceReady =
+        data.audioConfig?.source !== 'application' ||
+        !!data.audioConfig?.applicationName;
+
+      const readiness: ReadinessCheck = {
+        apiKeyPresent,
+        apiConnection,
+        audioConfigured,
+        audioSourceReady
+      };
+
+      setTestResults(readiness);
+
+      if (apiConnection && audioConfigured && audioSourceReady) {
+        setTestStatus('success');
+      } else {
+        if (!localError) {
+          localError = 'Readiness check found configuration issues. Please review the items below.';
+        }
+        setTestStatus('error');
+      }
+
+      if (localError) {
+        setTestError(localError);
+      }
+    } catch (error) {
+      console.error('Readiness check failed:', error);
+      setTestStatus('error');
+      setTestError(error instanceof Error ? error.message : 'Failed to run readiness check.');
+    }
   };
 
   return (
     <div className="space-y-5">
       <div className="text-sm text-white/60">
-        Test your setup with a sample question. This ensures everything is working 
-        correctly before your real interview.
+        Run a real readiness check before your interview. This verifies API access and
+        core configuration health. It does not benchmark model speed.
       </div>
 
-      {/* Test scenarios */}
       <div className="space-y-2">
         <label className="text-sm font-medium text-white/80">
           Select Test Scenario
@@ -107,19 +148,6 @@ export const StepTest: React.FC<StepTestProps> = ({
         </div>
       </div>
 
-      {/* Manual input option */}
-      <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10">
-        <div className="text-sm font-medium text-white/80 mb-2">
-          Or type your own question
-        </div>
-        <textarea
-          placeholder="Enter a sample interview question..."
-          rows={3}
-          className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 resize-none"
-        />
-      </div>
-
-      {/* Run test button */}
       <button
         onClick={runTest}
         disabled={testStatus === 'running'}
@@ -134,54 +162,82 @@ export const StepTest: React.FC<StepTestProps> = ({
         {testStatus === 'idle' && (
           <>
             <Play className="w-4 h-4" />
-            Run Test
+            Run Readiness Check
           </>
         )}
         {testStatus === 'running' && (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Testing...
+            Checking...
           </>
         )}
         {testStatus === 'success' && (
           <>
             <Check className="w-4 h-4" />
-            Test Passed
+            Check Passed
+          </>
+        )}
+        {testStatus === 'error' && (
+          <>
+            <XCircle className="w-4 h-4" />
+            Check Needs Attention
           </>
         )}
       </button>
 
-      {/* Test results */}
-      {testStatus === 'success' && testResults.total && (
-        <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 space-y-3">
-          <div className="flex items-center gap-2 text-green-400 font-medium">
-            <Check className="w-5 h-5" />
-            All systems operational
+      {testResults && (
+        <div className={`p-4 rounded-xl border space-y-3 ${
+          testStatus === 'success'
+            ? 'bg-green-500/10 border-green-500/20'
+            : 'bg-red-500/10 border-red-500/20'
+        }`}>
+          <div className={`flex items-center gap-2 font-medium ${
+            testStatus === 'success' ? 'text-green-400' : 'text-red-400'
+          }`}>
+            {testStatus === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            {testStatus === 'success' ? 'Readiness verified' : 'Readiness issues found'}
           </div>
-          
+
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-white/60">Problem extraction</span>
-              <span className="text-white/80">{testResults.extraction}ms</span>
+            <div className="flex items-center justify-between">
+              <span className="text-white/60">API key entered</span>
+              <span className={testResults.apiKeyPresent ? 'text-green-400' : 'text-red-400'}>
+                {testResults.apiKeyPresent ? 'Yes' : 'No'}
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-white/60">Solution generation</span>
-              <span className="text-white/80">{testResults.solution}ms</span>
+            <div className="flex items-center justify-between">
+              <span className="text-white/60">API connection</span>
+              <span className={testResults.apiConnection ? 'text-green-400' : 'text-red-400'}>
+                {testResults.apiConnection ? 'Verified' : 'Failed'}
+              </span>
             </div>
-            <div className="flex justify-between border-t border-white/10 pt-2">
-              <span className="text-white/60">Total latency</span>
-              <span className="text-green-400">{testResults.total}ms</span>
+            <div className="flex items-center justify-between">
+              <span className="text-white/60">Audio source configured</span>
+              <span className={testResults.audioConfigured ? 'text-green-400' : 'text-red-400'}>
+                {testResults.audioConfigured ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-white/60">Audio source ready</span>
+              <span className={testResults.audioSourceReady ? 'text-green-400' : 'text-red-400'}>
+                {testResults.audioSourceReady ? 'Yes' : 'No'}
+              </span>
             </div>
           </div>
+
+          {testError && (
+            <div className="pt-2 border-t border-white/10 text-xs text-red-300">
+              {testError}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Skip option */}
       <div className="flex items-start gap-2 p-3 rounded-lg bg-white/[0.02]">
         <AlertCircle className="w-4 h-4 text-white/40 mt-0.5 flex-shrink-0" />
         <p className="text-xs text-white/40">
-          You can skip this test and start using the app immediately. 
-          The test can be run anytime from the Debug menu.
+          This check validates real configuration readiness. You can skip and continue, but
+          unresolved issues may break live assistance.
         </p>
       </div>
     </div>

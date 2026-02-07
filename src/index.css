@@ -65,6 +65,12 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+  html,
+  body {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
   *,
   ::after,
   ::before,
@@ -139,4 +145,38 @@ option {
   filter: blur(48px);
   inset: -16px;
   opacity: 1;
+}
+
+@keyframes functionalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.functional-enter {
+  animation: functionalEnter 0.16s ease-out;
+}
+
+.functional-state-transition {
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

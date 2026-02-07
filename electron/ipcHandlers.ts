@@ -1,11 +1,42 @@
 // ipcHandlers.ts
 
-import { ipcMain, shell, dialog, desktopCapturer } from "electron"
-import { randomBytes } from "crypto"
+import { app, ipcMain, shell, desktopCapturer } from "electron"
 import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
-import { validateConfigUpdate, validateString, validateEnum, validateFilePath } from "./validation"
+import { validateConfigUpdate, validateString, validateEnum } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
+import {
+  clearSessionHistory,
+  deleteSessionHistoryItem,
+  getSessionHistory,
+  getSessionHistoryItem
+} from "./store"
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) {
+    return error.message
+  }
+  return fallback
+}
+
+interface LiveInterviewServiceInstance {
+  start: () => Promise<void>
+  stop: () => Promise<void>
+  getStatus: () => {
+    state: string
+    transcript: string
+    response: string
+    audioLevel: number
+  }
+  receiveAudio: (pcmBase64: string, level: number) => void
+  isActive: () => boolean
+  geminiService?: {
+    sendText: (text: string) => void
+  }
+  on: (event: "status", callback: (status: unknown) => void) => void
+  on: (event: "stateChange", callback: (state: string) => void) => void
+  on: (event: "error", callback: (error: Error) => void) => void
+}
 
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   console.log("Initializing IPC handlers")
@@ -38,6 +69,25 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   ipcMain.handle("check-api-key", () => {
     return configHelper.hasApiKey();
+  })
+
+  // Session history handlers
+  ipcMain.handle("get-session-history", () => {
+    return getSessionHistory();
+  })
+
+  ipcMain.handle("get-session-history-item", (_event, sessionId: string) => {
+    return getSessionHistoryItem(sessionId);
+  })
+
+  ipcMain.handle("delete-session-history-item", (_event, sessionId: string) => {
+    const removed = deleteSessionHistoryItem(sessionId);
+    return { success: removed };
+  })
+
+  ipcMain.handle("clear-session-history", () => {
+    clearSessionHistory();
+    return { success: true };
   })
 
   ipcMain.handle("validate-api-key", async (_event, apiKey) => {
@@ -345,7 +395,6 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   // Quit application handler
   ipcMain.handle("quit-app", () => {
-    const { app } = require("electron");
     app.quit();
   })
 
@@ -491,7 +540,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   // ========== Live Interview Handlers ==========
 
 
-  let liveInterviewService: any = null;
+  let liveInterviewService: LiveInterviewServiceInstance | null = null;
 
   ipcMain.handle("live-interview-start", async (_event, config: {
     systemInstruction?: string;
@@ -514,12 +563,12 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         model: config?.modelName,
         systemInstruction: config?.systemInstruction,
         spokenLanguage: config?.spokenLanguage || 'en',
-      });
+      }) as LiveInterviewServiceInstance;
 
       // Forward events to renderer
       const mainWindow = deps.getMainWindow();
 
-      liveInterviewService.on('status', (status: any) => {
+      liveInterviewService.on('status', (status: unknown) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('live-interview-status', status);
         }
@@ -539,9 +588,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
       await liveInterviewService.start();
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error starting live interview:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error, "Failed to start live interview") };
     }
   });
 
@@ -552,9 +601,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         liveInterviewService = null;
       }
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error stopping live interview:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: getErrorMessage(error, "Failed to stop live interview") };
     }
   });
 
@@ -572,8 +621,8 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         return { success: true };
       }
       return { success: false, error: "Not connected" };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+    } catch (error: unknown) {
+      return { success: false, error: getErrorMessage(error, "Failed to send live text") };
     }
   });
 

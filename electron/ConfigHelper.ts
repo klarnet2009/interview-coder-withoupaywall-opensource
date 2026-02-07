@@ -4,7 +4,8 @@ import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
 import { OpenAI } from "openai"
-import { secureStorage } from "./SecureStorage"
+// SecureStorage removed — using raw JSON config for now
+// Server-side config management will be added later
 
 // Extended Config interface for UX Redesign 2025
 interface UserProfile {
@@ -118,11 +119,11 @@ export class ConfigHelper extends EventEmitter {
       hideTitle: false,
       dimOnMouseAway: false,
       hotkeys: {
-        toggle: 'Ctrl+`',
-        pause: 'Ctrl+Space',
-        copy: 'Ctrl+Shift+C',
-        compact: 'Ctrl+=',
-        emergencyHide: 'Esc Esc Esc'
+        toggle: 'Ctrl+B',
+        pause: 'N/A',
+        copy: 'N/A',
+        compact: 'Ctrl+0',
+        emergencyHide: 'Ctrl+B'
       }
     }
   };
@@ -225,6 +226,30 @@ export class ConfigHelper extends EventEmitter {
     return config as Config;
   }
 
+  /**
+   * One-time migration: read API key from old secure-data.json (SecureStorage)
+   * Returns the key if found, otherwise undefined
+   */
+  private migrateFromSecureStorage(): string | undefined {
+    try {
+      const secureDataPath = path.join(path.dirname(this.configPath), 'secure-data.json');
+      if (fs.existsSync(secureDataPath)) {
+        const data = fs.readFileSync(secureDataPath, 'utf8');
+        const parsed = JSON.parse(data);
+        const apiKey = parsed.apiKey;
+        if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
+          // Clean up old file after successful migration
+          try { fs.unlinkSync(secureDataPath); } catch (_) { /* ignore */ }
+          console.log('SecureStorage migration: found and migrated API key');
+          return apiKey;
+        }
+      }
+    } catch (err) {
+      console.warn('SecureStorage migration failed (non-critical):', err);
+    }
+    return undefined;
+  }
+
   public loadConfig(): Config {
     try {
       console.log('=== LOAD CONFIG DEBUG ===');
@@ -233,28 +258,35 @@ export class ConfigHelper extends EventEmitter {
 
       if (fs.existsSync(this.configPath)) {
         const configData = fs.readFileSync(this.configPath, 'utf8');
-        let config = JSON.parse(configData);
-        console.log('Loaded config - apiKey placeholder:', config.apiKey);
+        let config: any;
+
+        try {
+          config = JSON.parse(configData);
+        } catch (parseErr) {
+          // Config file is corrupted — auto-reset to defaults
+          console.error('Config file is corrupted, resetting to defaults:', parseErr);
+          this.saveConfig(this.defaultConfig);
+          return { ...this.defaultConfig };
+        }
+
+        console.log('Loaded config - apiKey exists:', !!config.apiKey && config.apiKey.length > 0 && config.apiKey !== '[ENCRYPTED]');
         console.log('Loaded config - apiProvider:', config.apiProvider);
 
         // Migrate if needed
         config = this.migrateConfig(config);
 
-        // Load API key from secure storage
-        const secureApiKey = secureStorage.get('apiKey');
-        console.log('SecureStorage apiKey exists:', !!secureApiKey);
-        console.log('SecureStorage encryption available:', secureStorage.isEncryptionAvailable());
+        // One-time migration: pull API key from old secure-data.json if present
+        if ((!config.apiKey || config.apiKey === '' || config.apiKey === '[ENCRYPTED]')) {
+          const migratedKey = this.migrateFromSecureStorage();
+          if (migratedKey) {
+            config.apiKey = migratedKey;
+            console.log('Migrated API key from secure-data.json to raw config');
+          }
+        }
 
-        if (secureApiKey) {
-          config.apiKey = secureApiKey;
-          console.log('Loaded API key from secureStorage:', secureApiKey.substring(0, 10) + '...');
-        } else if (config.apiKey && config.apiKey.length > 0 && config.apiKey !== '[ENCRYPTED]') {
-          // Migrate plain-text API key to secure storage
-          console.log('Migrating API key to secure storage...');
-          secureStorage.set('apiKey', config.apiKey);
-          // Clear from plain config (will be saved on next updateConfig)
-        } else {
-          console.log('No API key found in secureStorage or config');
+        // Clear legacy placeholder
+        if (config.apiKey === '[ENCRYPTED]') {
+          config.apiKey = '';
         }
         console.log('=========================');
 
@@ -282,16 +314,18 @@ export class ConfigHelper extends EventEmitter {
 
       // If no config exists, create a default one
       this.saveConfig(this.defaultConfig);
-      return this.defaultConfig;
+      return { ...this.defaultConfig };
     } catch (err) {
       console.error("Error loading config:", err);
-      return this.defaultConfig;
+      // Critical failure — reset file on disk so next start is clean
+      try { this.saveConfig(this.defaultConfig); } catch (_) { /* ignore */ }
+      return { ...this.defaultConfig };
     }
   }
 
   /**
    * Save configuration to disk
-   * API key is stored encrypted separately via SecureStorage
+   * Raw JSON — API key stored directly (server-side config coming later)
    */
   public saveConfig(config: Config): void {
     try {
@@ -303,28 +337,12 @@ export class ConfigHelper extends EventEmitter {
       // Debug logging
       console.log('=== SAVE CONFIG DEBUG ===');
       console.log('Config path:', this.configPath);
-      console.log('API key provided:', config.apiKey ? `Yes (${config.apiKey.substring(0, 10)}...)` : 'No');
+      console.log('API key provided:', config.apiKey ? `Yes (${config.apiKey.substring(0, 8)}...)` : 'No');
       console.log('API provider:', config.apiProvider);
       console.log('Extraction model:', config.extractionModel);
 
-      // Store API key in secure storage instead of plain JSON
-      if (config.apiKey && config.apiKey.length > 0) {
-        secureStorage.set('apiKey', config.apiKey);
-        console.log('API key saved to secureStorage');
-        console.log('SecureStorage encryption available:', secureStorage.isEncryptionAvailable());
-      } else {
-        // Clear the encrypted key from secure storage on logout
-        secureStorage.delete('apiKey');
-        console.log('API key deleted from secureStorage');
-      }
-
-      // Save config without the actual API key value (store placeholder to indicate key exists)
-      const configToSave = {
-        ...config,
-        apiKey: config.apiKey ? '[ENCRYPTED]' : ''
-      };
-
-      fs.writeFileSync(this.configPath, JSON.stringify(configToSave, null, 2));
+      // Store everything directly in JSON (raw config mode)
+      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
       console.log('Config file saved successfully');
       console.log('=========================');
     } catch (err) {

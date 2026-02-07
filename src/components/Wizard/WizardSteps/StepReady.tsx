@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { Check, Sparkles, Mic, Monitor, User, ArrowRight, Settings } from 'lucide-react';
-import { StepProps, APIProvider, PROVIDERS } from '../../../types';
+import { Check, Sparkles, Mic, Monitor, User, Settings } from 'lucide-react';
+import { StepProps, PROVIDERS } from '../../../types';
+import { COMMAND_KEY } from '../../../utils/platform';
 
 interface StepReadyProps extends StepProps {
   setCanProceed: (can: boolean) => void;
@@ -136,7 +137,7 @@ export const StepReady: React.FC<StepReadyProps> = ({
             </div>
             <div>
               <div className="text-sm text-white/80">Toggle visibility</div>
-              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">Ctrl + `</kbd> to show/hide the app</div>
+              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">{COMMAND_KEY} + B</kbd> to show/hide the app</div>
             </div>
           </div>
 
@@ -146,7 +147,7 @@ export const StepReady: React.FC<StepReadyProps> = ({
             </div>
             <div>
               <div className="text-sm text-white/80">Take screenshots</div>
-              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">Ctrl + H</kbd> to capture problems</div>
+              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">{COMMAND_KEY} + H</kbd> to capture problems</div>
             </div>
           </div>
 
@@ -156,7 +157,7 @@ export const StepReady: React.FC<StepReadyProps> = ({
             </div>
             <div>
               <div className="text-sm text-white/80">Get answers</div>
-              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">Ctrl + Enter</kbd> to process</div>
+              <div className="text-xs text-white/50">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/70">{COMMAND_KEY} + Enter</kbd> to process</div>
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@ async function fetchScreenshots(): Promise<Screenshot[]> {
 }
 
 interface QueueProps {
-  setView: (view: "queue" | "solutions" | "debug") => void
+  setView: (view: "queue" | "solutions") => void
   credits: number
   currentLanguage: string
   setLanguage: (language: string) => void
@@ -31,11 +31,15 @@ const Queue: React.FC<QueueProps> = ({
 
   const [isTooltipVisible, setIsTooltipVisible] = useState(false)
   const [tooltipHeight, setTooltipHeight] = useState(0)
+  const [inlineNotice, setInlineNotice] = useState<{
+    code: "no_screenshots" | "process_failed"
+    title: string
+    message: string
+  } | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const {
     data: screenshots = [],
-    isLoading,
     refetch
   } = useQuery<Screenshot[]>({
     queryKey: ["screenshots"],
@@ -64,6 +68,34 @@ const Queue: React.FC<QueueProps> = ({
     }
   }
 
+  const handleNoticePrimary = async () => {
+    if (!inlineNotice) return
+
+    if (inlineNotice.code === "no_screenshots") {
+      await window.electronAPI.triggerScreenshot()
+      return
+    }
+
+    if (screenshots.length === 0) {
+      setInlineNotice({
+        code: "no_screenshots",
+        title: "No screenshots available",
+        message: "Capture at least one screenshot before retrying processing."
+      })
+      return
+    }
+
+    const result = await window.electronAPI.triggerProcessScreenshots()
+    if (!result.success) {
+      showToast("Error", "Retry failed. Please try again.", "error")
+    }
+  }
+
+  const handleNoticeSecondary = async () => {
+    await window.electronAPI.triggerReset()
+    setInlineNotice(null)
+  }
+
   useEffect(() => {
     // Height update logic
     const updateDimensions = () => {
@@ -89,8 +121,17 @@ const Queue: React.FC<QueueProps> = ({
 
     // Set up event listeners
     const cleanupFunctions = [
-      window.electronAPI.onScreenshotTaken(() => refetch()),
-      window.electronAPI.onResetView(() => refetch()),
+      window.electronAPI.onScreenshotTaken(() => {
+        refetch()
+        setInlineNotice((prev) => (prev?.code === "no_screenshots" ? null : prev))
+      }),
+      window.electronAPI.onResetView(() => {
+        refetch()
+        setInlineNotice(null)
+      }),
+      window.electronAPI.onSolutionStart(() => {
+        setInlineNotice(null)
+      }),
       window.electronAPI.onDeleteLastScreenshot(async () => {
         if (screenshots.length > 0) {
           await handleDeleteScreenshot(screenshots.length - 1);
@@ -104,10 +145,20 @@ const Queue: React.FC<QueueProps> = ({
           "There was an error processing your screenshots.",
           "error"
         )
+        setInlineNotice({
+          code: "process_failed",
+          title: "Processing failed",
+          message: error || "The app could not process screenshots. Retry or reset session."
+        })
         setView("queue")
         console.error("Processing error:", error)
       }),
       window.electronAPI.onProcessingNoScreenshots(() => {
+        setInlineNotice({
+          code: "no_screenshots",
+          title: "No screenshots detected",
+          message: "Capture your coding problem first, then run processing."
+        })
         showToast(
           "No Screenshots",
           "There are no screenshots to process.",
@@ -130,6 +181,32 @@ const Queue: React.FC<QueueProps> = ({
   return (
     <div ref={contentRef} className="bg-transparent w-full">
       <div className="px-4 py-3">
+        {inlineNotice && (
+          <div className="mb-3 p-3 rounded-lg border border-amber-400/35 bg-amber-500/10 text-amber-100">
+            <div className="text-[13px] font-semibold">{inlineNotice.title}</div>
+            <div className="text-[12px] text-amber-100/85 mt-0.5">{inlineNotice.message}</div>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                onClick={handleNoticePrimary}
+                className="h-8 px-3 rounded-md border border-amber-300/45 bg-amber-500/20 text-[12px] font-medium hover:bg-amber-500/30 transition-colors"
+              >
+                {inlineNotice.code === "no_screenshots" ? "Capture Now" : "Retry Processing"}
+              </button>
+              <button
+                onClick={handleNoticeSecondary}
+                className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors"
+              >
+                Reset Session
+              </button>
+              <button
+                onClick={() => setInlineNotice(null)}
+                className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <UnifiedPanel
           screenshots={screenshots}
           onDeleteScreenshot={handleDeleteScreenshot}

@@ -6,7 +6,6 @@ import {
   Mic, 
   MicOff, 
   Pause,
-  Play,
   Settings,
   Clock,
   Globe,
@@ -36,14 +35,14 @@ const PROVIDER_INFO: Record<APIProvider, { name: string; color: string }> = {
 };
 
 const HOTKEYS = [
-  { key: 'Ctrl + `', action: 'Show/Hide app' },
-  { key: 'Ctrl + Space', action: 'Pause/Resume' },
+  { key: 'Ctrl + B', action: 'Show/Hide app' },
   { key: 'Ctrl + H', action: 'Take screenshot' },
   { key: 'Ctrl + Enter', action: 'Process' },
   { key: 'Ctrl + L', action: 'Delete last screenshot' },
   { key: 'Ctrl + R', action: 'Reset view' },
-  { key: 'Ctrl + Shift + C', action: 'Copy last answer' },
+  { key: 'Ctrl + Arrow', action: 'Move window' },
   { key: 'Ctrl + [ / ]', action: 'Decrease/Increase opacity' },
+  { key: 'Ctrl + - / 0 / =', action: 'Zoom controls' },
   { key: 'Ctrl + Q', action: 'Quit app' },
 ];
 
@@ -256,7 +255,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
               <div className="mt-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
                 <p className="text-sm text-blue-400">
-                  <strong>Tip:</strong> Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs">Ctrl + `</kbd> to quickly show or hide the app during your interview.
+                  <strong>Tip:</strong> Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-xs">Ctrl + B</kbd> to quickly show or hide the app during your interview.
                 </p>
               </div>
             </div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -10,7 +9,6 @@ import {
 } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Settings } from "lucide-react";
 import { useToast } from "../../contexts/toast";
 import { AudioSettings } from "./AudioSettings";
 
@@ -438,7 +436,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
               </p>
             )}
             <p className="text-xs text-white/50">
-              Your API key is stored locally and never sent to any server except {apiProvider === "openai" ? "OpenAI" : "Google"}
+              Your API key is stored locally and never sent to our servers. It is only used for direct calls to {apiProvider === "openai" ? "OpenAI" : apiProvider === "gemini" ? "Google Gemini" : "Anthropic"}.
             </p>
             <div className="mt-2 p-2 rounded-md bg-white/5 border border-white/10">
               <p className="text-xs text-white/80 mb-1">Don't have an API key?</p>

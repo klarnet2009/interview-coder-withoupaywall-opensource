@@ -16,18 +16,26 @@ import { Session, SavedSnippet } from '../../types';
 
 interface SessionHistoryProps {
   isOpen: boolean;
+  isLoading?: boolean;
   onClose: () => void;
   sessions: Session[];
   onDeleteSession: (id: string) => void;
   onExportSession: (id: string) => void;
+  onUseSnippet?: (snippet: SavedSnippet, session: Session) => void;
+  onClearHistory?: () => void;
+  onRefresh?: () => void;
 }
 
 export const SessionHistory: React.FC<SessionHistoryProps> = ({
   isOpen,
+  isLoading = false,
   onClose,
   sessions,
   onDeleteSession,
-  onExportSession
+  onExportSession,
+  onUseSnippet,
+  onClearHistory,
+  onRefresh
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -108,6 +116,22 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
                 Export
               </button>
             )}
+            {view === 'list' && onRefresh && (
+              <button
+                onClick={onRefresh}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              >
+                Refresh
+              </button>
+            )}
+            {view === 'list' && onClearHistory && sessions.length > 0 && (
+              <button
+                onClick={onClearHistory}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400/75 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+              >
+                Clear All
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1.5 text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors"
@@ -134,7 +158,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
               </div>
 
               {/* Sessions list */}
-              {filteredSessions.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-white/45">Loading history...</p>
+                </div>
+              ) : filteredSessions.length === 0 ? (
                 <div className="text-center py-12">
                   <History className="w-12 h-12 text-white/10 mx-auto mb-3" />
                   <p className="text-sm text-white/40">
@@ -267,22 +295,32 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs text-white/40">Answer</span>
-                          <button
-                            onClick={() => handleCopySnippet(snippet.answer, snippet.id)}
-                            className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors"
-                          >
-                            {copiedId === snippet.id ? (
-                              <>
-                                <Check className="w-3 h-3" />
-                                Copied
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" />
-                                Copy
-                              </>
+                          <div className="flex items-center gap-2">
+                            {onUseSnippet && (
+                              <button
+                                onClick={() => onUseSnippet(snippet, selectedSession)}
+                                className="text-xs text-blue-300/90 hover:text-blue-200 transition-colors"
+                              >
+                                Use
+                              </button>
                             )}
-                          </button>
+                            <button
+                              onClick={() => handleCopySnippet(snippet.answer, snippet.id)}
+                              className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors"
+                            >
+                              {copiedId === snippet.id ? (
+                                <>
+                                  <Check className="w-3 h-3" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  Copy
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                         <div className="text-sm text-white/70 bg-black/30 rounded-lg p-3">
                           {snippet.answer}
