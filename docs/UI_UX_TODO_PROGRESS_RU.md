@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-07 (после Sprint 5 — i18n & Polish)  
+Дата обновления: 2026-02-08 (после TECH-009 lint hardening)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -77,6 +77,7 @@
 - [x] `git fsck --full`
 - [x] `git diff --name-only` / `git log --oneline -n 12`
 - [x] `tsc --noEmit` — все ошибки pre-existing, не связаны с i18n/settings
+- [x] `npm run lint` — `0` ошибок (после закрытия `TECH-009`)
 
 ---
 
@@ -109,8 +110,9 @@
   - Добавлен explicit `endTurn` после устойчивой тишины для снятия зависаний при пропущенном `turnComplete`
 - [x] `TECH-008` Закрыт: ESLint scope приведен к исходникам (исключены generated/legacy директории и lock files)
   - `npm run lint` сокращен с ~`2970` проблем до `55` реальных source-code проблем
-- [ ] `TECH-009` В работе: довести strict-линтинг Electron/Renderer слоёв до стабильного CI baseline
-  - После `TECH-008` остаются `55` pre-existing ошибок (`no-explicit-any`, `no-unused-vars`, `ban-ts-comment`, `no-empty-object-type`, legacy `require`)
+- [x] `TECH-009` Закрыт: strict-линтинг Electron/Renderer доведен до стабильного CI baseline
+  - Исправлены pre-existing ошибки (`no-explicit-any`, `no-unused-vars`, `ban-ts-comment`, `no-empty-object-type`, legacy `require`)
+  - Текущий результат: `npm run lint` проходит без ошибок
 
 ---
 

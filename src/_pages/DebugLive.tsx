@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    Mic, MicOff, Volume2, VolumeX, Loader2, AlertCircle,
+    Mic, Loader2,
     Settings, Monitor, Terminal, Activity, ArrowRight, Eye, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,11 @@ type ListeningState =
     | 'error';
 
 type AudioSourceType = 'system' | 'microphone';
+
+type DisplayMediaAudioConstraints = MediaTrackConstraints & {
+    systemAudio?: 'include' | 'exclude';
+    suppressLocalAudioPlayback?: boolean;
+};
 
 interface LiveInterviewStatus {
     state: ListeningState;
@@ -108,10 +113,9 @@ export const DebugLive: React.FC = () => {
                 stream = await navigator.mediaDevices.getDisplayMedia({
                     video: true,
                     audio: {
-                        // @ts-ignore
                         systemAudio: 'include',
                         suppressLocalAudioPlayback: false,
-                    } as any
+                    } as DisplayMediaAudioConstraints
                 });
                 stream.getVideoTracks().forEach(track => track.stop());
             } else {

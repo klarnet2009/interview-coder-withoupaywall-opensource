@@ -650,7 +650,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       prefs?.answerStyle
     );
     // Access the built system instruction
-    const hintPrompt = (tempService as any).systemInstruction as string;
+    const hintPrompt = tempService.getSystemInstruction();
 
     // Build the transcription prompt from GeminiLiveService
     const { GeminiLiveService } = await import('./audio/GeminiLiveService');
@@ -658,7 +658,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       apiKey: 'preview-key',
       spokenLanguage: prefs?.language || 'en',
     });
-    const transcriptionPrompt = (tempGemini as any).config.systemInstruction as string;
+    const transcriptionPrompt = tempGemini.getSystemInstruction();
 
     return {
       hintGenerationPrompt: hintPrompt,
@@ -687,7 +687,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       if (liveInterviewService) {
         try {
           await liveInterviewService.stop();
-        } catch (_) { /* ignore cleanup errors */ }
+        } catch {
+          // Ignore cleanup errors.
+        }
         liveInterviewService = null;
       }
 

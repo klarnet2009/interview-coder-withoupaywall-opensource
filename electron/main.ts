@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, shell, ipcMain } from "electron"
+import { app, BrowserWindow, screen, shell } from "electron"
 import path from "path"
 import fs from "fs"
 import { initializeIpcHandlers } from "./ipcHandlers"
@@ -11,6 +11,14 @@ import * as dotenv from "dotenv"
 
 // Constants
 const isDev = process.env.NODE_ENV === "development"
+
+interface ProblemInfo {
+  problem_statement?: string
+  constraints?: string
+  example_input?: string
+  example_output?: string
+  [key: string]: unknown
+}
 
 // Application State
 const state = {
@@ -32,7 +40,7 @@ const state = {
 
   // View and state management
   view: "queue" as "queue" | "solutions" | "debug",
-  problemInfo: null as any,
+  problemInfo: null as ProblemInfo | null,
   hasDebugged: false,
 
   // Processing events
@@ -57,8 +65,8 @@ export interface IProcessingHelperDeps {
   getMainWindow: () => BrowserWindow | null
   getView: () => "queue" | "solutions" | "debug"
   setView: (view: "queue" | "solutions" | "debug") => void
-  getProblemInfo: () => any
-  setProblemInfo: (info: any) => void
+  getProblemInfo: () => ProblemInfo | null
+  setProblemInfo: (info: ProblemInfo | null) => void
   getScreenshotQueue: () => string[]
   getExtraScreenshotQueue: () => string[]
   clearQueues: () => void
@@ -648,11 +656,11 @@ function getScreenshotHelper(): ScreenshotHelper | null {
   return state.screenshotHelper
 }
 
-function getProblemInfo(): any {
+function getProblemInfo(): ProblemInfo | null {
   return state.problemInfo
 }
 
-function setProblemInfo(problemInfo: any): void {
+function setProblemInfo(problemInfo: ProblemInfo | null): void {
   state.problemInfo = problemInfo
 }
 

@@ -20,7 +20,8 @@ export default [
       "package-lock.json",
       "bun.lockb",
       "src/index.css",
-      "public/pcm-capture-processor.js"
+      "public/pcm-capture-processor.js",
+      ".eslint-report.json"
     ]
   },
 

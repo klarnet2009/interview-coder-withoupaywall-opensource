@@ -2,98 +2,83 @@
 
 This is a code-level audit focused on reliability, maintainability, and modern engineering standards.
 
+Last updated: `2026-02-08`
+
 ## Severity Legend
 
 - `P0`: high-impact defects/risk, should be fixed first
 - `P1`: meaningful quality/reliability issues, next wave
 - `P2`: structural improvements and cleanup
 
-## Findings
+## Status Since Initial Audit
 
-### P0
+Resolved:
+- IPC contract parity for session history and external-link channels.
+- API key plaintext-at-rest risk (migrated to secure storage flow).
+- Live phrase finalization hangs reduced with explicit end-turn fallback logic.
+- Strict ESLint baseline restored (`npm run lint` passes with `0` errors).
 
-1. IPC contract gaps between preload and main handlers
-- Preload exposes `get-session-history*` and delete/clear history channels with no matching `ipcMain.handle`.
-- Preload `openExternal` invokes `openExternal`, but main handles `open-external-url` and `openLink`.
-- Impact: runtime errors on invoke and broken features hidden behind type-safe facade.
+Still open:
+- Electron TypeScript strictness remains disabled (`strict: false`, `noImplicitAny: false`, `strictNullChecks: false`).
+- Core files are still too large in responsibility (`ProcessingHelper`, `UnifiedPanel`).
+- Integration test coverage is still narrow (mostly unit validation tests).
 
-2. API key storage is plaintext at rest
-- `ConfigHelper` persists `apiKey` directly in JSON.
-- `SecureStorage` encryption path exists but is effectively disabled.
-- Impact: local credential exposure risk.
-
-3. Live/audio reliability still depends on timing heuristics only
-- Phrase finalization can rely on silence/timing windows that fail in noisy conditions.
-- Impact: user-visible stuck states in interview flow.
+## Current Findings
 
 ### P1
 
-4. Type safety baseline is weak in Electron layer
-- `tsconfig.electron.json` has `strict: false`, `noImplicitAny: false`, `strictNullChecks: false`.
-- Mixed `any` and untyped payloads across IPC and service boundaries.
-- Impact: regressions surface at runtime instead of compile time.
+1. Electron TypeScript strictness is still permissive
+- `tsconfig.electron.json` keeps strictness flags off.
+- Impact: type regressions can still escape into runtime.
 
-5. Single-file complexity is high in core paths
-- `electron/ProcessingHelper.ts` and `src/components/UnifiedPanel/UnifiedPanel.tsx` are large and multi-responsibility.
-- Impact: slower iteration, harder testing, higher bug density.
+2. Single-file complexity remains high in critical paths
+- `electron/ProcessingHelper.ts` and `src/components/UnifiedPanel/UnifiedPanel.tsx` are multi-responsibility controllers.
+- Impact: higher change risk and slower onboarding/review.
 
-6. `ConfigHelper.setOpacity` bypasses atomic save path
-- Direct file write path diverges from backup/atomic flow used by `saveConfig`.
-- Impact: increased risk of partial/competing config writes.
-
-7. Limited automated test coverage
-- Existing tests mostly cover validators.
-- Core flows (IPC routes, screenshot processing, live audio state machine) lack integration coverage.
-- Impact: fragile releases and hard-to-catch regressions.
+3. Limited automated coverage for runtime-critical flows
+- Unit tests pass, but IPC routing, live audio state machine, and screenshot-processing paths are under-tested.
+- Impact: regressions likely appear late (manual QA/release).
 
 ### P2
 
-8. Duplicate/legacy abstractions increase confusion
-- Two audio capture service implementations (`electron/audio/AudioCaptureService.ts` and `src/services/AudioCaptureService.ts`) with different runtime assumptions.
-- Some modules look legacy and are not clearly wired into primary flow.
-- Impact: onboarding friction and accidental usage of stale paths.
+4. Legacy/parallel abstractions still exist
+- Multiple audio-related service layers with overlapping responsibilities.
+- Impact: confusion about active path, harder long-term maintenance.
 
-9. Type declaration drift and duplication
-- Duplicate `setWindowOpacity` declarations in `src/types/electron.d.ts`.
-- Event naming typo (`procesing-unauthorized`) in preload constants.
-- Impact: reduced trust in declared contracts.
-
-10. Verbose runtime logging in production paths
-- Extensive `console.log` and broad error logging remain in hot paths.
-- Impact: noisy logs and potential information leakage.
+5. Runtime logging is still noisy in production paths
+- Broad `console.*` usage in hot paths.
+- Impact: noisy diagnostics and increased risk of leaking internal state.
 
 ## Remediation Plan
 
-### P0 Actions (Immediate)
-
-1. Fix IPC parity:
-- Implement missing session history handlers or remove preload methods until implemented.
-- Standardize URL open channel names and update all call sites.
-
-2. Secure key storage:
-- Re-enable encrypted storage path with migration and fallback strategy.
-- Keep only non-sensitive config in plaintext.
-
-3. Stabilize live phrase finalization:
-- Add explicit end-of-turn signaling path and stale-state failsafe.
-- Add telemetry for trigger reason and state duration.
-
 ### P1 Actions (Next Sprint)
 
-1. Raise strictness in Electron TS config incrementally.
-2. Split `ProcessingHelper` into provider-specific strategy modules.
-3. Split `UnifiedPanel` into smaller controller + presentational components.
-4. Add integration tests for IPC map and key user flows.
+1. Introduce strictness in Electron TS config in phases:
+- Phase A: `noImplicitAny: true`
+- Phase B: `strictNullChecks: true`
+- Phase C: `strict: true`
+
+2. Split `ProcessingHelper` into provider strategies and orchestration layer.
+
+3. Split `UnifiedPanel` into:
+- session control controller
+- live state lane component
+- response rendering component
+- recovery/actions component
+
+4. Add integration tests:
+- IPC channel contract tests (`preload <-> main`)
+- live start/stop/reconnect state transitions
+- screenshot process and recovery flow
 
 ### P2 Actions (Cleanup)
 
-1. Remove or quarantine legacy modules not in active use.
-2. Normalize type declarations and event constants.
-3. Reduce unstructured logging and move to leveled logger policy.
+1. Remove or quarantine legacy modules not in active path.
+2. Consolidate logging behind a leveled logger policy.
+3. Normalize shared runtime types across main/preload/renderer.
 
-## Quick Wins (High Impact, Low Effort)
+## Quick Wins
 
-1. Add startup assertion that preload invoke channels exist in main.
-2. Validate `globalShortcut.register(...)` return values and log failures clearly.
-3. Add a shared IPC channel enum exported to preload/types/main.
-4. Remove duplicate type declarations in `src/types/electron.d.ts`.
+1. Add a startup IPC contract self-check (assert all preload invokes are handled in main).
+2. Add CI gates for `lint`, `test`, and targeted integration smoke tests.
+3. Add architectural ADR notes for audio/live pipeline ownership boundaries.

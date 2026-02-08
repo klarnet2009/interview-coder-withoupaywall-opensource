@@ -10,7 +10,7 @@
 import { EventEmitter } from 'events';
 import log from 'electron-log';
 import https from 'https';
-import { IncomingMessage } from 'http';
+import { ClientRequest, IncomingMessage } from 'http';
 
 const HINT_MODEL = 'gemini-3-flash-preview';
 const API_BASE_HOST = 'generativelanguage.googleapis.com';
@@ -18,6 +18,18 @@ const API_BASE_HOST = 'generativelanguage.googleapis.com';
 interface ConversationTurn {
     role: 'user' | 'model';
     parts: Array<{ text: string }>;
+}
+
+interface HintRequestPayload {
+    contents: ConversationTurn[];
+    generationConfig: {
+        temperature: number;
+        maxOutputTokens: number;
+    };
+    cachedContent?: string;
+    systemInstruction?: {
+        parts: Array<{ text: string }>;
+    };
 }
 
 export interface HintResponse {
@@ -30,7 +42,7 @@ export class HintGenerationService extends EventEmitter {
     private apiKey: string;
     private model: string;
     private systemInstruction: string;
-    private currentRequest: any = null;
+    private currentRequest: ClientRequest | null = null;
     private isGenerating: boolean = false;
     private spokenLanguage: string;
     private interviewMode: string;
@@ -121,12 +133,31 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
         this.systemInstruction = instruction;
     }
 
+    public getSystemInstruction(): string {
+        return this.systemInstruction;
+    }
+
     public setApiKey(apiKey: string): void {
         this.apiKey = apiKey;
     }
 
     public setModel(model: string): void {
         this.model = model;
+    }
+
+    private getErrorMessage(error: unknown, fallback: string): string {
+        if (error instanceof Error && error.message) {
+            return error.message;
+        }
+        return fallback;
+    }
+
+    private getErrorCode(error: unknown): string | undefined {
+        if (typeof error !== 'object' || error === null) {
+            return undefined;
+        }
+        const maybeError = error as { code?: string };
+        return maybeError.code;
     }
 
     /**
@@ -169,8 +200,8 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
             } else {
                 log.warn('HintGenerationService: Cache creation returned no name');
             }
-        } catch (err: any) {
-            log.info(`HintGenerationService: Cache creation deferred (${err.message})`);
+        } catch (err: unknown) {
+            log.info(`HintGenerationService: Cache creation deferred (${this.getErrorMessage(err, 'unknown error')})`);
             this.cacheAttempted = false; // Retry next time
         }
     }
@@ -187,8 +218,8 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
         try {
             await this.httpsRequest('DELETE', path);
             log.info(`HintGenerationService: Cache deleted: ${this.cachedContentName}`);
-        } catch (err: any) {
-            log.warn(`HintGenerationService: Cache deletion failed: ${err.message}`);
+        } catch (err: unknown) {
+            log.warn(`HintGenerationService: Cache deletion failed: ${this.getErrorMessage(err, 'unknown error')}`);
         } finally {
             this.cachedContentName = null;
         }
@@ -235,7 +266,7 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
         const contents = [...this.conversationHistory, userMessage];
 
         // Build request body — use cache if available, otherwise inline system instruction
-        const requestPayload: any = {
+        const requestPayload: HintRequestPayload = {
             contents,
             generationConfig: {
                 temperature: 0.7,
@@ -273,8 +304,10 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                 }
             }
 
-        } catch (error: any) {
-            if (error.message?.includes('aborted') || error.code === 'ECONNRESET') {
+        } catch (error: unknown) {
+            const errorMessage = this.getErrorMessage(error, '');
+            const errorCode = this.getErrorCode(error);
+            if (errorMessage.includes('aborted') || errorCode === 'ECONNRESET') {
                 log.info('HintGenerationService: Generation aborted');
                 return;
             }
@@ -349,7 +382,7 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                                     timestamp: Date.now()
                                 } as HintResponse);
                             }
-                        } catch (parseErr) {
+                        } catch {
                             log.warn(`HintGenerationService: Parse error: ${trimmed.slice(0, 200)}`);
                         }
                     }
@@ -364,7 +397,9 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                                 const data = JSON.parse(jsonStr);
                                 const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
                                 if (text) accumulatedText += text;
-                            } catch (_) { }
+                            } catch {
+                                // Ignore partial trailing chunk parse errors.
+                            }
                         }
                     }
 

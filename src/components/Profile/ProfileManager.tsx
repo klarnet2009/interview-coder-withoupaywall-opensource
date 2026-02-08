@@ -9,8 +9,7 @@ import {
   Edit2, 
   Check,
   FileText,
-  Upload,
-  ChevronRight
+  Upload
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 
@@ -231,7 +230,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                   <label className="text-sm font-medium text-white/80">Communication Style</label>
                   <select
                     value={formData.tone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, tone: e.target.value as any }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, tone: e.target.value as 'formal' | 'professional' | 'casual' }))}
                     className="w-full px-4 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30"
                   >
                     {COMMUNICATION_TONES.map(tone => (

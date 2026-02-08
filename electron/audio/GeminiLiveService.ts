@@ -412,4 +412,8 @@ Keep your responses to 1-2 words maximum.`;
             this.connect();
         }
     }
+
+    public getSystemInstruction(): string {
+        return this.config.systemInstruction || '';
+    }
 }

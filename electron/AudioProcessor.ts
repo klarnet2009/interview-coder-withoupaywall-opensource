@@ -4,7 +4,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import axios from 'axios';
 import { configHelper } from './ConfigHelper';
 import log from 'electron-log';
@@ -106,13 +105,15 @@ export class AudioProcessor {
             }
 
             return result;
-        } catch (error: any) {
-            // Enhanced error logging
-            if (error.response) {
-                log.error('Gemini API Error Status:', error.response.status);
-                log.error('Gemini API Error Data:', JSON.stringify(error.response.data, null, 2));
-            } else {
+        } catch (error: unknown) {
+            const axiosError = axios.isAxiosError(error) ? error : null;
+            if (axiosError?.response) {
+                log.error('Gemini API Error Status:', axiosError.response.status);
+                log.error('Gemini API Error Data:', JSON.stringify(axiosError.response.data, null, 2));
+            } else if (error instanceof Error) {
                 log.error('Audio transcription error (no response):', error.message);
+            } else {
+                log.error('Audio transcription error (unknown):', String(error));
             }
             throw error;
         }

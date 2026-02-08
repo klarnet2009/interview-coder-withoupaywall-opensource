@@ -37,6 +37,10 @@ const DEFAULT_CONFIG: AudioCaptureConfig = {
     chunkMs: 300
 };
 
+type AudioContextGlobal = typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+};
+
 export class AudioCaptureService extends EventEmitter {
     private config: AudioCaptureConfig;
     private mediaStream: MediaStream | null = null;
@@ -133,9 +137,12 @@ export class AudioCaptureService extends EventEmitter {
             throw new Error('No media stream available');
         }
 
-        this.audioContext = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)({
-            sampleRate: this.config.sampleRate
-        });
+        const audioContextCtor =
+            globalThis.AudioContext || (globalThis as AudioContextGlobal).webkitAudioContext;
+        if (!audioContextCtor) {
+            throw new Error('AudioContext is not available in this environment');
+        }
+        this.audioContext = new audioContextCtor({ sampleRate: this.config.sampleRate });
 
         const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 

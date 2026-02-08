@@ -2,8 +2,6 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import {
   WizardMode,
-  WizardStep,
-  WizardState,
   AppConfig,
   DEFAULT_CONFIG,
   WizardStepConfig

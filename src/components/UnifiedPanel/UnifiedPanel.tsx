@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { createRoot } from "react-dom/client";
 import {
   Camera,
   Play,
@@ -24,7 +22,6 @@ import {
   Search
 } from "lucide-react";
 import ScreenshotQueue from "../Queue/ScreenshotQueue";
-import { LanguageSelector } from "../shared/LanguageSelector";
 import { useToast } from "../../contexts/toast";
 import { COMMAND_KEY } from "../../utils/platform";
 import { Screenshot } from "../../types/screenshots";
@@ -241,8 +238,9 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
   setLanguage,
   onTooltipVisibilityChange
 }) => {
-  const navigate = useNavigate();
   const { showToast } = useToast();
+  void currentLanguage;
+  void setLanguage;
 
   const [isActive, setIsActive] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -464,20 +462,21 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
       if (source === "application" && appSourceId) {
         // Per-window audio capture via Electron chromeMediaSourceId
-        stream = await (navigator.mediaDevices as any).getUserMedia({
+        const desktopCaptureConstraints: MediaStreamConstraints = {
           audio: {
             mandatory: {
               chromeMediaSource: "desktop",
               chromeMediaSourceId: appSourceId
             }
-          },
+          } as unknown as MediaTrackConstraints,
           video: {
             mandatory: {
               chromeMediaSource: "desktop",
               chromeMediaSourceId: appSourceId
             }
-          }
-        });
+          } as unknown as MediaTrackConstraints
+        };
+        stream = await navigator.mediaDevices.getUserMedia(desktopCaptureConstraints);
         // We only need audio — stop the video track
         stream.getVideoTracks().forEach((track) => track.stop());
         if (stream.getAudioTracks().length === 0) {
@@ -719,39 +718,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     }
   };
 
-  const extractLanguagesAndUpdate = (direction?: "next" | "prev") => {
-    const hiddenRenderContainer = document.createElement("div");
-    hiddenRenderContainer.style.position = "absolute";
-    hiddenRenderContainer.style.left = "-9999px";
-    document.body.appendChild(hiddenRenderContainer);
-
-    const root = createRoot(hiddenRenderContainer);
-    root.render(
-      <LanguageSelector currentLanguage={currentLanguage} setLanguage={() => { }} />
-    );
-
-    setTimeout(() => {
-      const selectElement = hiddenRenderContainer.querySelector("select");
-      if (selectElement) {
-        const values = Array.from(selectElement.options).map((opt) => opt.value);
-        const currentIndex = values.indexOf(currentLanguage);
-        let newIndex = currentIndex;
-
-        if (direction === "prev") {
-          newIndex = (currentIndex - 1 + values.length) % values.length;
-        } else {
-          newIndex = (currentIndex + 1) % values.length;
-        }
-
-        if (newIndex !== currentIndex) {
-          setLanguage(values[newIndex]);
-          window.electronAPI.updateConfig({ language: values[newIndex] });
-        }
-      }
-      root.unmount();
-      document.body.removeChild(hiddenRenderContainer);
-    }, 50);
-  };
   const dismissNotice = () => {
     setActionNotice(null);
   };

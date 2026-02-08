@@ -4,16 +4,14 @@ import {
   Play, 
   Terminal, 
   Activity, 
-  MessageSquare, 
   Check,
   AlertCircle,
-  Clock,
   Download,
   Trash2,
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
-import { PipelineStep, DebugLog, AnswerStyle } from '../../types';
+import { PipelineStep, DebugLog } from '../../types';
 
 interface DebugViewProps {
   isOpen: boolean;
@@ -21,6 +19,8 @@ interface DebugViewProps {
   provider: string;
   model: string;
 }
+
+type DebugTab = 'test' | 'pipeline' | 'logs';
 
 const TEST_QUESTIONS = {
   coding: [
@@ -49,7 +49,7 @@ export const DebugView: React.FC<DebugViewProps> = ({
   provider,
   model
 }) => {
-  const [activeTab, setActiveTab] = useState<'test' | 'pipeline' | 'logs'>('test');
+  const [activeTab, setActiveTab] = useState<DebugTab>('test');
   const [testInput, setTestInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'coding' | 'behavioral' | 'system_design'>('coding');
   const [isRunning, setIsRunning] = useState(false);
@@ -71,7 +71,7 @@ export const DebugView: React.FC<DebugViewProps> = ({
     }
   }, [logs]);
 
-  const addLog = (level: DebugLog['level'], message: string, data?: any) => {
+  const addLog = (level: DebugLog['level'], message: string, data?: unknown) => {
     setLogs(prev => [...prev, {
       timestamp: Date.now(),
       level,
@@ -79,6 +79,12 @@ export const DebugView: React.FC<DebugViewProps> = ({
       data
     }]);
   };
+
+  const tabs: Array<{ id: DebugTab; label: string; icon: typeof Play }> = [
+    { id: 'test', label: 'Test Input', icon: Play },
+    { id: 'pipeline', label: 'Pipeline', icon: Activity },
+    { id: 'logs', label: 'Logs', icon: Terminal }
+  ];
 
   const runTest = async () => {
     if (!testInput.trim()) return;
@@ -200,14 +206,10 @@ export const DebugView: React.FC<DebugViewProps> = ({
 
         {/* Tabs */}
         <div className="flex border-b border-white/10">
-          {[
-            { id: 'test', label: 'Test Input', icon: Play },
-            { id: 'pipeline', label: 'Pipeline', icon: Activity },
-            { id: 'logs', label: 'Logs', icon: Terminal }
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'text-white border-white'

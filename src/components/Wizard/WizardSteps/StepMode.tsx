@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Code, MessageCircle, Layers, Check } from 'lucide-react';
-import { StepProps } from '../../../types';
+import { AnswerStyle, InterviewMode, StepProps } from '../../../types';
 
 interface StepModeProps extends StepProps {
   setCanProceed: (can: boolean) => void;
@@ -28,10 +28,10 @@ const INTERVIEW_MODES = [
 ];
 
 const ANSWER_STYLES = [
-  { id: 'concise', title: 'Concise', description: 'Brief bullet points' },
-  { id: 'structured', title: 'Structured', description: 'Organized sections' },
-  { id: 'detailed', title: 'Detailed', description: 'Comprehensive explanation' },
-  { id: 'star', title: 'STAR Format', description: 'Situation-Task-Action-Result' }
+  { id: 'concise' as AnswerStyle, title: 'Concise', description: 'Brief bullet points' },
+  { id: 'structured' as AnswerStyle, title: 'Structured', description: 'Organized sections' },
+  { id: 'detailed' as AnswerStyle, title: 'Detailed', description: 'Comprehensive explanation' },
+  { id: 'star' as AnswerStyle, title: 'STAR Format', description: 'Situation-Task-Action-Result' }
 ];
 
 export const StepMode: React.FC<StepModeProps> = ({
@@ -39,8 +39,8 @@ export const StepMode: React.FC<StepModeProps> = ({
   onUpdate,
   setCanProceed
 }) => {
-  const [selectedMode, setSelectedMode] = useState(data.interviewPreferences?.mode || 'coding');
-  const [selectedStyle, setSelectedStyle] = useState(data.interviewPreferences?.answerStyle || 'structured');
+  const [selectedMode, setSelectedMode] = useState<InterviewMode>(data.interviewPreferences?.mode || 'coding');
+  const [selectedStyle, setSelectedStyle] = useState<AnswerStyle>(data.interviewPreferences?.answerStyle || 'structured');
 
   useEffect(() => {
     setCanProceed(true);
@@ -109,7 +109,7 @@ export const StepMode: React.FC<StepModeProps> = ({
           {ANSWER_STYLES.map((style) => (
             <div
               key={style.id}
-              onClick={() => setSelectedStyle(style.id as any)}
+              onClick={() => setSelectedStyle(style.id)}
               className={`p-3 rounded-xl border cursor-pointer transition-all ${
                 selectedStyle === style.id
                   ? 'bg-white/10 border-white/30'

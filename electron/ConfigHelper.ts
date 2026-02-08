@@ -3,6 +3,8 @@ import fs from "node:fs"
 import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
+import axios from "axios"
+import Anthropic from "@anthropic-ai/sdk"
 import { OpenAI } from "openai"
 import { secureStorage } from "./SecureStorage"
 
@@ -140,7 +142,7 @@ export class ConfigHelper extends EventEmitter {
     try {
       this.configPath = path.join(app.getPath('userData'), 'config.json');
       console.log('Config path:', this.configPath);
-    } catch (err) {
+    } catch {
       console.warn('Could not access user data path, using fallback');
       this.configPath = path.join(process.cwd(), 'config.json');
     }
@@ -212,7 +214,10 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Migrate old config format to new format
    */
-  private migrateConfig(config: any): Config {
+  private migrateConfig(rawConfig: unknown): Config {
+    const config = (
+      typeof rawConfig === "object" && rawConfig !== null ? rawConfig : {}
+    ) as Partial<Config> & Record<string, unknown>;
     // If wizardCompleted doesn't exist, this is an old config
     if (config.wizardCompleted === undefined) {
       console.log('Migrating old config format to new format...');
@@ -262,7 +267,7 @@ export class ConfigHelper extends EventEmitter {
         const apiKey = parsed.apiKey;
         if (apiKey && typeof apiKey === 'string' && apiKey.length > 0) {
           // Clean up old file after successful migration
-          try { fs.unlinkSync(secureDataPath); } catch (_) { /* ignore */ }
+          try { fs.unlinkSync(secureDataPath); } catch { /* ignore */ }
           console.log('SecureStorage migration: found and migrated API key');
           return apiKey;
         }
@@ -365,7 +370,7 @@ export class ConfigHelper extends EventEmitter {
     } catch (err) {
       console.error("Error loading config:", err);
       // Critical failure — reset file on disk so next start is clean
-      try { this.saveConfig({ ...this.defaultConfig, apiKey: "" }); } catch (_) { /* ignore */ }
+      try { this.saveConfig({ ...this.defaultConfig, apiKey: "" }); } catch { /* ignore */ }
       return { ...this.defaultConfig, apiKey: this.getStoredApiKey() };
     }
   }
@@ -819,24 +824,49 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Test OpenAI API key
    */
+  private getErrorStatus(error: unknown): number | undefined {
+    if (typeof error !== "object" || error === null) {
+      return undefined;
+    }
+    const maybeError = error as { status?: number; response?: { status?: number } };
+    return maybeError.status ?? maybeError.response?.status;
+  }
+
+  private getErrorCode(error: unknown): string | undefined {
+    if (typeof error !== "object" || error === null) {
+      return undefined;
+    }
+    const maybeError = error as { code?: string };
+    return maybeError.code;
+  }
+
+  private getErrorMessage(error: unknown): string | undefined {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return undefined;
+  }
+
   private async testOpenAIKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
     try {
       const openai = new OpenAI({ apiKey });
       await openai.models.list();
       return { valid: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('OpenAI API key test failed:', error);
 
       let errorMessage = 'Unknown error validating OpenAI API key';
+      const status = this.getErrorStatus(error);
+      const errorText = this.getErrorMessage(error);
 
-      if (error.status === 401) {
+      if (status === 401) {
         errorMessage = 'Invalid API key. Please check your OpenAI key and try again.';
-      } else if (error.status === 429) {
+      } else if (status === 429) {
         errorMessage = 'Rate limit exceeded. Your OpenAI API key has reached its request limit or has insufficient quota.';
-      } else if (error.status === 500) {
+      } else if (status === 500) {
         errorMessage = 'OpenAI server error. Please try again later.';
-      } else if (error.message) {
-        errorMessage = `Error: ${error.message}`;
+      } else if (errorText) {
+        errorMessage = `Error: ${errorText}`;
       }
 
       return { valid: false, error: errorMessage };
@@ -853,7 +883,6 @@ export class ConfigHelper extends EventEmitter {
       }
 
       // Make an actual API call to verify the key works
-      const axios = require('axios');
       const response = await axios.get(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`,
         { timeout: 10000 }
@@ -864,19 +893,22 @@ export class ConfigHelper extends EventEmitter {
       }
 
       return { valid: false, error: 'Unable to verify Gemini API key.' };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Gemini API key test failed:', error);
 
       let errorMessage = 'Unknown error validating Gemini API key';
+      const status = this.getErrorStatus(error);
+      const code = this.getErrorCode(error);
+      const errorText = this.getErrorMessage(error);
 
-      if (error.response?.status === 400 || error.response?.status === 403) {
+      if (status === 400 || status === 403) {
         errorMessage = 'Invalid Gemini API key. Please check your key and try again.';
-      } else if (error.response?.status === 429) {
+      } else if (status === 429) {
         errorMessage = 'Gemini API rate limit exceeded. Please try again later.';
-      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
         errorMessage = 'Unable to connect to Gemini API. Check your internet connection.';
-      } else if (error.message) {
-        errorMessage = `Error: ${error.message}`;
+      } else if (errorText) {
+        errorMessage = `Error: ${errorText}`;
       }
 
       return { valid: false, error: errorMessage };
@@ -892,8 +924,6 @@ export class ConfigHelper extends EventEmitter {
         return { valid: false, error: 'Invalid Anthropic API key format. Keys should start with sk-ant-' };
       }
 
-      // Use the Anthropic SDK that's already a dependency
-      const Anthropic = require('@anthropic-ai/sdk');
       const client = new Anthropic({ apiKey: apiKey.trim(), timeout: 10000 });
 
       // Make a minimal API call to verify the key works
@@ -905,21 +935,24 @@ export class ConfigHelper extends EventEmitter {
       });
 
       return { valid: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Anthropic API key test failed:', error);
       let errorMessage = 'Unknown error validating Anthropic API key';
+      const status = this.getErrorStatus(error);
+      const code = this.getErrorCode(error);
+      const errorText = this.getErrorMessage(error);
 
-      if (error.status === 401) {
+      if (status === 401) {
         errorMessage = 'Invalid Anthropic API key. Please check your key and try again.';
-      } else if (error.status === 429) {
+      } else if (status === 429) {
         errorMessage = 'Anthropic API rate limit exceeded. Please try again later.';
-      } else if (error.status === 400) {
+      } else if (status === 400) {
         // Bad request but key is valid
         return { valid: true };
-      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
         errorMessage = 'Unable to connect to Anthropic API. Check your internet connection.';
-      } else if (error.message) {
-        errorMessage = `Error: ${error.message}`;
+      } else if (errorText) {
+        errorMessage = `Error: ${errorText}`;
       }
 
       return { valid: false, error: errorMessage };

@@ -5,11 +5,9 @@ import {
   Trash2, 
   Settings, 
   Bug,
-  MoreHorizontal,
   Layers,
   MessageSquare,
-  Code,
-  RefreshCw
+  Code
 } from 'lucide-react';
 import { AnswerStyle, InterviewMode } from '../../types';
 
