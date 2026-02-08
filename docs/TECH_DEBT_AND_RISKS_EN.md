@@ -30,6 +30,7 @@ Resolved:
 - CI gates were tightened (lint/typecheck/build/test must pass).
 - Added bundle budget gate (`npm run check:bundle`) and CI enforcement.
 - Added ADR for live-audio ownership boundaries (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`).
+- Introduced centralized logger wrapper (`electron/logger.ts`) and migrated processing orchestration paths off direct `console.*`.
 
 Still open:
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` still owns runtime side-effects and can be further hook-extracted.
@@ -52,7 +53,7 @@ Still open:
 - Impact: confusion about active path, harder long-term maintenance.
 
 3. Runtime logging is still noisy in production paths
-- Broad `console.*` usage in hot paths.
+- Logging policy is now centralized in processing paths, but broad `console.*` usage remains in other runtime modules.
 - Impact: noisy diagnostics and increased risk of leaking internal state.
 
 4. UnifiedPanel still has runtime side-effect ownership

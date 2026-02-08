@@ -11,6 +11,7 @@ import {
   type Base64ScreenshotPayload
 } from "../screenshotPayloadLoader"
 import type { ProcessingControllerContext } from "./types"
+import { logger } from "../../logger"
 
 interface DebugFlowResult {
   success: boolean
@@ -36,17 +37,17 @@ export class DebugProcessingController {
     }
 
     const extraScreenshotQueue = screenshotHelper.getExtraScreenshotQueue()
-    console.log("Processing extra queue screenshots:", extraScreenshotQueue)
+    logger.info("Processing extra queue screenshots:", extraScreenshotQueue)
 
     if (!extraScreenshotQueue || extraScreenshotQueue.length === 0) {
-      console.log("No extra screenshots found in queue")
+      logger.info("No extra screenshots found in queue")
       mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
       return
     }
 
     const existingExtraScreenshots = filterExistingScreenshotPaths(extraScreenshotQueue)
     if (existingExtraScreenshots.length === 0) {
-      console.log("Extra screenshot files don't exist on disk")
+      logger.warn("Extra screenshot files don't exist on disk")
       mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
       return
     }
@@ -64,7 +65,7 @@ export class DebugProcessingController {
         throw new Error("Failed to load screenshot data for debugging")
       }
 
-      console.log(
+      logger.info(
         "Combined screenshots for processing:",
         screenshots.map((shot) => shot.path)
       )
@@ -216,7 +217,7 @@ Rules:
         }
       }
 
-      console.error("Debug processing error:", error)
+      logger.error("Debug processing error:", error)
       return {
         success: false,
         error: this.context.getErrorMessage(error, "Failed to process debug request")

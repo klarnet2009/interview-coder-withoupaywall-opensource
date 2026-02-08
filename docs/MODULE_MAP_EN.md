@@ -30,6 +30,7 @@
 - `electron/validation.ts`: IPC payload validators.
 - `electron/store.ts`: session history store abstraction (`electron-store`).
 - `electron/SecureStorage.ts`: legacy secure storage helper (currently disabled encryption path).
+- `electron/logger.ts`: leveled logger wrapper for main-process runtime paths.
 
 ### Live Audio Subsystem (`electron/audio/`)
 

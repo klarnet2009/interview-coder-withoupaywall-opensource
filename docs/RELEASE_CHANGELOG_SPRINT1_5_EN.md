@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-020)
+- Post-sprint technical hardening (TECH-004 to TECH-021)
 
 ## Sprint Highlights
 
@@ -92,6 +92,9 @@ This release consolidates the full UI/UX redesign program:
   - strict CI gates (lint/typecheck/build/test)
   - bundle budget enforcement (`npm run check:bundle`)
   - ADR for live/audio ownership boundaries
+- TECH-021: Logging policy phase A:
+  - introduced centralized main-process logger (`electron/logger.ts`)
+  - migrated `ProcessingHelper` and processing controllers from direct `console.*` calls
 
 ## Additional Reliability Updates
 

@@ -1,4 +1,5 @@
 import fs from "node:fs"
+import { logger } from "../logger"
 
 export interface Base64ScreenshotPayload {
   path: string
@@ -20,7 +21,7 @@ export const loadScreenshotPayloads = async (
           data: fs.readFileSync(path).toString("base64")
         }
       } catch (error) {
-        console.error(`Error reading screenshot ${path}:`, error)
+        logger.error(`Error reading screenshot ${path}:`, error)
         return null
       }
     })

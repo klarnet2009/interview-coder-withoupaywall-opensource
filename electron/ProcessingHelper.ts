@@ -8,6 +8,7 @@ import { type ProcessingControllerContext } from "./processing/controllers/types
 import { ProcessingProviderOrchestrator } from "./processing/ProcessingProviderOrchestrator"
 import { getProviderTimeoutMs } from "./processing/providerTimeout"
 import type { ProviderConfig } from "./processing/types"
+import { logger } from "./logger"
 
 export class ProcessingHelper {
   private readonly deps: IProcessingHelperDeps
@@ -46,7 +47,7 @@ export class ProcessingHelper {
     try {
       this.providerOrchestrator.sync(this.getProviderConfig())
     } catch (error) {
-      console.error("Failed to initialize processing provider:", error)
+      logger.error("Failed to initialize processing provider:", error)
     }
   }
 
@@ -101,20 +102,20 @@ export class ProcessingHelper {
             return language
           }
         } catch (error) {
-          console.warn("Could not get language from window", error)
+          logger.warn("Could not get language from window", error)
         }
       }
 
       return "python"
     } catch (error) {
-      console.error("Error getting language:", error)
+      logger.error("Error getting language:", error)
       return "python"
     }
   }
 
   private createControllerContext(): ProcessingControllerContext | null {
     if (!this.screenshotHelper) {
-      console.error("Screenshot helper not initialized")
+      logger.error("Screenshot helper not initialized")
       return null
     }
 
@@ -141,13 +142,13 @@ export class ProcessingHelper {
 
     this.initializeProvider()
     if (!this.providerOrchestrator.isConfigured(this.getProviderConfig())) {
-      console.error(`${config.apiProvider} provider is not configured`)
+      logger.error(`${config.apiProvider} provider is not configured`)
       mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID)
       return
     }
 
     const view = this.deps.getView()
-    console.log("Processing screenshots in view:", view)
+    logger.info("Processing screenshots in view:", view)
 
     const context = this.createControllerContext()
     if (!context) {

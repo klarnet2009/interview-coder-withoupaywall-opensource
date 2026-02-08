@@ -55,6 +55,9 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - CI no longer ignores lint/typecheck failures
   - Added bundle budget gate (`npm run check:bundle`)
   - Added ownership ADR: `docs/adr/ADR-001-live-audio-pipeline-boundaries.md`
+- Logging policy phase A:
+  - Added centralized logger utility (`electron/logger.ts`)
+  - Migrated processing orchestrator/controller paths away from direct `console.*`
 
 ## Related Commits
 

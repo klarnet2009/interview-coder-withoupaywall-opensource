@@ -171,6 +171,9 @@
   - Добавлен bundle budget check (`tools/check-bundle-budget.mjs`, `npm run check:bundle`)
   - Добавлен ADR по ownership границам live/audio (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`)
   - `npm test` обновлен baseline: `47/47`
+- [x] `TECH-021` Закрыт: logging policy phase-A для processing пути
+  - Добавлен централизованный `electron/logger.ts`
+  - `electron/ProcessingHelper.ts` и `electron/processing/controllers/*` переведены на `logger` вместо прямых `console.*`
 
 ---
 

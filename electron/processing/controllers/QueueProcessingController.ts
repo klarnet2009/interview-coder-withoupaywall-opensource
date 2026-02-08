@@ -12,6 +12,7 @@ import {
 } from "../screenshotPayloadLoader"
 import type { ProblemInfo, ProviderResult } from "../types"
 import type { ProcessingControllerContext } from "./types"
+import { logger } from "../../logger"
 
 interface QueueFlowResult {
   success: boolean
@@ -51,17 +52,17 @@ export class QueueProcessingController {
     mainWindow.webContents.send(deps.PROCESSING_EVENTS.INITIAL_START)
 
     const screenshotQueue = screenshotHelper.getScreenshotQueue()
-    console.log("Processing main queue screenshots:", screenshotQueue)
+    logger.info("Processing main queue screenshots:", screenshotQueue)
 
     if (!screenshotQueue || screenshotQueue.length === 0) {
-      console.log("No screenshots found in queue")
+      logger.info("No screenshots found in queue")
       mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
       return
     }
 
     const existingScreenshots = filterExistingScreenshotPaths(screenshotQueue)
     if (existingScreenshots.length === 0) {
-      console.log("Screenshot files don't exist on disk")
+      logger.warn("Screenshot files don't exist on disk")
       mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
       return
     }
@@ -87,12 +88,12 @@ export class QueueProcessingController {
             result.error
           )
         }
-        console.log("Resetting view to queue due to error")
+        logger.info("Resetting view to queue due to error")
         deps.setView("queue")
         return
       }
 
-      console.log("Setting view to solutions after successful processing")
+      logger.info("Setting view to solutions after successful processing")
       mainWindow.webContents.send(
         deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
         result.data
@@ -115,7 +116,7 @@ export class QueueProcessingController {
           this.context.getErrorMessage(error, "Server error. Please try again.")
         )
       }
-      console.log("Resetting view to queue due to error")
+      logger.info("Resetting view to queue due to error")
       deps.setView("queue")
     }
   }
@@ -244,7 +245,7 @@ export class QueueProcessingController {
         }
       }
 
-      console.error("API Error Details:", error)
+      logger.error("API Error Details:", error)
       return {
         success: false,
         error: this.context.getErrorMessage(
@@ -361,7 +362,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
         }
       }
 
-      console.error("Solution generation error:", error)
+      logger.error("Solution generation error:", error)
       return {
         success: false,
         error: this.context.getErrorMessage(error, "Failed to generate solution")
