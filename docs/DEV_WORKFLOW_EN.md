@@ -18,6 +18,7 @@ From `package.json`:
 - `npm test`: run Vitest once
 - `npm run test:watch`: run Vitest watch mode
 - `npm run test:coverage`: coverage run
+- `npm run check:bundle`: enforce renderer bundle size budget on built assets
 - `npm run package`: build and package via Electron Builder
 
 ## Dev Runtime Notes
@@ -42,10 +43,16 @@ From `package.json`:
 
 ## Testing Status
 
-Current automated tests are limited.
+Current automated tests include both unit and integration coverage.
 
-- Existing unit tests: `tests/unit/validation.test.ts`
-- Most runtime-critical flows (IPC, screenshot pipeline, live audio pipeline) are not yet covered by integration tests.
+- Unit tests:
+  - `tests/unit/validation.test.ts`
+  - `tests/unit/sessionRestore.test.ts`
+  - `tests/unit/responseFormatters.test.ts`
+- Integration tests:
+  - `tests/integration/ipcContract.integration.test.ts`
+  - `tests/integration/liveInterviewLifecycle.integration.test.ts`
+  - `tests/integration/processingHelper.integration.test.ts`
 
 ## Troubleshooting
 

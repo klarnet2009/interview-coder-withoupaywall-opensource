@@ -42,10 +42,19 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - queue cancellation path avoids stale `solution-success`
   - debug cancellation path avoids stale `debug-success`
   - coverage added in `tests/integration/processingHelper.integration.test.ts`
+- Completed `ProcessingHelper` orchestration split:
+  - `QueueProcessingController` for extraction/solution flow
+  - `DebugProcessingController` for debug flow
+  - shared timeout/payload utilities in `electron/processing/providerTimeout.ts` and `electron/processing/screenshotPayloadLoader.ts`
+- Added deterministic provider-timeout integration tests for queue/debug branches.
 - Closed missing IPC contract edge:
   - Added `clear-store` handler in `electron/ipcHandlers.ts` and store helper in `electron/store.ts`
 - Prepared release-level changelog:
   - `docs/RELEASE_CHANGELOG_SPRINT1_5_EN.md`
+- Hardened workflow gates:
+  - CI no longer ignores lint/typecheck failures
+  - Added bundle budget gate (`npm run check:bundle`)
+  - Added ownership ADR: `docs/adr/ADR-001-live-audio-pipeline-boundaries.md`
 
 ## Related Commits
 
@@ -58,8 +67,9 @@ Validation executed on current head:
 
 - `npx tsc --noEmit` -> pass
 - `npm run lint` -> pass (0 errors)
-- `npm test` -> pass (45/45)
+- `npm test` -> pass (47/47)
 - `npm run build` -> pass
+- `npm run check:bundle` -> pass
 
 ## Residual Notes
 

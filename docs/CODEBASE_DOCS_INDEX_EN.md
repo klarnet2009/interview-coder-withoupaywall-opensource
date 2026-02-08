@@ -17,6 +17,7 @@ This documentation set explains how the current codebase is structured and how t
 5. `docs/CONFIG_AND_PERSISTENCE_EN.md`
 6. `docs/DEV_WORKFLOW_EN.md`
 7. `docs/TECH_DEBT_AND_RISKS_EN.md`
+8. `docs/adr/ADR-001-live-audio-pipeline-boundaries.md`
 
 ## Existing Product/UX Docs
 
@@ -36,6 +37,7 @@ This documentation set explains how the current codebase is structured and how t
 - Config and persistence model
 - Daily dev workflow and build/test commands
 - Current risks, technical debt, and remediation priorities
+- Architecture decision boundaries for live audio ownership
 
 ## Scope and Accuracy Notes
 

@@ -125,6 +125,13 @@ const createAbortAwareProviderCall = <T,>(
     })
 }
 
+const createNeverResolvingProviderCall = <T,>(): (() => Promise<ProviderResult<T>>) => {
+  return async () =>
+    new Promise<ProviderResult<T>>(() => {
+      return
+    })
+}
+
 const createMainWindow = (events: EventRecord[]): BrowserWindow => {
   return {
     webContents: {
@@ -214,6 +221,7 @@ describe("ProcessingHelper integration: screenshot processing and recovery", () 
   const createdDirs: string[] = []
   const provider = new MockProvider()
   let providerConfigured = true
+  const originalProviderTimeoutEnv = process.env.PROCESSING_PROVIDER_TIMEOUT_MS
 
   beforeEach(() => {
     providerConfigured = true
@@ -272,6 +280,7 @@ describe("ProcessingHelper integration: screenshot processing and recovery", () 
     for (const dir of createdDirs.splice(0, createdDirs.length)) {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+    process.env.PROCESSING_PROVIDER_TIMEOUT_MS = originalProviderTimeoutEnv
     vi.restoreAllMocks()
   })
 
@@ -454,5 +463,71 @@ describe("ProcessingHelper integration: screenshot processing and recovery", () 
     expect(channels).not.toContain("debug-success")
     expect(setHasDebugged).toHaveBeenCalledWith(false)
     expect(setHasDebugged).not.toHaveBeenCalledWith(true)
+  })
+
+  it("times out queue processing when provider hangs", async () => {
+    process.env.PROCESSING_PROVIDER_TIMEOUT_MS = "15"
+
+    const shot = createTempScreenshot()
+    createdDirs.push(shot.dir)
+
+    provider.extractProblem.mockImplementation(
+      createNeverResolvingProviderCall<ProblemInfo>()
+    )
+
+    const events: EventRecord[] = []
+    const { deps, setView } = createDeps({
+      mainQueue: [shot.path],
+      extraQueue: [],
+      view: "queue",
+      events
+    })
+
+    const helper = new ProcessingHelper(deps)
+    await helper.processScreenshots()
+
+    const channels = events.map((event) => event.channel)
+    expect(channels).toContain("solution-error")
+    expect(channels).not.toContain("solution-success")
+    expect(setView).toHaveBeenCalledWith("queue")
+
+    const timeoutError = events.find(
+      (event) => event.channel === "solution-error"
+    )?.payload?.[0]
+    expect(String(timeoutError)).toContain("timed out")
+  })
+
+  it("times out debug processing when provider hangs", async () => {
+    process.env.PROCESSING_PROVIDER_TIMEOUT_MS = "15"
+
+    const mainShot = createTempScreenshot()
+    const extraShot = createTempScreenshot()
+    createdDirs.push(mainShot.dir, extraShot.dir)
+
+    provider.generateDebug.mockImplementation(
+      createNeverResolvingProviderCall<string>()
+    )
+
+    const events: EventRecord[] = []
+    const { deps, setHasDebugged } = createDeps({
+      mainQueue: [mainShot.path],
+      extraQueue: [extraShot.path],
+      view: "solutions",
+      events,
+      problemInfo: { problem_statement: "Two Sum" }
+    })
+
+    const helper = new ProcessingHelper(deps)
+    await helper.processScreenshots()
+
+    const channels = events.map((event) => event.channel)
+    expect(channels).toContain("debug-error")
+    expect(channels).not.toContain("debug-success")
+    expect(setHasDebugged).not.toHaveBeenCalledWith(true)
+
+    const timeoutError = events.find(
+      (event) => event.channel === "debug-error"
+    )?.payload?.[0]
+    expect(String(timeoutError)).toContain("timed out")
   })
 })

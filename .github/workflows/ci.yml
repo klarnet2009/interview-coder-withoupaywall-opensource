@@ -26,22 +26,24 @@ jobs:
         cache: 'npm'
       
     - name: Install dependencies
-      run: npm i
+      run: npm ci
 
     - name: Clearing previous builds
       run: npm run clean
       
     - name: Run Linter
       run: npm run lint
-      continue-on-error: true
 
     - name: Type Check
       run: npx tsc --noEmit
-      continue-on-error: true
 
     - name: Build
       run: npm run build
 
     - name: Run Tests
       run: npm test
+
+    - name: Bundle Budget Check
+      if: matrix.os == 'ubuntu-latest'
+      run: npm run check:bundle
 

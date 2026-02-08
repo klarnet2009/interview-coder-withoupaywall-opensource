@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после UnifiedPanel decomposition + ProcessingHelper cancel-race tests)  
+Дата обновления: 2026-02-08 (после ProcessingHelper controller split + timeout coverage + CI/bundle gates)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -71,7 +71,7 @@
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
-- [x] `npm run test` (45/45)
+- [x] `npm run test` (47/47)
 - [x] `npm run build`
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
@@ -87,6 +87,8 @@
 - [x] `processing integration tests` — покрыты screenshot-processing/recovery ветки `ProcessingHelper` (`tests/integration/processingHelper.integration.test.ts`)
 - [x] `processing formatter tests` — добавлены unit-тесты для solution/debug formatters (`tests/unit/responseFormatters.test.ts`)
 - [x] `processing cancel-race integration tests` — покрыты cancellation race окна (queue/debug) для `ProcessingHelper`
+- [x] `processing timeout integration tests` — покрыты deterministic timeout ветки (queue/debug) для `ProcessingHelper`
+- [x] `bundle budget gate` — `npm run check:bundle` проходит, пороги валидируются в CI
 
 ---
 
@@ -155,6 +157,20 @@
     - отмена queue processing без stale success событий
     - отмена debug processing без stale debug success
   - `npm test` обновлен baseline: `45/45`
+- [x] `TECH-019` Закрыт: декомпозирован orchestration слой `ProcessingHelper`
+  - Добавлены контроллеры:
+    - `electron/processing/controllers/QueueProcessingController.ts`
+    - `electron/processing/controllers/DebugProcessingController.ts`
+  - Добавлен общий timeout guard:
+    - `electron/processing/providerTimeout.ts`
+    - `electron/processing/screenshotPayloadLoader.ts`
+  - `electron/ProcessingHelper.ts` оставлен как компактный coordinator/wiring слой
+- [x] `TECH-020` Закрыт: deterministic timeout coverage + workflow hardening
+  - Добавлены timeout integration кейсы в `tests/integration/processingHelper.integration.test.ts`
+  - Усилен CI gate в `.github/workflows/ci.yml` (без `continue-on-error` для lint/typecheck)
+  - Добавлен bundle budget check (`tools/check-bundle-budget.mjs`, `npm run check:bundle`)
+  - Добавлен ADR по ownership границам live/audio (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`)
+  - `npm test` обновлен baseline: `47/47`
 
 ---
 

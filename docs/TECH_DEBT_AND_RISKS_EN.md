@@ -25,35 +25,39 @@ Resolved:
 - `ProcessingHelper` response shaping/parsing extracted into dedicated formatter modules.
 - `UnifiedPanel` was decomposed into focused UI modules (`AudioSourceSelector`, `ActionNoticeBanner`, `ResponseSection`, `LiveStateLane`) with shared types/constants.
 - Added integration tests for `ProcessingHelper` cancellation race windows (queue and debug flows).
+- `ProcessingHelper` orchestration was split into dedicated queue/debug controllers under `electron/processing/controllers/*`.
+- Added deterministic timeout guard for provider calls (`electron/processing/providerTimeout.ts`) and timeout integration tests.
+- CI gates were tightened (lint/typecheck/build/test must pass).
+- Added bundle budget gate (`npm run check:bundle`) and CI enforcement.
+- Added ADR for live-audio ownership boundaries (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`).
 
 Still open:
-- `electron/ProcessingHelper.ts` orchestration flow is still broad and would benefit from controller-level split.
-- Provider timeout behavior still has limited deterministic automated coverage vs cancellation coverage.
+- `src/components/UnifiedPanel/UnifiedPanel.tsx` still owns runtime side-effects and can be further hook-extracted.
+- Legacy/parallel audio abstractions are still present and should be quarantined/removed.
 
 ## Current Findings
 
 ### P1
 
-1. Single-file complexity remains high in critical paths
-- `src/components/UnifiedPanel/UnifiedPanel.tsx` is reduced and partially decomposed, but still owns multiple runtime side effects.
-- `electron/ProcessingHelper.ts` was improved via provider strategy and formatter extraction, but orchestration flow is still broad.
-- Impact: higher change risk and slower onboarding/review.
-
-2. Limited automated coverage for runtime-critical flows
+1. Runtime-critical coverage baseline is now strong
 - IPC routing contract and live start/stop/reconnect transitions are covered.
 - Screenshot processing and recovery flows (queue empty, extraction failure, success path, debug path, provider-not-configured) are covered.
 - Cancellation race windows in processing are now covered by integration tests.
-- Remaining risk: provider timeout behavior is still not deeply covered by deterministic integration tests.
+- Provider timeout behavior is now covered by deterministic integration tests (queue/debug).
 
 ### P2
 
-3. Legacy/parallel abstractions still exist
+2. Legacy/parallel abstractions still exist
 - Multiple audio-related service layers with overlapping responsibilities.
 - Impact: confusion about active path, harder long-term maintenance.
 
-4. Runtime logging is still noisy in production paths
+3. Runtime logging is still noisy in production paths
 - Broad `console.*` usage in hot paths.
 - Impact: noisy diagnostics and increased risk of leaking internal state.
+
+4. UnifiedPanel still has runtime side-effect ownership
+- `src/components/UnifiedPanel/UnifiedPanel.tsx` was reduced substantially but still coordinates multiple runtime concerns.
+- Impact: medium change risk in UI runtime control logic.
 
 ## Remediation Plan
 
@@ -65,6 +69,7 @@ Still open:
 - Phase C: `strict: true` (completed)
 
 2. Continue decomposition of `ProcessingHelper` by splitting orchestration into queue/debug controllers.
+Status: `completed`.
 
 3. Split `UnifiedPanel` into:
 - session control controller
@@ -78,7 +83,7 @@ Status: `partially completed` (lane/response/recovery/audio selector extracted; 
 - live start/stop/reconnect state transitions (completed)
 - screenshot process and recovery flow (completed)
 - processing cancel race flow (completed)
-- provider timeout branches (pending)
+- provider timeout branches (completed)
 
 ### P2 Actions (Cleanup)
 
@@ -89,6 +94,10 @@ Status: `partially completed` (lane/response/recovery/audio selector extracted; 
 ## Quick Wins
 
 1. Add a startup IPC contract self-check (assert all preload invokes are handled in main).
+Status: `partially covered` by `ipcContract.integration.test.ts` + CI gate.
 2. Add CI gates for `lint`, `test`, and targeted integration smoke tests.
+Status: `completed`.
 3. Add architectural ADR notes for audio/live pipeline ownership boundaries.
+Status: `completed`.
 4. Add a bundle budget gate in CI to prevent regressions in renderer chunk sizes.
+Status: `completed`.

@@ -21,7 +21,10 @@
 ### Feature Services
 
 - `electron/ScreenshotHelper.ts`: screenshot capture, queues, preview generation, cleanup.
-- `electron/ProcessingHelper.ts`: AI processing pipeline for extraction, solution generation, and debug analysis.
+- `electron/ProcessingHelper.ts`: top-level screenshot processing coordinator (delegates queue/debug orchestration).
+- `electron/processing/controllers/QueueProcessingController.ts`: queue extraction + solution flow orchestration.
+- `electron/processing/controllers/DebugProcessingController.ts`: debug flow orchestration for extra screenshots.
+- `electron/processing/providerTimeout.ts`: provider timeout guard and timeout policy.
 - `electron/AudioProcessor.ts`: non-live transcription and hint generation helpers.
 - `electron/ConfigHelper.ts`: config load/save/migration/update and provider key validation.
 - `electron/validation.ts`: IPC payload validators.

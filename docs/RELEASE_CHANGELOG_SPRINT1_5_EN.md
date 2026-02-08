@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-018)
+- Post-sprint technical hardening (TECH-004 to TECH-020)
 
 ## Sprint Highlights
 
@@ -84,6 +84,14 @@ This release consolidates the full UI/UX redesign program:
 - TECH-018: Added `ProcessingHelper` cancellation race integration coverage:
   - queue cancellation path guarded against stale success events
   - debug cancellation path guarded against stale success events
+- TECH-019: `ProcessingHelper` orchestration decomposed into dedicated controllers:
+  - `QueueProcessingController` and `DebugProcessingController`
+  - shared timeout/payload utilities for provider-bound operations
+- TECH-020: Timeout and workflow hardening:
+  - deterministic timeout integration tests for queue/debug processing branches
+  - strict CI gates (lint/typecheck/build/test)
+  - bundle budget enforcement (`npm run check:bundle`)
+  - ADR for live/audio ownership boundaries
 
 ## Additional Reliability Updates
 
@@ -104,8 +112,9 @@ This release consolidates the full UI/UX redesign program:
 
 - `npx tsc --noEmit`: pass
 - `npm run lint`: pass (0 errors)
-- `npm test`: pass (45/45)
+- `npm test`: pass (47/47)
 - `npm run build`: pass (no large chunk warnings)
+- `npm run check:bundle`: pass
 
 ## Notes
 
