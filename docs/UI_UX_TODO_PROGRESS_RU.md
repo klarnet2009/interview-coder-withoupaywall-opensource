@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после TS baseline cleanup)  
+Дата обновления: 2026-02-08 (после bundle/perf optimization)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -79,6 +79,8 @@
 - [x] `tsc --noEmit` — проходит без ошибок (после фиксов `SolutionCommands` / `Solutions` / `DebugView` и API typings)
 - [x] `npm run lint` — `0` ошибок (после закрытия `TECH-009`)
 - [x] `history restore smoke` — добавлены unit-smoke тесты для snippet restore (`tests/unit/sessionRestore.test.ts`)
+- [x] `build chunking` — включен manual chunking для renderer + external deps для Electron main
+- [x] `build warnings` — предупреждения `Some chunks are larger than 500 kB` отсутствуют
 
 ---
 
@@ -114,6 +116,10 @@
 - [x] `TECH-009` Закрыт: strict-линтинг Electron/Renderer доведен до стабильного CI baseline
   - Исправлены pre-existing ошибки (`no-explicit-any`, `no-unused-vars`, `ban-ts-comment`, `no-empty-object-type`, legacy `require`)
   - Текущий результат: `npm run lint` проходит без ошибок
+- [x] `TECH-010` Закрыт: оптимизирован bundle/perf baseline
+  - `vite.config.ts`: manual chunks для renderer (`code-highlighting`, `radix-ui`, `react-query`, `i18n`, `react-core`, `vendor`)
+  - `vite.config.ts`: externalized runtime dependencies для Electron main build
+  - Вынесен облегченный `CodeSyntax` (`PrismLight` + ограниченный language set) и подключен в `Solutions`/`Debug`
 
 ---
 

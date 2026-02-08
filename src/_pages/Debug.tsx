@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import React, { useCallback, useEffect, useRef, useState } from "react"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
 import { ComplexitySection } from "./Solutions"
+import { CodeSyntax } from "../components/shared/CodeSyntax"
 
 interface DebugProps {
   isProcessing: boolean
@@ -187,10 +186,10 @@ const CodeSection = ({
       </p>
     ) : (
       <div className="w-full overflow-hidden rounded-md">
-        <SyntaxHighlighter
+        <CodeSyntax
+          code={code || "// Debug mode - see analysis below"}
           showLineNumbers
-          language={currentLanguage === "golang" ? "go" : currentLanguage}
-          style={dracula}
+          language={currentLanguage}
           customStyle={{
             maxWidth: "100%",
             margin: 0,
@@ -200,9 +199,7 @@ const CodeSection = ({
             backgroundColor: "rgba(22, 27, 34, 0.5)"
           }}
           wrapLongLines
-        >
-          {code || "// Debug mode - see analysis below"}
-        </SyntaxHighlighter>
+        />
       </div>
     )}
   </div>

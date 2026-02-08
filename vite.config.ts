@@ -3,6 +3,38 @@ import { defineConfig } from "vite"
 import electron from "vite-plugin-electron"
 import react from "@vitejs/plugin-react"
 import path from "path"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
+const packageJson = require("./package.json") as { dependencies?: Record<string, string> }
+const externalDeps = Object.keys(packageJson.dependencies || {})
+
+const rendererManualChunks = (id: string): string | undefined => {
+  if (!id.includes("node_modules")) {
+    return undefined
+  }
+  if (
+    id.includes("react-syntax-highlighter") ||
+    id.includes("react-code-blocks") ||
+    id.includes("highlight.js") ||
+    id.includes("refractor")
+  ) {
+    return "code-highlighting"
+  }
+  if (id.includes("@radix-ui")) {
+    return "radix-ui"
+  }
+  if (id.includes("@tanstack/react-query")) {
+    return "react-query"
+  }
+  if (id.includes("react-i18next") || id.includes("i18next")) {
+    return "i18n"
+  }
+  if (id.includes("react-dom") || id.includes("react")) {
+    return "react-core"
+  }
+  return "vendor"
+}
 
 export default defineConfig({
   plugins: [
@@ -17,7 +49,12 @@ export default defineConfig({
             sourcemap: true,
             minify: false,
             rollupOptions: {
-              external: ["electron", "bufferutil", "utf-8-validate"]
+              external: [
+                "electron",
+                "bufferutil",
+                "utf-8-validate",
+                ...externalDeps
+              ]
             }
           }
         }
@@ -48,7 +85,12 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: rendererManualChunks
+      }
+    }
   },
   resolve: {
     alias: {

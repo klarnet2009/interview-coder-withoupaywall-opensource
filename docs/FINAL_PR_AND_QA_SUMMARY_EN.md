@@ -14,6 +14,10 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - `src/lib/sessionRestore.ts`
 - Added dedicated unit smoke tests for restore behavior:
   - `tests/unit/sessionRestore.test.ts`
+- Reduced production bundle pressure:
+  - Added renderer manual chunking strategy in `vite.config.ts`
+  - Externalized runtime dependencies in Electron main build
+  - Replaced direct heavy syntax-highlighter usage with shared light component (`src/components/shared/CodeSyntax.tsx`)
 - Prepared release-level changelog:
   - `docs/RELEASE_CHANGELOG_SPRINT1_5_EN.md`
 
@@ -33,5 +37,5 @@ Validation executed on current head:
 
 ## Residual Notes
 
-- Bundle size warnings remain in production build output for large chunks.
-- This is non-blocking for release candidate status, but should be addressed in next optimization cycle.
+- No blocking warnings from `npm run build` on current head.
+- Next performance step should be CI bundle budget thresholds to guard against future regressions.

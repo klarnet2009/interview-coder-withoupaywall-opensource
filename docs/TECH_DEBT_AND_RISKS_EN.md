@@ -17,6 +17,7 @@ Resolved:
 - API key plaintext-at-rest risk (migrated to secure storage flow).
 - Live phrase finalization hangs reduced with explicit end-turn fallback logic.
 - Strict ESLint baseline restored (`npm run lint` passes with `0` errors).
+- Build chunk size warnings removed via renderer chunk-splitting and lighter syntax-highlighting usage.
 
 Still open:
 - Electron TypeScript strictness remains disabled (`strict: false`, `noImplicitAny: false`, `strictNullChecks: false`).
@@ -82,3 +83,4 @@ Still open:
 1. Add a startup IPC contract self-check (assert all preload invokes are handled in main).
 2. Add CI gates for `lint`, `test`, and targeted integration smoke tests.
 3. Add architectural ADR notes for audio/live pipeline ownership boundaries.
+4. Add a bundle budget gate in CI to prevent regressions in renderer chunk sizes.

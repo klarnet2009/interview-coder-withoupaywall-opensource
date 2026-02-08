@@ -59,6 +59,10 @@ This release consolidates the full UI/UX redesign program:
 - TECH-007: Live phrase finalization made more resilient (fallback end-turn logic).
 - TECH-008: ESLint scope narrowed to active source paths.
 - TECH-009: Residual lint debt removed; strict lint baseline restored.
+- TECH-010: Build/performance baseline improved:
+  - renderer manual chunking enabled for heavy dependency groups
+  - Electron main build externalized runtime dependencies
+  - shared `CodeSyntax` component introduced (`PrismLight` + registered language subset)
 
 ## Additional Reliability Updates
 
@@ -74,9 +78,8 @@ This release consolidates the full UI/UX redesign program:
 - `npx tsc --noEmit`: pass
 - `npm run lint`: pass (0 errors)
 - `npm test`: pass (30/30)
-- `npm run build`: pass
+- `npm run build`: pass (no large chunk warnings)
 
 ## Notes
 
-- Build still reports large-bundle warnings for selected chunks.
-- This warning is non-blocking for functional release, but bundle-splitting optimization is recommended for next cycle.
+- Bundle warning risk is reduced after TECH-010; continue monitoring chunk sizes in future dependency updates.

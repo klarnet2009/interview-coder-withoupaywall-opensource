@@ -1,10 +1,9 @@
 // Solutions.tsx
 import React, { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism"
 
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
+import { CodeSyntax } from "../components/shared/CodeSyntax"
 
 import { ProblemStatementData } from "../types/solutions"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
@@ -84,10 +83,10 @@ const SolutionSection = ({
           >
             {copied ? "Copied!" : "Copy"}
           </button>
-          <SyntaxHighlighter
+          <CodeSyntax
+            code={content as string}
             showLineNumbers
-            language={currentLanguage == "golang" ? "go" : currentLanguage}
-            style={dracula}
+            language={currentLanguage}
             customStyle={{
               maxWidth: "100%",
               margin: 0,
@@ -96,10 +95,8 @@ const SolutionSection = ({
               wordBreak: "break-all",
               backgroundColor: "rgba(22, 27, 34, 0.5)"
             }}
-            wrapLongLines={true}
-          >
-            {content as string}
-          </SyntaxHighlighter>
+            wrapLongLines
+          />
         </div>
       )}
     </div>
