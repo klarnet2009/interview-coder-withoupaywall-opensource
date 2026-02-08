@@ -13,6 +13,7 @@ import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
 import { SavedSnippet, Session } from "../types"
+import { restoreSnippetWorkspace } from "../lib/sessionRestore"
 
 export const ContentSection = ({
   title,
@@ -669,32 +670,14 @@ const Solutions: React.FC<SolutionsProps> = ({
   }
 
   const handleUseSnippet = (snippet: SavedSnippet, session: Session) => {
-    if (snippet.workspace?.type === "debug") {
-      queryClient.setQueryData(["new_solution"], {
-        code: snippet.workspace.code || snippet.answer,
-        debug_analysis: snippet.answer,
-        thoughts: snippet.workspace.keyPoints || [snippet.question],
-        issues: snippet.workspace.issues || [],
-        fixes: snippet.workspace.fixes || [],
-        why: snippet.workspace.why || [],
-        verify: snippet.workspace.verify || [],
-        next_steps: snippet.workspace.verify || [],
-        time_complexity: snippet.workspace.timeComplexity || "N/A - Debug mode",
-        space_complexity: snippet.workspace.spaceComplexity || "N/A - Debug mode"
-      })
+    const restored = restoreSnippetWorkspace(snippet)
+
+    if (restored.target === "debug") {
+      queryClient.setQueryData(["new_solution"], restored.payload)
       setDebugProcessing(false)
     } else {
       queryClient.removeQueries({ queryKey: ["new_solution"] })
-      const restoredSolution = {
-        code: snippet.workspace?.code || snippet.answer,
-        thoughts: snippet.workspace?.keyPoints || [snippet.question],
-        time_complexity:
-          snippet.workspace?.timeComplexity ||
-          "Loaded from session history",
-        space_complexity:
-          snippet.workspace?.spaceComplexity ||
-          "Loaded from session history"
-      }
+      const restoredSolution = restored.payload
       queryClient.setQueryData(["solution"], restoredSolution)
       setSolutionData(restoredSolution.code)
       setThoughtsData(restoredSolution.thoughts)

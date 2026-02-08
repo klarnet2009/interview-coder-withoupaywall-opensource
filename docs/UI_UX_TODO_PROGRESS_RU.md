@@ -71,13 +71,14 @@
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
-- [x] `npm run test` (26/26)
+- [x] `npm run test` (30/30)
 - [x] `npm run build`
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
 - [x] `git diff --name-only` / `git log --oneline -n 12`
 - [x] `tsc --noEmit` — проходит без ошибок (после фиксов `SolutionCommands` / `Solutions` / `DebugView` и API typings)
 - [x] `npm run lint` — `0` ошибок (после закрытия `TECH-009`)
+- [x] `history restore smoke` — добавлены unit-smoke тесты для snippet restore (`tests/unit/sessionRestore.test.ts`)
 
 ---
 
@@ -119,7 +120,8 @@
 ## Next (пошагово)
 
 1. [x] Исправить pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`.
-2. Провести UX smoke по history restore flows (solution/debug snippets).
-3. Подготовить релизный changelog по Sprint 1-5 + tech hardening.
+2. [x] Провести UX smoke по history restore flows (solution/debug snippets).
+3. [x] Подготовить релизный changelog по Sprint 1-5 + tech hardening.
+   - `docs/RELEASE_CHANGELOG_SPRINT1_5_EN.md`
 4. Собрать финальный PR с кратким change summary.
 5. Провести финальный QA pass перед release candidate.
