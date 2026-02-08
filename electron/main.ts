@@ -273,10 +273,8 @@ async function createWindow(): Promise<void> {
 
   // Configure window behavior
   state.mainWindow.webContents.setZoomFactor(1)
-  // DevTools auto-open in development
-  if (isDev) {
-    state.mainWindow.webContents.openDevTools({ mode: 'detach' })
-  }
+  // DevTools — always open for debugging
+  state.mainWindow.webContents.openDevTools({ mode: 'detach' })
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     runtimeLogger.debug("Attempting to open URL:", url)
     try {
