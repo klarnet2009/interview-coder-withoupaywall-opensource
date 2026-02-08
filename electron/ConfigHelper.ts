@@ -6,7 +6,8 @@ import { EventEmitter } from "events"
 import axios from "axios"
 import Anthropic from "@anthropic-ai/sdk"
 import { OpenAI } from "openai"
-import { secureStorage } from "./SecureStorage"
+// SecureStorage removed — API key is now stored in plain text in config.json
+// import { secureStorage } from "./SecureStorage"
 import { createScopedLogger } from "./logger"
 
 const runtimeLogger = createScopedLogger("config")
@@ -89,7 +90,6 @@ interface Config {
 
 export class ConfigHelper extends EventEmitter {
   private configPath: string;
-  private readonly secureApiKeyField = "apiKey";
 
   private defaultConfig: Config = {
     // Existing defaults
@@ -154,22 +154,7 @@ export class ConfigHelper extends EventEmitter {
     this.ensureConfigExists();
   }
 
-  private getStoredApiKey(): string {
-    const value = secureStorage.get(this.secureApiKeyField);
-    if (typeof value !== "string") {
-      return "";
-    }
-    return value.trim();
-  }
-
-  private setStoredApiKey(apiKey: string): void {
-    const normalized = apiKey.trim();
-    if (normalized.length > 0) {
-      secureStorage.set(this.secureApiKeyField, normalized);
-    } else {
-      secureStorage.delete(this.secureApiKeyField);
-    }
-  }
+  // API key is now stored directly in config.json — no SecureStorage indirection
 
   /**
    * Ensure config file exists
@@ -310,34 +295,16 @@ export class ConfigHelper extends EventEmitter {
       }
 
       let config = this.migrateConfig(rawConfig);
-      let shouldPersistSanitizedConfig = false;
 
-      // One-time migration path from legacy secure-data.json into secure storage
-      if (!this.getStoredApiKey()) {
+      // One-time migration: pull API key from legacy secure-data.json
+      if (!config.apiKey || config.apiKey === "[ENCRYPTED]") {
         const migratedKey = this.migrateFromSecureStorage();
         if (migratedKey) {
-          this.setStoredApiKey(migratedKey);
+          config.apiKey = migratedKey;
+          runtimeLogger.debug('Migrated API key from secure-data.json to config.json');
+        } else if (config.apiKey === "[ENCRYPTED]") {
+          config.apiKey = "";
         }
-      }
-
-      // Migrate plaintext keys from config.json into secure storage and strip from file payload
-      if (
-        typeof config.apiKey === "string" &&
-        config.apiKey.trim().length > 0 &&
-        config.apiKey !== "[ENCRYPTED]"
-      ) {
-        if (!this.getStoredApiKey()) {
-          this.setStoredApiKey(config.apiKey);
-        }
-        config.apiKey = "";
-        shouldPersistSanitizedConfig = true;
-        runtimeLogger.debug("Migrated API key from config.json to secure storage");
-      }
-
-      // Clear legacy placeholder in config file
-      if (config.apiKey === "[ENCRYPTED]") {
-        config.apiKey = "";
-        shouldPersistSanitizedConfig = true;
       }
 
       // Ensure apiProvider is a valid value
@@ -356,31 +323,22 @@ export class ConfigHelper extends EventEmitter {
         config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
       }
 
-      const persistedConfig: Config = {
+      const finalConfig: Config = {
         ...this.defaultConfig,
         ...config,
-        apiKey: ""
       };
 
-      if (shouldPersistSanitizedConfig) {
-        this.saveConfig(persistedConfig);
-      }
-
-      return {
-        ...persistedConfig,
-        apiKey: this.getStoredApiKey()
-      };
+      return finalConfig;
     } catch (err) {
       runtimeLogger.error("Error loading config:", err);
-      // Critical failure — reset file on disk so next start is clean
-      try { this.saveConfig({ ...this.defaultConfig, apiKey: "" }); } catch { /* ignore */ }
-      return { ...this.defaultConfig, apiKey: this.getStoredApiKey() };
+      try { this.saveConfig({ ...this.defaultConfig }); } catch { /* ignore */ }
+      return { ...this.defaultConfig };
     }
   }
 
   /**
-   * Save configuration to disk
-   * API key is intentionally stripped from file payload and stored in secure storage.
+   * Save configuration to disk.
+   * API key is stored in plain text — encryption will be handled server-side in a future version.
    */
   public saveConfig(config: Config): void {
     try {
@@ -389,11 +347,7 @@ export class ConfigHelper extends EventEmitter {
         fs.mkdirSync(configDir, { recursive: true });
       }
 
-      const persistedConfig: Config = {
-        ...config,
-        apiKey: ""
-      };
-      const jsonData = JSON.stringify(persistedConfig, null, 2);
+      const jsonData = JSON.stringify(config, null, 2);
       const tmpPath = this.configPath + '.tmp';
       const backupPath = this.configPath + '.backup';
 
@@ -445,11 +399,8 @@ export class ConfigHelper extends EventEmitter {
         nextUpdates.apiProvider = provider;
       }
 
-      // Persist API key in secure storage and strip it from persisted config payload
-      if (incomingApiKey !== undefined) {
-        this.setStoredApiKey(incomingApiKey);
-        delete nextUpdates.apiKey;
-      }
+      // API key is stored directly in config — no indirection
+      // (incomingApiKey stays in nextUpdates and gets saved normally)
 
       // If provider is changing, reset models
       if (nextUpdates.apiProvider && nextUpdates.apiProvider !== currentConfig.apiProvider) {
@@ -517,26 +468,21 @@ export class ConfigHelper extends EventEmitter {
       const newConfig: Config = {
         ...currentConfig,
         ...nextUpdates,
-        apiKey: ""
       };
       this.saveConfig(newConfig);
-      const runtimeConfig: Config = {
-        ...newConfig,
-        apiKey: this.getStoredApiKey()
-      };
 
       // Emit update event for non-opacity changes
       if (incomingApiKey !== undefined || nextUpdates.apiProvider !== undefined ||
         nextUpdates.extractionModel !== undefined || nextUpdates.solutionModel !== undefined ||
         nextUpdates.debuggingModel !== undefined || nextUpdates.language !== undefined ||
         nextUpdates.wizardCompleted !== undefined || nextUpdates.profiles !== undefined) {
-        this.emit('config-updated', runtimeConfig);
+        this.emit('config-updated', newConfig);
       }
 
-      return runtimeConfig;
+      return newConfig;
     } catch (error) {
       runtimeLogger.error('Error updating config:', error);
-      return { ...this.defaultConfig, apiKey: this.getStoredApiKey() };
+      return { ...this.defaultConfig };
     }
   }
 
@@ -562,7 +508,8 @@ export class ConfigHelper extends EventEmitter {
    * Check if the API key is configured
    */
   public hasApiKey(): boolean {
-    return this.getStoredApiKey().length > 0;
+    const config = this.loadConfig();
+    return typeof config.apiKey === 'string' && config.apiKey.trim().length > 0;
   }
 
   /**
