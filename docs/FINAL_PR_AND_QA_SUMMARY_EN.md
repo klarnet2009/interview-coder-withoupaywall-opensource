@@ -35,6 +35,13 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - screenshot processing/recovery test suite (`tests/integration/processingHelper.integration.test.ts`)
 - Added formatter unit tests:
   - `tests/unit/responseFormatters.test.ts`
+- Reduced `UnifiedPanel` complexity via targeted decomposition:
+  - Added `AudioSourceSelector`, `ActionNoticeBanner`, `ResponseSection`, `LiveStateLane`, and shared `types/constants` modules.
+  - Preserved runtime behavior while reducing single-file UI surface in `UnifiedPanel.tsx`.
+- Added processing cancellation race integration tests:
+  - queue cancellation path avoids stale `solution-success`
+  - debug cancellation path avoids stale `debug-success`
+  - coverage added in `tests/integration/processingHelper.integration.test.ts`
 - Closed missing IPC contract edge:
   - Added `clear-store` handler in `electron/ipcHandlers.ts` and store helper in `electron/store.ts`
 - Prepared release-level changelog:
@@ -51,7 +58,7 @@ Validation executed on current head:
 
 - `npx tsc --noEmit` -> pass
 - `npm run lint` -> pass (0 errors)
-- `npm test` -> pass (43/43)
+- `npm test` -> pass (45/45)
 - `npm run build` -> pass
 
 ## Residual Notes

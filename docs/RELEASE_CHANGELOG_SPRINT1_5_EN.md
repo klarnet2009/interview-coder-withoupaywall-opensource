@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-016)
+- Post-sprint technical hardening (TECH-004 to TECH-018)
 
 ## Sprint Highlights
 
@@ -78,6 +78,12 @@ This release consolidates the full UI/UX redesign program:
 - TECH-016: `ProcessingHelper` response shaping extracted to dedicated formatters:
   - `solutionResponseFormatter` and `debugResponseFormatter`
   - added formatter unit tests for stable parsing behavior
+- TECH-017: `UnifiedPanel` decomposed into focused UI modules:
+  - extracted `AudioSourceSelector`, `ActionNoticeBanner`, `ResponseSection`, `LiveStateLane`
+  - moved shared types/constants/format helper into dedicated files
+- TECH-018: Added `ProcessingHelper` cancellation race integration coverage:
+  - queue cancellation path guarded against stale success events
+  - debug cancellation path guarded against stale success events
 
 ## Additional Reliability Updates
 
@@ -98,7 +104,7 @@ This release consolidates the full UI/UX redesign program:
 
 - `npx tsc --noEmit`: pass
 - `npm run lint`: pass (0 errors)
-- `npm test`: pass (43/43)
+- `npm test`: pass (45/45)
 - `npm run build`: pass (no large chunk warnings)
 
 ## Notes

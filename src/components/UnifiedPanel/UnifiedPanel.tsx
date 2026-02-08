@@ -2,232 +2,39 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Camera,
   Play,
-  Mic,
   Square,
   Volume2,
   VolumeX,
-  Loader2,
   AlertCircle,
-  Monitor,
   Settings,
-  ChevronUp,
-  ChevronDown,
-  Sparkles,
   LogOut,
   ChevronDown as ChevronDownIcon,
   RefreshCw,
-  ShieldAlert,
-  RotateCcw,
-  Headphones,
-  Search
+  RotateCcw
 } from "lucide-react";
 import ScreenshotQueue from "../Queue/ScreenshotQueue";
 import { useToast } from "../../contexts/toast";
 import { COMMAND_KEY } from "../../utils/platform";
-import { Screenshot } from "../../types/screenshots";
-
-type ListeningState =
-  | "idle"
-  | "connecting"
-  | "listening"
-  | "no_signal"
-  | "transcribing"
-  | "generating"
-  | "error";
-
-type AudioSourceType = "system" | "microphone" | "application";
-
-interface AudioAppSource {
-  id: string;
-  name: string;
-  appIcon: string | null;
-}
-
-type NoticeCode =
-  | "no_screenshots"
-  | "process_failed"
-  | "audio_permission"
-  | "audio_no_signal"
-  | "live_error"
-  | "api_key_invalid";
-
-/**
- * Lightweight markdown-to-React renderer for hint responses.
- * Supports: **bold**, *italic*, `code`, bullet points (• / -)
- */
-function renderFormattedText(text: string): React.ReactNode {
-  // Split into lines first for bullet point handling
-  const lines = text.split('\n');
-  return lines.map((line, lineIdx) => {
-    // Bullet point detection
-    const bulletMatch = line.match(/^(\s*)(•|-|\*)\s+(.*)$/);
-    const isBullet = !!bulletMatch;
-    const lineContent = isBullet ? bulletMatch![3] : line;
-
-    // Parse inline formatting
-    const parts: React.ReactNode[] = [];
-    // Regex: **bold**, *italic*, `code`
-    const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(lineContent)) !== null) {
-      // Push text before match
-      if (match.index > lastIndex) {
-        parts.push(lineContent.slice(lastIndex, match.index));
-      }
-      if (match[2]) {
-        // **bold**
-        parts.push(<strong key={`${lineIdx}-b-${match.index}`} className="font-semibold text-white">{match[2]}</strong>);
-      } else if (match[3]) {
-        // *italic*
-        parts.push(<em key={`${lineIdx}-i-${match.index}`} className="italic text-white/80">{match[3]}</em>);
-      } else if (match[4]) {
-        // `code`
-        parts.push(<code key={`${lineIdx}-c-${match.index}`} className="bg-white/10 px-1 py-0.5 rounded text-[12px] font-mono text-purple-300">{match[4]}</code>);
-      }
-      lastIndex = match.index + match[0].length;
-    }
-    // Push remaining text
-    if (lastIndex < lineContent.length) {
-      parts.push(lineContent.slice(lastIndex));
-    }
-
-    if (isBullet) {
-      return (
-        <div key={lineIdx} className="flex gap-1.5 ml-1">
-          <span className="text-purple-400 shrink-0">•</span>
-          <span>{parts}</span>
-        </div>
-      );
-    }
-
-    return (
-      <React.Fragment key={lineIdx}>
-        {parts}
-        {lineIdx < lines.length - 1 && '\n'}
-      </React.Fragment>
-    );
-  });
-}
-
-interface ActionNotice {
-  code: NoticeCode;
-  title: string;
-  message: string;
-  primaryLabel: string;
-  secondaryLabel?: string;
-}
-
-interface LiveInterviewStatus {
-  state: ListeningState;
-  transcript: string;
-  response: string;
-  audioLevel: number;
-  error?: string;
-}
-
-interface UnifiedPanelProps {
-  screenshots: Screenshot[];
-  onDeleteScreenshot: (index: number) => void;
-  screenshotCount: number;
-  credits: number;
-  currentLanguage: string;
-  setLanguage: (language: string) => void;
-  onTooltipVisibilityChange: (visible: boolean, height: number) => void;
-}
-
-interface RuntimePreferences {
-  interviewMode: string;
-  answerStyle: string;
-  displayMode: string;
-}
-
-const stateLabels: Record<ListeningState, string> = {
-  idle: "Ready",
-  connecting: "Connecting",
-  listening: "Listening",
-  no_signal: "No Signal",
-  transcribing: "Transcribing",
-  generating: "Generating",
-  error: "Error"
-};
-
-const stateBadgeClasses: Record<ListeningState, string> = {
-  idle: "bg-gray-500/20 text-gray-300 border-gray-400/30",
-  connecting: "bg-yellow-500/20 text-yellow-300 border-yellow-400/30",
-  listening: "bg-green-500/20 text-green-300 border-green-400/30",
-  no_signal: "bg-orange-500/20 text-orange-300 border-orange-400/30",
-  transcribing: "bg-blue-500/20 text-blue-300 border-blue-400/30",
-  generating: "bg-purple-500/20 text-purple-300 border-purple-400/30",
-  error: "bg-red-500/20 text-red-300 border-red-400/30"
-};
-
-const stateLane: ListeningState[] = [
-  "connecting",
-  "listening",
-  "transcribing",
-  "generating"
-];
-
-const toRuntimeAudioSource = (value: unknown): AudioSourceType => {
-  if (value === "microphone") return "microphone";
-  if (value === "application") return "application";
-  return "system";
-};
-
-const isPermissionError = (value: string) => {
-  const normalized = value.toLowerCase();
-  return (
-    normalized.includes("permission") ||
-    normalized.includes("notallowederror") ||
-    normalized.includes("denied")
-  );
-};
-
-const NOTICE_MAP: Record<NoticeCode, ActionNotice> = {
-  no_screenshots: {
-    code: "no_screenshots",
-    title: "No screenshots captured",
-    message: "Capture at least one screenshot to start processing.",
-    primaryLabel: "Capture Now"
-  },
-  process_failed: {
-    code: "process_failed",
-    title: "Processing failed",
-    message: "The last processing attempt did not complete successfully.",
-    primaryLabel: "Retry Processing",
-    secondaryLabel: "Reset Session"
-  },
-  audio_permission: {
-    code: "audio_permission",
-    title: "Audio permission blocked",
-    message: "Grant microphone or screen-audio access, then retry.",
-    primaryLabel: "Choose Source",
-    secondaryLabel: "Dismiss"
-  },
-  audio_no_signal: {
-    code: "audio_no_signal",
-    title: "No audio signal detected",
-    message: "Your session is running, but no usable audio input is reaching the app.",
-    primaryLabel: "Switch Source",
-    secondaryLabel: "Stop Listening"
-  },
-  live_error: {
-    code: "live_error",
-    title: "Live session error",
-    message: "Live interview assistant hit an error and needs recovery.",
-    primaryLabel: "Restart Listening",
-    secondaryLabel: "Stop Session"
-  },
-  api_key_invalid: {
-    code: "api_key_invalid",
-    title: "API key issue",
-    message: "The configured provider key is invalid or unavailable.",
-    primaryLabel: "Open Settings",
-    secondaryLabel: "Log Out"
-  }
-};
+import { ActionNoticeBanner } from "./ActionNoticeBanner";
+import { AudioSourceSelector } from "./AudioSourceSelector";
+import {
+  isPermissionError,
+  NOTICE_MAP,
+  stateBadgeClasses,
+  stateLabels,
+  toRuntimeAudioSource
+} from "./constants";
+import { LiveStateLane } from "./LiveStateLane";
+import { ResponseSection } from "./ResponseSection";
+import type {
+  ActionNotice,
+  AudioAppSource,
+  AudioSourceType,
+  ListeningState,
+  LiveInterviewStatus,
+  RuntimePreferences,
+  UnifiedPanelProps
+} from "./types";
 
 export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
   screenshots,
@@ -805,8 +612,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
   const showContent =
     screenshotCount > 0 || isActive || hasTranscript || hasResponse || error || !!actionNotice;
 
-  const activeLaneIndex = stateLane.indexOf(status.state);
-
   return (
     <div className={`flex flex-col overflow-visible ${debugMode
       ? "bg-black/45 rounded-xl border border-white/10"
@@ -977,162 +782,22 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             </button>
           )}
 
-          {/* Column 3: Audio source indicator with dropdown */}
-          <div className="relative" ref={audioDropdownRef}>
-            <button
-              onClick={() => {
-                const next = !showAudioDropdown;
-                setShowAudioDropdown(next);
-                if (next) fetchAudioApps();
-              }}
-              className={`w-full h-11 rounded-lg border transition-colors text-[13px] font-medium flex items-center justify-center gap-1.5 px-2 ${isCapturing || isActive
-                ? localAudioLevel > 0.01
-                  ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-                  : "border-yellow-400/30 bg-yellow-500/10 text-yellow-300"
-                : "border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
-                }`}
-              title={`Audio: ${preferredAudioSource === "application" && selectedAppSource ? selectedAppSource.name : preferredAudioSource}`}
-            >
-              {(isCapturing || isActive) && localAudioLevel > 0.01 && (
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
-                </span>
-              )}
-              {(isCapturing || isActive) && localAudioLevel <= 0.01 && (
-                <span className="w-2 h-2 rounded-full bg-yellow-400/60 shrink-0" />
-              )}
-              {preferredAudioSource === "application" && selectedAppSource ? (
-                <>
-                  {selectedAppSource.appIcon ? (
-                    <img src={selectedAppSource.appIcon} alt="" className="w-4 h-4 rounded shrink-0" />
-                  ) : (
-                    <Headphones className="w-4 h-4 shrink-0" />
-                  )}
-                  <span className="truncate max-w-[60px]">{selectedAppSource.name}</span>
-                </>
-              ) : preferredAudioSource === "microphone" ? (
-                <>
-                  <Mic className="w-4 h-4 shrink-0" />
-                  <span className="hidden sm:inline">Mic</span>
-                </>
-              ) : (
-                <>
-                  <Monitor className="w-4 h-4 shrink-0" />
-                  <span className="hidden sm:inline">System</span>
-                </>
-              )}
-              <ChevronDownIcon className="w-3 h-3 text-white/40 shrink-0 ml-auto" />
-            </button>
-
-            {showAudioDropdown && (
-              <div
-                className="absolute top-full left-0 mt-1 w-full bg-black/95 backdrop-blur-md rounded-lg border border-white/15 shadow-xl overflow-hidden"
-                style={{ zIndex: 200 }}
-              >
-                {/* System Audio */}
-                <button
-                  onClick={() => handleSourceSelect("system")}
-                  className={`flex items-center gap-2.5 w-full px-3 py-2.5 hover:bg-white/10 transition-colors text-left ${preferredAudioSource === "system" ? "bg-white/8" : ""}`}
-                >
-                  <Monitor className="w-4 h-4 text-white/70 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] text-white/90">System Audio</div>
-                    <div className="text-[11px] text-white/40">All desktop sound</div>
-                  </div>
-                  {preferredAudioSource === "system" && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  )}
-                </button>
-
-                <div className="h-px bg-white/10" />
-
-                {/* Microphone */}
-                <button
-                  onClick={() => handleSourceSelect("microphone")}
-                  className={`flex items-center gap-2.5 w-full px-3 py-2.5 hover:bg-white/10 transition-colors text-left ${preferredAudioSource === "microphone" ? "bg-white/8" : ""}`}
-                >
-                  <Mic className="w-4 h-4 text-white/70 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[13px] text-white/90">Microphone</div>
-                    <div className="text-[11px] text-white/40">Your local voice</div>
-                  </div>
-                  {preferredAudioSource === "microphone" && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  )}
-                </button>
-
-                <div className="h-px bg-white/10" />
-
-                {/* Applications header */}
-                <div className="flex items-center justify-between px-3 pt-2 pb-1">
-                  <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">Applications</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); fetchAudioApps(); }}
-                    className="p-1 text-white/30 hover:text-white/70 transition-colors"
-                    title="Refresh list"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isLoadingApps ? "animate-spin" : ""}`} />
-                  </button>
-                </div>
-
-                {/* App search */}
-                {availableApps.length > 5 && (
-                  <div className="px-3 pb-1.5">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={appSearchQuery}
-                        onChange={(e) => setAppSearchQuery(e.target.value)}
-                        placeholder="Search apps…"
-                        className="w-full pl-7 pr-2 py-1.5 bg-white/5 border border-white/10 rounded-md text-[12px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
-                    </div>
-                  </div>
-                )}
-
-                {/* App list */}
-                <div className="max-h-[180px] overflow-y-auto">
-                  {isLoadingApps ? (
-                    <div className="flex items-center justify-center py-4">
-                      <RefreshCw className="w-4 h-4 text-white/30 animate-spin" />
-                    </div>
-                  ) : availableApps.length === 0 ? (
-                    <div className="text-center py-3 text-[12px] text-white/35">
-                      No windows found
-                    </div>
-                  ) : (
-                    availableApps
-                      .filter(app =>
-                        !appSearchQuery || app.name.toLowerCase().includes(appSearchQuery.toLowerCase())
-                      )
-                      .map((app) => (
-                        <button
-                          key={app.id}
-                          onClick={() => handleSourceSelect("application", app)}
-                          className={`flex items-center gap-2.5 w-full px-3 py-2 hover:bg-white/10 transition-colors text-left ${selectedAppSource?.id === app.id && preferredAudioSource === "application" ? "bg-white/8" : ""
-                            }`}
-                        >
-                          {app.appIcon ? (
-                            <img src={app.appIcon} alt="" className="w-5 h-5 rounded shrink-0" />
-                          ) : (
-                            <div className="w-5 h-5 rounded bg-white/10 flex items-center justify-center text-[10px] text-white/50 shrink-0">
-                              {app.name.charAt(0)}
-                            </div>
-                          )}
-                          <span className="text-[13px] text-white/80 truncate flex-1 min-w-0">{app.name}</span>
-                          {selectedAppSource?.id === app.id && preferredAudioSource === "application" && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                          )}
-                        </button>
-                      ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <AudioSourceSelector
+            showAudioDropdown={showAudioDropdown}
+            setShowAudioDropdown={setShowAudioDropdown}
+            fetchAudioApps={fetchAudioApps}
+            isCapturing={isCapturing}
+            isActive={isActive}
+            localAudioLevel={localAudioLevel}
+            preferredAudioSource={preferredAudioSource}
+            selectedAppSource={selectedAppSource}
+            audioDropdownRef={audioDropdownRef}
+            availableApps={availableApps}
+            isLoadingApps={isLoadingApps}
+            appSearchQuery={appSearchQuery}
+            setAppSearchQuery={setAppSearchQuery}
+            handleSourceSelect={handleSourceSelect}
+          />
         </div>
 
         {/* VU meter — visible when capturing or active */}
@@ -1175,71 +840,19 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
         {/* Dev-only: Live State Lane */}
         {debugMode && (
-          <div className="rounded-lg border border-white/10 bg-white/3 px-3 py-2.5">
-            <div className="text-[13px] text-white/75 mb-2">Live State Lane</div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {stateLane.map((laneState, index) => {
-                const isActiveStep = status.state === laneState;
-                const isCompletedStep = activeLaneIndex > -1 && activeLaneIndex > index;
-                const isIdle = status.state === "idle";
-
-                return (
-                  <div
-                    key={laneState}
-                    className={`rounded-md border px-2 py-1.5 text-center text-[12px] functional-state-transition ${isIdle
-                      ? "border-white/10 bg-black/30 text-white/40"
-                      : isActiveStep
-                        ? "border-blue-400/35 bg-blue-500/15 text-blue-200"
-                        : isCompletedStep
-                          ? "border-green-400/35 bg-green-500/15 text-green-200"
-                          : "border-white/10 bg-black/30 text-white/45"
-                      }`}
-                  >
-                    {stateLabels[laneState]}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <LiveStateLane state={status.state} />
         )}
       </div>
 
       {showContent && (
         <div>
           {actionNotice && (
-            <div className="mx-3 mt-3 p-3 rounded-lg border border-amber-400/35 bg-amber-500/10 text-amber-100 functional-enter">
-              <div className="flex items-start gap-2">
-                <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold">{actionNotice.title}</div>
-                  <div className="text-[12px] text-amber-100/85 mt-0.5">
-                    {actionNotice.message}
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      onClick={handleNoticePrimary}
-                      className="h-8 px-3 rounded-md border border-amber-300/45 bg-amber-500/20 text-[12px] font-medium hover:bg-amber-500/30 transition-colors"
-                    >
-                      {actionNotice.primaryLabel}
-                    </button>
-                    {actionNotice.secondaryLabel && (
-                      <button
-                        onClick={handleNoticeSecondary}
-                        className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors"
-                      >
-                        {actionNotice.secondaryLabel}
-                      </button>
-                    )}
-                    <button
-                      onClick={dismissNotice}
-                      className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ActionNoticeBanner
+              notice={actionNotice}
+              onPrimary={handleNoticePrimary}
+              onSecondary={handleNoticeSecondary}
+              onDismiss={dismissNotice}
+            />
           )}
 
           {error && (
@@ -1276,46 +889,16 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             </div>
           )}
 
-          {(hasResponse || (isListeningActive && isActive)) && (
-            <div className="border-t border-white/5">
-              <button
-                onClick={() => setIsResponseCollapsed(!isResponseCollapsed)}
-                className="flex items-center justify-between w-full px-3 py-2.5 hover:bg-white/5 transition-colors"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Sparkles
-                    className={`w-4 h-4 ${hasResponse ? "text-purple-400" : "text-white/30"}`}
-                  />
-                  <span className="text-[13px] text-white/80">AI Suggestions</span>
-                  {isGenerating && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-                  )}
-                </div>
-                {isResponseCollapsed ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-white/40" />
-                ) : (
-                  <ChevronUp className="w-3.5 h-3.5 text-white/40" />
-                )}
-              </button>
-
-              {!isResponseCollapsed && (
-                <div ref={responseRef} className="px-3 pb-3 overflow-y-auto max-h-[60vh]">
-                  {hasResponse ? (
-                    <div className="text-[13px] text-white/90 whitespace-pre-wrap leading-relaxed">
-                      {renderFormattedText(status.response)}
-                      {isGenerating && (
-                        <span className="inline-block w-1 h-3.5 bg-purple-400 motion-safe:animate-pulse align-middle ml-0.5" />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-[13px] text-white/45 text-center py-3">
-                      Hints will appear once the interviewer speaks.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          <ResponseSection
+            hasResponse={hasResponse}
+            isListeningActive={isListeningActive}
+            isActive={isActive}
+            isGenerating={isGenerating}
+            response={status.response}
+            isResponseCollapsed={isResponseCollapsed}
+            onToggleCollapse={() => setIsResponseCollapsed(!isResponseCollapsed)}
+            responseRef={responseRef}
+          />
 
           {(actionNotice?.code === "process_failed" ||
             actionNotice?.code === "live_error") && (

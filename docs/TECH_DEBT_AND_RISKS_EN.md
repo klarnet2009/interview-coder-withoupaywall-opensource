@@ -23,32 +23,35 @@ Resolved:
 - Added integration tests for preload/main IPC channel contract and live lifecycle transitions.
 - Added integration tests for screenshot processing and recovery flows in `ProcessingHelper`.
 - `ProcessingHelper` response shaping/parsing extracted into dedicated formatter modules.
+- `UnifiedPanel` was decomposed into focused UI modules (`AudioSourceSelector`, `ActionNoticeBanner`, `ResponseSection`, `LiveStateLane`) with shared types/constants.
+- Added integration tests for `ProcessingHelper` cancellation race windows (queue and debug flows).
 
 Still open:
-- Core UI controller size is still high (`src/components/UnifiedPanel/UnifiedPanel.tsx`).
-- Some runtime edge cases are still primarily validated by manual QA (provider timeout/cancellation race windows).
+- `electron/ProcessingHelper.ts` orchestration flow is still broad and would benefit from controller-level split.
+- Provider timeout behavior still has limited deterministic automated coverage vs cancellation coverage.
 
 ## Current Findings
 
 ### P1
 
 1. Single-file complexity remains high in critical paths
-- `src/components/UnifiedPanel/UnifiedPanel.tsx` remains a multi-responsibility controller.
+- `src/components/UnifiedPanel/UnifiedPanel.tsx` is reduced and partially decomposed, but still owns multiple runtime side effects.
 - `electron/ProcessingHelper.ts` was improved via provider strategy and formatter extraction, but orchestration flow is still broad.
 - Impact: higher change risk and slower onboarding/review.
 
 2. Limited automated coverage for runtime-critical flows
 - IPC routing contract and live start/stop/reconnect transitions are covered.
 - Screenshot processing and recovery flows (queue empty, extraction failure, success path, debug path, provider-not-configured) are covered.
-- Remaining risk: provider timeout/cancellation race windows still lean on manual QA.
+- Cancellation race windows in processing are now covered by integration tests.
+- Remaining risk: provider timeout behavior is still not deeply covered by deterministic integration tests.
 
 ### P2
 
-4. Legacy/parallel abstractions still exist
+3. Legacy/parallel abstractions still exist
 - Multiple audio-related service layers with overlapping responsibilities.
 - Impact: confusion about active path, harder long-term maintenance.
 
-5. Runtime logging is still noisy in production paths
+4. Runtime logging is still noisy in production paths
 - Broad `console.*` usage in hot paths.
 - Impact: noisy diagnostics and increased risk of leaking internal state.
 
@@ -68,11 +71,14 @@ Still open:
 - live state lane component
 - response rendering component
 - recovery/actions component
+Status: `partially completed` (lane/response/recovery/audio selector extracted; remaining runtime-effects/controller logic still in `UnifiedPanel.tsx`).
 
 4. Add integration tests:
 - IPC channel contract tests (`preload <-> main`) (completed)
 - live start/stop/reconnect state transitions (completed)
 - screenshot process and recovery flow (completed)
+- processing cancel race flow (completed)
+- provider timeout branches (pending)
 
 ### P2 Actions (Cleanup)
 

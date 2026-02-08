@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после formatter extraction из ProcessingHelper)  
+Дата обновления: 2026-02-08 (после UnifiedPanel decomposition + ProcessingHelper cancel-race tests)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -71,7 +71,7 @@
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
-- [x] `npm run test` (43/43)
+- [x] `npm run test` (45/45)
 - [x] `npm run build`
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
@@ -86,6 +86,7 @@
 - [x] `electron ts phase-b/c` — `strictNullChecks: true` и `strict: true`, Electron сборка стабильна
 - [x] `processing integration tests` — покрыты screenshot-processing/recovery ветки `ProcessingHelper` (`tests/integration/processingHelper.integration.test.ts`)
 - [x] `processing formatter tests` — добавлены unit-тесты для solution/debug formatters (`tests/unit/responseFormatters.test.ts`)
+- [x] `processing cancel-race integration tests` — покрыты cancellation race окна (queue/debug) для `ProcessingHelper`
 
 ---
 
@@ -146,6 +147,14 @@
   - `electron/processing/formatters/solutionResponseFormatter.ts`
   - `electron/processing/formatters/debugResponseFormatter.ts`
   - `ProcessingHelper` переключен на formatter-функции, добавлено unit-покрытие (`tests/unit/responseFormatters.test.ts`)
+- [x] `TECH-017` Закрыт: декомпозирован `UnifiedPanel` на целевые UI-модули
+  - Добавлены `src/components/UnifiedPanel/{types.ts,constants.ts,LiveStateLane.tsx,ActionNoticeBanner.tsx,ResponseSection.tsx,AudioSourceSelector.tsx,renderFormattedText.tsx}`
+  - `src/components/UnifiedPanel/UnifiedPanel.tsx` сокращен и оставлен как runtime-controller слой
+- [x] `TECH-018` Закрыт: добавлено integration покрытие cancellation race для `ProcessingHelper`
+  - Новые тест-кейсы в `tests/integration/processingHelper.integration.test.ts`:
+    - отмена queue processing без stale success событий
+    - отмена debug processing без stale debug success
+  - `npm test` обновлен baseline: `45/45`
 
 ---
 

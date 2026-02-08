@@ -4,7 +4,7 @@
 
 - `package.json`: scripts, dependencies, Electron Builder packaging config.
 - `vite.config.ts`: Vite + `vite-plugin-electron` setup for renderer/main/preload builds.
-- `tsconfig.electron.json`: Electron TypeScript config (currently non-strict).
+- `tsconfig.electron.json`: Electron TypeScript config (`strict: true`, `strictNullChecks: true`, `noImplicitAny: true`).
 - `eslint.config.mjs`: flat ESLint config for TS/JS/JSON/Markdown/CSS.
 - `README.md`: user-facing project and run instructions.
 
@@ -52,7 +52,11 @@
 
 ### Main UI Components
 
-- `src/components/UnifiedPanel/UnifiedPanel.tsx`: core control panel (capture, solve, live interview controls, notices).
+- `src/components/UnifiedPanel/UnifiedPanel.tsx`: core runtime controller for session actions and live interview state wiring.
+- `src/components/UnifiedPanel/AudioSourceSelector.tsx`: audio source picker/dropdown UI.
+- `src/components/UnifiedPanel/ActionNoticeBanner.tsx`: inline recovery notice UI.
+- `src/components/UnifiedPanel/ResponseSection.tsx`: AI response rendering panel.
+- `src/components/UnifiedPanel/LiveStateLane.tsx`: live state progression lane.
 - `src/components/Wizard/*`: onboarding/setup flow.
 - `src/components/Settings/*`: settings pages/forms/dialogs.
 - `src/components/Queue/*`: screenshot list and items.
@@ -74,6 +78,11 @@
 ## Tests
 
 - `tests/unit/validation.test.ts`: tests for IPC validation utilities.
+- `tests/unit/sessionRestore.test.ts`: tests for session restore helper behavior.
+- `tests/unit/responseFormatters.test.ts`: tests for solution/debug formatter parsing.
+- `tests/integration/ipcContract.integration.test.ts`: preload/main IPC invoke contract coverage.
+- `tests/integration/liveInterviewLifecycle.integration.test.ts`: live interview lifecycle state transitions.
+- `tests/integration/processingHelper.integration.test.ts`: screenshot processing/recovery/cancellation integration coverage.
 
 ## Legacy/Secondary Tree
 

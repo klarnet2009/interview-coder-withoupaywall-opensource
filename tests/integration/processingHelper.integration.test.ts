@@ -94,6 +94,37 @@ const createTempScreenshot = (): { path: string; dir: string } => {
   return { path: filePath, dir }
 }
 
+const createAbortError = (message: string): Error & { __CANCEL__: boolean } => {
+  const error = new Error(message) as Error & { __CANCEL__: boolean }
+  error.__CANCEL__ = true
+  return error
+}
+
+const createAbortAwareProviderCall = <T,>(
+  data: T
+): ((args: { signal: AbortSignal }) => Promise<ProviderResult<T>>) => {
+  return ({ signal }) =>
+    new Promise<ProviderResult<T>>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(createAbortError("Processing was canceled by the user."))
+        return
+      }
+
+      const timer = setTimeout(() => {
+        resolve({ success: true, data })
+      }, 200)
+
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(timer)
+          reject(createAbortError("Processing was canceled by the user."))
+        },
+        { once: true }
+      )
+    })
+}
+
 const createMainWindow = (events: EventRecord[]): BrowserWindow => {
   return {
     webContents: {
@@ -354,5 +385,74 @@ describe("ProcessingHelper integration: screenshot processing and recovery", () 
 
     expect(events.map((event) => event.channel)).toEqual(["api-key-invalid"])
     expect(provider.extractProblem).not.toHaveBeenCalled()
+  })
+
+  it("cancels queue processing without emitting stale success events", async () => {
+    const shot = createTempScreenshot()
+    createdDirs.push(shot.dir)
+
+    provider.extractProblem.mockImplementation(
+      createAbortAwareProviderCall({
+        problem_statement: "Two Sum",
+        constraints: "n >= 1"
+      })
+    )
+
+    const events: EventRecord[] = []
+    const { deps, setView, setProblemInfo } = createDeps({
+      mainQueue: [shot.path],
+      extraQueue: [],
+      view: "queue",
+      events
+    })
+
+    const helper = new ProcessingHelper(deps)
+    const processing = helper.processScreenshots()
+    await Promise.resolve()
+    helper.cancelOngoingRequests()
+    await processing
+
+    const channels = events.map((event) => event.channel)
+    expect(channels).toContain("processing-no-screenshots")
+    expect(channels).toContain("solution-error")
+    expect(channels).not.toContain("solution-success")
+    expect(setView).toHaveBeenCalledWith("queue")
+    expect(setProblemInfo).toHaveBeenCalledWith(null)
+  })
+
+  it("cancels debug processing and prevents stale debug success", async () => {
+    const mainShot = createTempScreenshot()
+    const extraShot = createTempScreenshot()
+    createdDirs.push(mainShot.dir, extraShot.dir)
+
+    provider.generateDebug.mockImplementation(
+      createAbortAwareProviderCall([
+        "### Issue",
+        "- Delayed response"
+      ].join("\n"))
+    )
+
+    const events: EventRecord[] = []
+    const { deps, setHasDebugged } = createDeps({
+      mainQueue: [mainShot.path],
+      extraQueue: [extraShot.path],
+      view: "solutions",
+      events,
+      problemInfo: { problem_statement: "Two Sum" }
+    })
+
+    const helper = new ProcessingHelper(deps)
+    const processing = helper.processScreenshots()
+    await Promise.resolve()
+    helper.cancelOngoingRequests()
+    await processing
+
+    const channels = events.map((event) => event.channel)
+    expect(channels).toContain("debug-start")
+    expect(channels).toContain("debug-error")
+    expect(channels).toContain("processing-no-screenshots")
+    expect(channels).not.toContain("debug-success")
+    expect(setHasDebugged).toHaveBeenCalledWith(false)
+    expect(setHasDebugged).not.toHaveBeenCalledWith(true)
   })
 })
