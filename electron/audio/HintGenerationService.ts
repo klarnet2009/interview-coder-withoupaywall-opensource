@@ -33,44 +33,86 @@ export class HintGenerationService extends EventEmitter {
     private currentRequest: any = null;
     private isGenerating: boolean = false;
     private spokenLanguage: string;
+    private interviewMode: string;
+    private answerStyle: string;
 
     // Conversation context
     private conversationHistory: ConversationTurn[] = [];
     private cachedContentName: string | null = null;
+    private cacheAttempted: boolean = false;
 
-    constructor(apiKey: string, model?: string, spokenLanguage?: string) {
+    constructor(apiKey: string, model?: string, spokenLanguage?: string, interviewMode?: string, answerStyle?: string) {
         super();
         this.apiKey = apiKey;
         this.model = model || HINT_MODEL;
         this.spokenLanguage = spokenLanguage || 'en';
+        this.interviewMode = interviewMode || 'coding';
+        this.answerStyle = answerStyle || 'structured';
         this.systemInstruction = this.getDefaultSystemInstruction();
     }
 
     private getDefaultSystemInstruction(): string {
-        const langMap: Record<string, string> = {
-            'en': 'English',
-            'ru': 'Russian',
-            'lv': 'Latvian',
-            'de': 'German',
-        };
-        const langName = langMap[this.spokenLanguage] || 'English';
+        // Build mode-specific instructions
+        let modeInstruction = '';
+        switch (this.interviewMode) {
+            case 'behavioral':
+            case 'general':
+                modeInstruction = 'This is a behavioral/general interview. Focus on soft skills, STAR method examples, and interpersonal scenarios.';
+                break;
+            case 'system_design':
+                modeInstruction = 'This is a system design interview. Focus on architecture, scalability, trade-offs, and design patterns.';
+                break;
+            case 'coding':
+            case 'programming':
+            default:
+                modeInstruction = 'This is a coding/programming interview. Focus on algorithms, data structures, code solutions, and time/space complexity.';
+                break;
+        }
+
+        // Build style-specific instructions
+        let styleInstruction = '';
+        switch (this.answerStyle) {
+            case 'hints':
+                styleInstruction = 'Give ONLY hints and directions. Do NOT give the actual answer. Help the candidate think through the problem themselves. Use 1-3 short hints like "Think about using a hash map" or "Consider edge cases with empty input".';
+                break;
+            case 'full':
+                styleInstruction = 'Provide a complete, structured answer the candidate can read and paraphrase. Include the reasoning, approach, and a clear solution. Use paragraphs and bullet points for readability.';
+                break;
+            case 'bullets':
+                styleInstruction = 'Give key points as bullet points only. No fluff, no long explanations. 3-5 crisp bullet points that cover the essential answer.';
+                break;
+            case 'echo':
+                styleInstruction = 'Write the answer in FIRST PERSON as if YOU are the candidate speaking naturally in a real interview. Use conversational tone — the candidate should be able to read your response WORD FOR WORD out loud. Include natural speech patterns like "So, the way I would approach this is...", "In my experience...", "What I think is important here is...". Do NOT use bullet points or headers — write flowing speech. Keep it concise (3-6 sentences) so it sounds natural, not rehearsed.';
+                break;
+            // Legacy values for backward compatibility
+            case 'concise':
+                styleInstruction = 'Be extremely brief. Give 1-2 bullet points maximum. No explanations, just key points.';
+                break;
+            case 'detailed':
+                styleInstruction = 'Provide detailed, comprehensive answers with explanations, examples, and reasoning.';
+                break;
+            case 'star':
+                styleInstruction = 'Structure answers using the STAR method: Situation, Task, Action, Result.';
+                break;
+            case 'structured':
+            default:
+                styleInstruction = 'Give structured answers with 3-4 bullet points. Balance brevity with clarity.';
+                break;
+        }
 
         return `You are an AI interview assistant helping a candidate during a technical interview.
-The interview is conducted in ${langName}. Respond in ${langName}.
+
+${modeInstruction}
 
 Your role:
 - Analyze the interviewer's questions (provided as transcript)
 - Provide concise, helpful hints and answers
-- Format responses as bullet points (max 3-4 points)
+- ALWAYS respond in the SAME LANGUAGE as the interviewer's question. If the question is in Russian, respond in Russian. If in English, respond in English. Match the language exactly.
+- ${styleInstruction}
 - Be brief - the candidate needs to respond quickly
 - If the question is about code, provide pseudocode or key concepts only
 - You have full context of the interview so far — use it to give better, non-repetitive answers
 - Reference previous questions if relevant to build a coherent picture
-
-Response format:
-• Point 1
-• Point 2
-• Point 3
 
 Be helpful but don't give away complete solutions - guide the candidate.`;
     }
@@ -88,11 +130,24 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
     }
 
     /**
-     * Create an explicit cache for the system instruction.
-     * Called once at session start to reduce cost/latency for subsequent requests.
+     * Create an explicit cache for the system instruction + conversation history.
+     * Called automatically after first hint when there's enough content (>1024 tokens).
+     * Not called at session start since system instruction alone is too small.
      */
     public async createCache(): Promise<void> {
-        if (!this.apiKey) return;
+        if (!this.apiKey || this.cacheAttempted || this.cachedContentName) return;
+        this.cacheAttempted = true;
+
+        // Estimate token count: ~4 chars per token
+        const historyText = this.conversationHistory.map(t => t.parts[0].text).join(' ');
+        const totalChars = this.systemInstruction.length + historyText.length;
+        const estimatedTokens = Math.ceil(totalChars / 4);
+
+        if (estimatedTokens < 1100) {
+            log.info(`HintGenerationService: Not enough content for cache yet (~${estimatedTokens} tokens, need 1024+)`);
+            this.cacheAttempted = false; // Allow retry after more content accumulates
+            return;
+        }
 
         const path = `/v1beta/cachedContents?key=${this.apiKey}`;
         const body = JSON.stringify({
@@ -101,6 +156,7 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
             systemInstruction: {
                 parts: [{ text: this.systemInstruction }]
             },
+            contents: this.conversationHistory,
             ttl: '3600s'
         });
 
@@ -109,13 +165,13 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
             const data = JSON.parse(result);
             if (data.name) {
                 this.cachedContentName = data.name;
-                log.info(`HintGenerationService: Cache created: ${this.cachedContentName}`);
+                log.info(`HintGenerationService: Cache created (~${estimatedTokens} tokens): ${this.cachedContentName}`);
             } else {
-                log.warn('HintGenerationService: Cache creation returned no name, falling back to inline system instruction');
+                log.warn('HintGenerationService: Cache creation returned no name');
             }
         } catch (err: any) {
-            log.warn(`HintGenerationService: Cache creation failed (${err.message}), falling back to inline system instruction`);
-            // Non-fatal — we'll just include systemInstruction inline
+            log.info(`HintGenerationService: Cache creation deferred (${err.message})`);
+            this.cacheAttempted = false; // Retry next time
         }
     }
 
@@ -210,6 +266,11 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                     parts: [{ text: accumulatedText }]
                 });
                 log.info(`HintGenerationService: History now has ${this.conversationHistory.length} turns`);
+
+                // Try to create cache once we have enough content
+                if (!this.cachedContentName) {
+                    this.createCache().catch(() => { });
+                }
             }
 
         } catch (error: any) {

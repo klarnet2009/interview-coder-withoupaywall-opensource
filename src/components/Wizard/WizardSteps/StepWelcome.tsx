@@ -1,134 +1,109 @@
-import React, { useEffect } from 'react';
-import { Sparkles, Shield, Zap, Code, MessageSquare, Eye } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Sparkles, Shield, Code, MessageSquare, Eye, ArrowRight } from 'lucide-react';
 import { StepProps } from '../../../types';
 
-interface StepWelcomeProps extends StepProps {
-  setCanProceed: (can: boolean) => void;
-  onSwitchMode: (mode: 'quick' | 'advanced') => void;
-  currentMode: 'quick' | 'advanced';
-}
-
-const FEATURES = [
-  {
-    icon: Eye,
-    title: '99% Invisible',
-    description: 'Undetectable window that bypasses most screen capture methods'
-  },
-  {
-    icon: Code,
-    title: 'AI-Powered Solutions',
-    description: 'Get detailed coding solutions with complexity analysis'
-  },
-  {
-    icon: MessageSquare,
-    title: 'Behavioral Interview',
-    description: 'STAR-formatted answers based on your experience'
-  },
-  {
-    icon: Shield,
-    title: 'Privacy First',
-    description: 'Your API keys stored locally, nothing sent to our servers'
-  }
+const LANGUAGES = [
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
 ];
 
-export const StepWelcome: React.FC<StepWelcomeProps> = ({
+const FEATURES = [
+  { icon: Eye, titleKey: 'wizard.steps.welcome.features.invisible', hintKey: 'wizard.steps.welcome.hints.invisible' },
+  { icon: Code, titleKey: 'wizard.steps.welcome.features.ai', hintKey: 'wizard.steps.welcome.hints.ai' },
+  { icon: MessageSquare, titleKey: 'wizard.steps.welcome.features.behavioral', hintKey: 'wizard.steps.welcome.hints.behavioral' },
+  { icon: Shield, titleKey: 'wizard.steps.welcome.features.privacy', hintKey: 'wizard.steps.welcome.hints.privacy' },
+];
+
+export const StepWelcome: React.FC<StepProps> = ({
   setCanProceed,
-  onSwitchMode,
-  currentMode
+  onNext,
 }) => {
+  const { t, i18n } = useTranslation();
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   useEffect(() => {
-    setCanProceed(true);
+    setCanProceed?.(true);
   }, [setCanProceed]);
 
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    window.electronAPI?.updateConfig({ uiLanguage: langCode }).catch(() => { });
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 flex flex-col items-center">
       {/* Welcome message */}
-      <div className="text-center space-y-3">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-2">
-          <Sparkles className="w-8 h-8 text-white" />
+      <div className="text-center space-y-2">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-1">
+          <Sparkles className="w-7 h-7 text-white" />
         </div>
-        <h3 className="text-2xl font-bold text-white">
-          Welcome to Interview Assistant
+        <h3 className="text-xl font-bold text-white">
+          {t('wizard.steps.welcome.heading')}
         </h3>
-        <p className="text-white/60 text-sm max-w-sm mx-auto">
-          Your AI-powered companion for technical interviews. 
-          Get real-time assistance while staying completely invisible.
+        <p className="text-white/50 text-sm max-w-xs mx-auto">
+          {t('wizard.steps.welcome.subtitle')}
         </p>
       </div>
 
-      {/* Features grid */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Language selector */}
+      <div className="flex items-center justify-center gap-2">
+        {LANGUAGES.map((lang) => (
+          <button
+            key={lang.code}
+            onClick={() => handleLanguageChange(lang.code)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${i18n.language === lang.code
+                ? 'bg-white/10 border border-white/25 text-white'
+                : 'bg-white/3 border border-white/8 text-white/50 hover:bg-white/5'
+              }`}
+          >
+            <span>{lang.flag}</span>
+            <span>{lang.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Features with hover hints */}
+      <div className="space-y-2 w-full">
         {FEATURES.map((feature, index) => (
           <div
             key={index}
-            className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors"
+            className="rounded-xl bg-white/3 border border-white/5 overflow-hidden transition-all duration-300 cursor-default hover:bg-white/5 hover:border-white/10"
+            onMouseEnter={() => setHoveredIndex(index)}
+            onMouseLeave={() => setHoveredIndex(null)}
           >
-            <feature.icon className="w-5 h-5 text-white/70 mb-2" />
-            <div className="text-sm font-medium text-white/90 mb-1">
-              {feature.title}
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <feature.icon className={`w-4 h-4 shrink-0 transition-colors duration-300 ${hoveredIndex === index ? 'text-white' : 'text-white/50'
+                }`} />
+              <span className={`text-[13px] transition-colors duration-300 ${hoveredIndex === index ? 'text-white' : 'text-white/70'
+                }`}>
+                {t(feature.titleKey)}
+              </span>
             </div>
-            <div className="text-xs text-white/50 leading-relaxed">
-              {feature.description}
+            {/* Expandable hint */}
+            <div
+              className="overflow-hidden transition-all duration-300 ease-out"
+              style={{
+                maxHeight: hoveredIndex === index ? '80px' : '0px',
+                opacity: hoveredIndex === index ? 1 : 0,
+              }}
+            >
+              <p className="px-3 pb-3 pt-0 text-[12px] text-white/45 leading-relaxed pl-10">
+                {t(feature.hintKey)}
+              </p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Mode selection */}
-      <div className="space-y-3">
-        <div className="text-sm font-medium text-white/70 text-center">
-          Choose your setup mode:
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onSwitchMode('quick')}
-            className={`p-4 rounded-xl border transition-all text-left ${
-              currentMode === 'quick'
-                ? 'bg-white/10 border-white/30'
-                : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className={`w-4 h-4 ${currentMode === 'quick' ? 'text-white' : 'text-white/50'}`} />
-              <span className={`font-medium ${currentMode === 'quick' ? 'text-white' : 'text-white/70'}`}>
-                Quick Start
-              </span>
-            </div>
-            <p className="text-xs text-white/50">
-              3 minutes • Essential config only
-            </p>
-          </button>
-
-          <button
-            onClick={() => onSwitchMode('advanced')}
-            className={`p-4 rounded-xl border transition-all text-left ${
-              currentMode === 'advanced'
-                ? 'bg-white/10 border-white/30'
-                : 'bg-white/[0.03] border-white/10 hover:bg-white/5'
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className={`w-4 h-4 ${currentMode === 'advanced' ? 'text-white' : 'text-white/50'}`} />
-              <span className={`font-medium ${currentMode === 'advanced' ? 'text-white' : 'text-white/70'}`}>
-                Advanced
-              </span>
-            </div>
-            <p className="text-xs text-white/50">
-              8 minutes • Full customization
-            </p>
-          </button>
-        </div>
-      </div>
-
-      {/* Privacy notice */}
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-white/[0.02] border border-white/5">
-        <Shield className="w-4 h-4 text-white/40 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-white/40 leading-relaxed">
-          <strong className="text-white/60">Privacy Notice:</strong> Your API keys are stored 
-          locally on your device. We never send your data to our servers. This tool is for 
-          learning and practice purposes.
-        </p>
-      </div>
+      {/* Centered Start button */}
+      <button
+        onClick={onNext}
+        className="flex items-center gap-2 px-8 py-3 rounded-xl bg-white text-black font-semibold text-sm hover:bg-white/90 transition-all mt-2"
+      >
+        {t('wizard.start')}
+        <ArrowRight className="w-4 h-4" />
+      </button>
     </div>
   );
 };

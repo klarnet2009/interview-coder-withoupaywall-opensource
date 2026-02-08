@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   WizardMode,
   WizardStep,
@@ -8,6 +9,7 @@ import {
   WizardStepConfig
 } from '../../types';
 import { StepWelcome } from './WizardSteps/StepWelcome';
+import { StepModeSelect } from './WizardSteps/StepModeSelect';
 import { StepProvider } from './WizardSteps/StepProvider';
 import { StepApiKey } from './WizardSteps/StepApiKey';
 import { StepProfile } from './WizardSteps/StepProfile';
@@ -25,15 +27,16 @@ interface WizardContainerProps {
 }
 
 const WIZARD_STEPS: WizardStepConfig[] = [
-  { id: 'welcome', title: 'Welcome', description: 'Get started with Interview Assistant', component: StepWelcome, required: true, quickMode: true },
-  { id: 'provider', title: 'Provider', description: 'Choose your AI provider', component: StepProvider, required: true, quickMode: true },
-  { id: 'apikey', title: 'API Key', description: 'Enter your API key', component: StepApiKey, required: true, quickMode: true },
-  { id: 'profile', title: 'Profile', description: 'Set up your profile', component: StepProfile, required: false, quickMode: false },
-  { id: 'mode', title: 'Mode', description: 'Configure interview preferences', component: StepMode, required: false, quickMode: false },
-  { id: 'audio', title: 'Audio', description: 'Configure audio input', component: StepAudio, required: false, quickMode: false },
-  { id: 'display', title: 'Display', description: 'Configure display settings', component: StepDisplay, required: false, quickMode: false },
-  { id: 'test', title: 'Test', description: 'Test your setup', component: StepTest, required: false, quickMode: false },
-  { id: 'ready', title: 'Ready', description: 'You are all set!', component: StepReady, required: true, quickMode: true },
+  { id: 'welcome', title: 'welcome', description: 'welcome', component: StepWelcome, required: true, quickMode: true },
+  { id: 'modeselect', title: 'modeselect', description: 'modeselect', component: StepModeSelect, required: true, quickMode: true },
+  { id: 'provider', title: 'provider', description: 'provider', component: StepProvider, required: true, quickMode: true },
+  { id: 'apikey', title: 'apikey', description: 'apikey', component: StepApiKey, required: true, quickMode: true },
+  { id: 'profile', title: 'profile', description: 'profile', component: StepProfile, required: false, quickMode: false },
+  { id: 'mode', title: 'mode', description: 'mode', component: StepMode, required: false, quickMode: false },
+  { id: 'audio', title: 'audio', description: 'audio', component: StepAudio, required: false, quickMode: false },
+  { id: 'display', title: 'display', description: 'display', component: StepDisplay, required: false, quickMode: false },
+  { id: 'test', title: 'test', description: 'test', component: StepTest, required: false, quickMode: false },
+  { id: 'ready', title: 'ready', description: 'ready', component: StepReady, required: true, quickMode: true },
 ];
 
 export const WizardContainer: React.FC<WizardContainerProps> = ({
@@ -42,6 +45,7 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
   onSkip
 }) => {
   const [mode, setMode] = useState<WizardMode>(initialMode);
+  const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [config, setConfig] = useState<Partial<AppConfig>>({
     apiProvider: 'gemini',
@@ -103,24 +107,33 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
   }, [currentStep]);
 
   const CurrentStepComponent = currentStep.component;
+  const wizardRef = useRef<HTMLDivElement>(null);
+
+  // Resize window to fit wizard card tightly (no black bars)
+  useEffect(() => {
+    window.electronAPI?.setSetupWindowSize({ width: 520, height: 640 });
+  }, []);
+
+
 
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+    <div ref={wizardRef} className="w-full h-screen bg-[#0a0a0a] flex flex-col rounded-2xl overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Header — draggable region */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
           <div className="flex items-center gap-3">
             <div className="text-lg font-semibold text-white">
-              Interview Assistant
+              {t('wizard.title')}
             </div>
             <span className="text-xs px-2 py-0.5 bg-white/10 text-white/60 rounded-full">
-              {mode === 'quick' ? 'Quick Setup' : 'Advanced Setup'}
+              {mode === 'quick' ? t('wizard.quickSetup') : t('wizard.advancedSetup')}
             </span>
           </div>
           <button
             onClick={onSkip}
             className="text-white/40 hover:text-white/70 transition-colors p-1"
-            title="Skip wizard"
+            title={t('wizard.skipWizard')}
+            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
             <X className="w-5 h-5" />
           </button>
@@ -135,15 +148,15 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
         </div>
 
         {/* Step indicator */}
-        <div className="flex items-center justify-center gap-1 px-6 py-3 bg-white/[0.02]">
+        <div className="flex items-center justify-center gap-1 px-6 py-3 bg-white/2">
           {steps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
                 className={`w-2 h-2 rounded-full transition-all duration-200 ${index === currentStepIndex
-                    ? 'bg-white w-4'
-                    : index < currentStepIndex
-                      ? 'bg-white/40'
-                      : 'bg-white/10'
+                  ? 'bg-white w-4'
+                  : index < currentStepIndex
+                    ? 'bg-white/40'
+                    : 'bg-white/10'
                   }`}
                 title={step.title}
               />
@@ -155,15 +168,17 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
         </div>
 
         {/* Step content */}
-        <div className="px-6 py-6 min-h-[320px]">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-white mb-1">
-              {currentStep.title}
-            </h2>
-            <p className="text-sm text-white/50">
-              {currentStep.description}
-            </p>
-          </div>
+        <div className="px-6 py-6 flex-1 overflow-y-auto">
+          {currentStep.id !== 'welcome' && (
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-white mb-1">
+                {t(`wizard.steps.${currentStep.id}.title`)}
+              </h2>
+              <p className="text-sm text-white/50">
+                {t(`wizard.steps.${currentStep.id}.description`)}
+              </p>
+            </div>
+          )}
 
           <CurrentStepComponent
             data={config}
@@ -177,43 +192,37 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
           />
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-white/[0.02]">
-          <button
-            onClick={handleBack}
-            disabled={isFirstStep}
-            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isFirstStep
+        {/* Footer — hidden on welcome step (has its own Start button) */}
+        {currentStep.id !== 'welcome' && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-white/10 bg-white/2">
+            <button
+              onClick={handleBack}
+              disabled={isFirstStep}
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isFirstStep
                 ? 'text-white/20 cursor-not-allowed'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          <div className="flex items-center gap-3">
-            {mode === 'quick' && currentStep.id === 'welcome' && (
-              <button
-                onClick={() => handleSwitchMode('advanced')}
-                className="text-xs text-white/40 hover:text-white/70 transition-colors"
-              >
-                Switch to Advanced
-              </button>
-            )}
-
-            <button
-              onClick={handleNext}
-              disabled={!canProceed && currentStep.required}
-              className={`flex items-center gap-1 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${!canProceed && currentStep.required
-                  ? 'bg-white/20 text-white/40 cursor-not-allowed'
-                  : 'bg-white text-black hover:bg-white/90'
                 }`}
             >
-              {isLastStep ? 'Complete' : 'Continue'}
-              {!isLastStep && <ChevronRight className="w-4 h-4" />}
+              <ChevronLeft className="w-4 h-4" />
+              {t('wizard.back')}
             </button>
+
+            <div className="flex items-center gap-3">
+
+              <button
+                onClick={handleNext}
+                disabled={!canProceed && currentStep.required}
+                className={`flex items-center gap-1 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${!canProceed && currentStep.required
+                  ? 'bg-white/20 text-white/40 cursor-not-allowed'
+                  : 'bg-white text-black hover:bg-white/90'
+                  }`}
+              >
+                {isLastStep ? t('wizard.complete') : t('wizard.continue')}
+                {!isLastStep && <ChevronRight className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

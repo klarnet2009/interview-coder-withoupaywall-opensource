@@ -124,28 +124,30 @@ export class ShortcutsHelper {
 
     // Zoom controls
     globalShortcut.register("CommandOrControl+-", () => {
-      console.log("Command/Ctrl + - pressed. Zooming out.")
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         const currentZoom = mainWindow.webContents.getZoomLevel()
-        mainWindow.webContents.setZoomLevel(currentZoom - 0.5)
+        const newZoom = currentZoom - 0.5
+        mainWindow.webContents.setZoomLevel(newZoom)
+        console.log(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
       }
     })
 
     globalShortcut.register("CommandOrControl+0", () => {
-      console.log("Command/Ctrl + 0 pressed. Resetting zoom.")
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         mainWindow.webContents.setZoomLevel(0)
+        console.log(`Zoom: 100%`)
       }
     })
 
     globalShortcut.register("CommandOrControl+=", () => {
-      console.log("Command/Ctrl + = pressed. Zooming in.")
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         const currentZoom = mainWindow.webContents.getZoomLevel()
-        mainWindow.webContents.setZoomLevel(currentZoom + 0.5)
+        const newZoom = currentZoom + 0.5
+        mainWindow.webContents.setZoomLevel(newZoom)
+        console.log(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
       }
     })
 

@@ -444,3 +444,43 @@ Validation (Sprint 4):
 4. Technical hardening completed after Sprint 4:
 - `TECH-001`: legacy strict ESLint errors in `electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts` were fixed.
 - `TECH-002`: git metadata/pack corruption recovered; `git diff`, `git log`, and `git fsck --full` now run cleanly.
+
+---
+
+## 14. Execution Status Update (2026-02-07, Sprint 5 — i18n & Polish)
+
+Implemented (Sprint 5):
+1. `I18N-001` i18n infrastructure:
+- Installed `react-i18next` + `i18next`.
+- Created `src/i18n/` with `en.json` and `ru.json` locale files.
+- Initialized i18n in `App.tsx` with language detection and React Suspense integration.
+2. `I18N-002` Core component localization:
+- Localized `WelcomeScreen.tsx`, `WizardContainer.tsx`, and `App.tsx` initialization text.
+- Removed unused `SettingsDialog` import from App.
+3. `I18N-003` AudioSettings localization:
+- Replaced 30+ hardcoded strings with `t()` calls.
+- Added full audio section keys (descriptions, recommended status, test phrases) to both locale files.
+- Fixed Tailwind CSS lint warnings (`bg-white/[0.03]` → `bg-white/3`).
+4. `I18N-004` SettingsPage Mode/Profile/Style localization:
+- Replaced all hardcoded English strings in Mode, Profile, and Style sections with `t()`.
+- Removed unused `RESPONSE_STYLES` and `RESPONSE_LENGTHS` constants.
+- Added 38+ translation keys per locale (mode labels, profile prompts, style descriptors).
+5. `I18N-005` Section transition animations:
+- Added `fadeSection` keyframe + `.animate-fade-in` class to `index.css`.
+- Wrapped section content in `<div key={activeSection} className="animate-fade-in">` for smooth transitions.
+6. `TECH-003` ElectronAPI type deduplication:
+- Identified root cause: `src/env.d.ts` had an incomplete ambient `ElectronAPI` interface shadowing the canonical one in `src/types/electron.d.ts`.
+- Stripped `env.d.ts` to only Vite-specific `ImportMetaEnv`/`ImportMeta` types.
+- Fixed `JSX.Element` → `React.JSX.Element` in `SettingsPage.tsx`.
+
+Files modified:
+- `src/env.d.ts` (stripped to Vite-only)
+- `src/components/Settings/AudioSettings.tsx` (full i18n)
+- `src/components/Settings/SettingsPage.tsx` (Mode/Profile/Style i18n, cleanup)
+- `src/i18n/locales/en.json` (+70 keys)
+- `src/i18n/locales/ru.json` (+70 keys)
+- `src/index.css` (fade-in animation)
+
+Validation (Sprint 5):
+1. `tsc --noEmit`: passed (exit code 0). All remaining errors are pre-existing in unmodified files (`SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`).
+2. No new lint errors introduced by i18n changes.

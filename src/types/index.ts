@@ -12,6 +12,7 @@ import type { ComponentType } from 'react';
 export type WizardMode = 'quick' | 'advanced';
 export type WizardStep =
   | 'welcome'
+  | 'modeselect'
   | 'provider'
   | 'apikey'
   | 'profile'
@@ -168,6 +169,9 @@ export interface AppConfig {
   // Wizard
   wizardCompleted: boolean;
   wizardMode?: WizardMode;
+
+  // Debug mode — disables window invisibility for development/testing
+  debugMode?: boolean;
 
   // Profiles
   profiles: UserProfile[];
@@ -368,6 +372,9 @@ export interface StepProps {
   onNext: () => void;
   onBack?: () => void;
   isActive: boolean;
+  setCanProceed?: (can: boolean) => void;
+  onSwitchMode?: (mode: 'quick' | 'advanced') => void;
+  currentMode?: 'quick' | 'advanced';
 }
 
 export interface WizardStepConfig {

@@ -180,7 +180,7 @@ const Queue: React.FC<QueueProps> = ({
 
   return (
     <div ref={contentRef} className="bg-transparent w-full">
-      <div className="px-4 py-3">
+      <div className="p-2">
         {inlineNotice && (
           <div className="mb-3 p-3 rounded-lg border border-amber-400/35 bg-amber-500/10 text-amber-100">
             <div className="text-[13px] font-semibold">{inlineNotice.title}</div>

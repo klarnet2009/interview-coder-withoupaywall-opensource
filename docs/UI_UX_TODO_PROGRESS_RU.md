@@ -1,13 +1,13 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-07 (после закрытия TECH-001/TECH-002)  
+Дата обновления: 2026-02-07 (после Sprint 5 — i18n & Polish)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
 
-- Выполнено: `18 / 18` задач
-- В процессе: `0 / 18`
-- Не начато: `0 / 18`
+- Выполнено: `24 / 24` задач
+- В процессе: `0 / 24`
+- Не начато: `0 / 24`
 
 ---
 
@@ -55,6 +55,19 @@
 
 ---
 
+## Sprint 5 (i18n & Polish)
+
+- [x] `I18N-001` i18n инфраструктура (`react-i18next` + `i18next`, `en.json` / `ru.json`)
+- [x] `I18N-002` Локализация WelcomeScreen, Wizard, App.tsx
+- [x] `I18N-003` Локализация AudioSettings (30+ ключей)
+- [x] `I18N-004` Локализация SettingsPage — Mode, Profile, Style (38+ ключей)
+- [x] `I18N-005` Анимация переходов секций настроек (`animate-fade-in`)
+- [x] `TECH-003` Фикс ElectronAPI типов (удалён дублирующий интерфейс из `env.d.ts`)
+
+Статус: `6/6 done`
+
+---
+
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
@@ -63,12 +76,14 @@
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
 - [x] `git diff --name-only` / `git log --oneline -n 12`
+- [x] `tsc --noEmit` — все ошибки pre-existing, не связаны с i18n/settings
 
 ---
 
 ## Известные блокеры / риски
 
 - [x] Активные блокеры отсутствуют.
+- Pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx` (не связаны с i18n).
 
 ---
 
@@ -76,13 +91,14 @@
 
 - [x] `TECH-001` Закрыт: убраны strict ESLint ошибки в Electron-слое (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`).
 - [x] `TECH-002` Закрыт: восстановлена целостность git metadata/pack, `git diff` и история работают стабильно.
+- [x] `TECH-003` Закрыт: удалён дублирующий `ElectronAPI` из `env.d.ts`. Канонический тип — `src/types/electron.d.ts`.
 
 ---
 
 ## Next (пошагово)
 
-1. Провести UX smoke по history restore flows (solution/debug snippets).
-2. Отдельно прогнать ручной сценарий first-run -> session -> history -> restore.
-3. Подготовить релизный changelog по Sprint 4.
-4. Собрать финальный PR с кратким change summary по Sprint 1-4 + tech hardening.
+1. Исправить pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`.
+2. Провести UX smoke по history restore flows (solution/debug snippets).
+3. Подготовить релизный changelog по Sprint 1-5 + tech hardening.
+4. Собрать финальный PR с кратким change summary.
 5. Провести финальный QA pass перед release candidate.

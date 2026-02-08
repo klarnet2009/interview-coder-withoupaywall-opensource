@@ -51,6 +51,7 @@ interface DisplayConfig {
   mode: 'standard' | 'overlay' | 'mini' | 'tray';
   opacity: number;
   stealthMode: boolean;
+  alwaysOnTop: boolean;
   hideFromTaskbar: boolean;
   hideTitle: boolean;
   dimOnMouseAway: boolean;
@@ -70,6 +71,9 @@ interface Config {
   // New fields for UX Redesign 2025
   wizardCompleted: boolean;
   wizardMode?: 'quick' | 'advanced';
+
+  // Debug mode — disables window invisibility for development/testing
+  debugMode?: boolean;
 
   profiles: UserProfile[];
   activeProfileId?: string;
@@ -94,6 +98,7 @@ export class ConfigHelper extends EventEmitter {
 
     // New defaults
     wizardCompleted: false,
+    debugMode: false,
     profiles: [],
 
     interviewPreferences: {
@@ -115,6 +120,7 @@ export class ConfigHelper extends EventEmitter {
       mode: 'standard',
       opacity: 1.0,
       stealthMode: false,
+      alwaysOnTop: true,
       hideFromTaskbar: false,
       hideTitle: false,
       dimOnMouseAway: false,
@@ -263,8 +269,23 @@ export class ConfigHelper extends EventEmitter {
         try {
           config = JSON.parse(configData);
         } catch (parseErr) {
-          // Config file is corrupted — auto-reset to defaults
-          console.error('Config file is corrupted, resetting to defaults:', parseErr);
+          // Config file is corrupted — try restoring from backup
+          console.error('Config file is corrupted:', parseErr);
+          const backupPath = this.configPath + '.backup';
+          if (fs.existsSync(backupPath)) {
+            try {
+              const backupData = fs.readFileSync(backupPath, 'utf8');
+              config = JSON.parse(backupData);
+              console.log('Restored config from backup file');
+              // Re-save the restored config as the main file
+              this.saveConfig({ ...this.defaultConfig, ...config });
+              return { ...this.defaultConfig, ...config };
+            } catch (backupErr) {
+              console.error('Backup also corrupted, resetting to defaults:', backupErr);
+            }
+          }
+          // No backup or backup also corrupted — reset to defaults
+          console.log('No valid backup found, resetting to defaults');
           this.saveConfig(this.defaultConfig);
           return { ...this.defaultConfig };
         }
@@ -334,17 +355,24 @@ export class ConfigHelper extends EventEmitter {
         fs.mkdirSync(configDir, { recursive: true });
       }
 
-      // Debug logging
-      console.log('=== SAVE CONFIG DEBUG ===');
-      console.log('Config path:', this.configPath);
-      console.log('API key provided:', config.apiKey ? `Yes (${config.apiKey.substring(0, 8)}...)` : 'No');
-      console.log('API provider:', config.apiProvider);
-      console.log('Extraction model:', config.extractionModel);
+      const jsonData = JSON.stringify(config, null, 2);
+      const tmpPath = this.configPath + '.tmp';
+      const backupPath = this.configPath + '.backup';
 
-      // Store everything directly in JSON (raw config mode)
-      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
-      console.log('Config file saved successfully');
-      console.log('=========================');
+      // Backup existing valid config before writing
+      if (fs.existsSync(this.configPath)) {
+        try {
+          const existing = fs.readFileSync(this.configPath, 'utf8');
+          JSON.parse(existing); // Verify it's valid JSON
+          fs.copyFileSync(this.configPath, backupPath);
+        } catch {
+          // Existing file is already corrupted — skip backup
+        }
+      }
+
+      // Atomic write: write to temp file, then rename
+      fs.writeFileSync(tmpPath, jsonData);
+      fs.renameSync(tmpPath, this.configPath);
     } catch (err) {
       console.error("Error saving config:", err);
     }
@@ -402,6 +430,41 @@ export class ConfigHelper extends EventEmitter {
       if (updates.debuggingModel) {
         updates.debuggingModel = this.sanitizeModelSelection(updates.debuggingModel, provider);
       }
+      // Map flat settings fields into nested interviewPreferences
+      const anyUpdates = updates as Record<string, unknown>;
+      if (anyUpdates.interviewMode || anyUpdates.responseStyle || anyUpdates.responseLength ||
+        anyUpdates.programmingLanguage || anyUpdates.interviewLevel || anyUpdates.interviewFocus ||
+        anyUpdates.customTopic || anyUpdates.recognitionLanguage || anyUpdates.interfaceLanguage) {
+        const prefs = { ...(currentConfig.interviewPreferences || {}) };
+        if (anyUpdates.interviewMode) prefs.mode = anyUpdates.interviewMode as InterviewPreferences['mode'];
+        if (anyUpdates.responseStyle) prefs.answerStyle = anyUpdates.responseStyle as InterviewPreferences['answerStyle'];
+        if (anyUpdates.recognitionLanguage) prefs.language = anyUpdates.recognitionLanguage as string;
+        updates.interviewPreferences = prefs as InterviewPreferences;
+
+        // Clean up flat fields so they don't pollute the config
+        delete anyUpdates.interviewMode;
+        delete anyUpdates.responseStyle;
+        delete anyUpdates.responseLength;
+        delete anyUpdates.programmingLanguage;
+        delete anyUpdates.interviewLevel;
+        delete anyUpdates.interviewFocus;
+        delete anyUpdates.customTopic;
+        delete anyUpdates.recognitionLanguage;
+        delete anyUpdates.interfaceLanguage;
+      }
+
+      // Map audioConfig if provided as a nested object
+      if (anyUpdates.audioConfig && typeof anyUpdates.audioConfig === 'object') {
+        updates.audioConfig = {
+          ...(currentConfig.audioConfig || {}),
+          ...anyUpdates.audioConfig
+        } as AudioConfig;
+      }
+
+      // Clean up profile flat fields
+      delete anyUpdates.profileName;
+      delete anyUpdates.profileExperience;
+      delete anyUpdates.profileSkills;
 
       const newConfig = { ...currentConfig, ...updates };
       this.saveConfig(newConfig);
@@ -491,11 +554,24 @@ export class ConfigHelper extends EventEmitter {
   }
 
   /**
-   * Set the window opacity value
+   * Set the window opacity value (targeted update — does NOT go through
+   * updateConfig to avoid accidentally clobbering other fields)
    */
   public setOpacity(opacity: number): void {
     const validOpacity = Math.min(1.0, Math.max(0.1, opacity));
-    this.updateConfig({ opacity: validOpacity });
+    try {
+      // Read existing config directly from disk
+      let config: Record<string, unknown> = {};
+      if (fs.existsSync(this.configPath)) {
+        const raw = fs.readFileSync(this.configPath, 'utf8');
+        config = JSON.parse(raw);
+      }
+      // Update only opacity
+      config.opacity = validOpacity;
+      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+    } catch (err) {
+      console.error('Error setting opacity:', err);
+    }
   }
 
   /**

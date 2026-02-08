@@ -5,12 +5,7 @@ import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
 import { validateConfigUpdate, validateString, validateEnum } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
-import {
-  clearSessionHistory,
-  deleteSessionHistoryItem,
-  getSessionHistory,
-  getSessionHistoryItem
-} from "./store"
+
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error) {
@@ -33,9 +28,9 @@ interface LiveInterviewServiceInstance {
   geminiService?: {
     sendText: (text: string) => void
   }
-  on: (event: "status", callback: (status: unknown) => void) => void
-  on: (event: "stateChange", callback: (state: string) => void) => void
-  on: (event: "error", callback: (error: Error) => void) => void
+  on: ((event: "status", callback: (status: unknown) => void) => void) &
+  ((event: "stateChange", callback: (state: string) => void) => void) &
+  ((event: "error", callback: (error: Error) => void) => void)
 }
 
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
@@ -53,7 +48,8 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       console.warn('Invalid config update:', validation.error);
       throw new Error(validation.error);
     }
-    return configHelper.updateConfig(validation.data!);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return configHelper.updateConfig(validation.data! as any);
   })
 
   ipcMain.handle("set-window-opacity", (_event, opacity: number) => {
@@ -71,24 +67,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return configHelper.hasApiKey();
   })
 
-  // Session history handlers
-  ipcMain.handle("get-session-history", () => {
-    return getSessionHistory();
-  })
 
-  ipcMain.handle("get-session-history-item", (_event, sessionId: string) => {
-    return getSessionHistoryItem(sessionId);
-  })
-
-  ipcMain.handle("delete-session-history-item", (_event, sessionId: string) => {
-    const removed = deleteSessionHistoryItem(sessionId);
-    return { success: removed };
-  })
-
-  ipcMain.handle("clear-session-history", () => {
-    clearSessionHistory();
-    return { success: true };
-  })
 
   ipcMain.handle("validate-api-key", async (_event, apiKey) => {
     // First check the format
@@ -149,7 +128,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['window'],
-        thumbnailSize: { width: 16, height: 16 }
+        thumbnailSize: { width: 32, height: 32 }
       });
 
       return sources.map(source => ({
@@ -303,6 +282,14 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   )
 
+  // Setup-mode window sizing (centered, no width cap)
+  ipcMain.handle(
+    "set-setup-window-size",
+    (_event, { width, height }: { width: number; height: number }) => {
+      deps.setSetupWindowSize(width, height)
+    }
+  )
+
   // Screenshot management handlers
   ipcMain.handle("get-screenshots", async () => {
     try {
@@ -389,6 +376,55 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     if (mainWindow) {
       mainWindow.webContents.send("show-settings-dialog");
       return { success: true };
+    }
+    return { success: false, error: "Main window not available" };
+  })
+
+  // Dev mode detection
+  ipcMain.handle("is-dev", () => {
+    return process.env.NODE_ENV === "development";
+  })
+
+  // Set always-on-top at runtime and persist to config
+  ipcMain.handle("set-always-on-top", (_event, enabled: boolean) => {
+    const win = deps.getMainWindow();
+    if (win) {
+      if (enabled) {
+        win.setAlwaysOnTop(true, "screen-saver", 1);
+      } else {
+        win.setAlwaysOnTop(false);
+      }
+      configHelper.updateDisplayConfig({ alwaysOnTop: enabled });
+      console.log(`[SETTINGS] Always on top: ${enabled}`);
+      return { success: true };
+    }
+    return { success: false, error: "Main window not available" };
+  })
+
+  // Set stealth mode at runtime and persist to config
+  ipcMain.handle("set-stealth-mode", (_event, enabled: boolean) => {
+    const win = deps.getMainWindow();
+    if (win) {
+      win.setContentProtection(enabled);
+      win.setSkipTaskbar(enabled);
+      configHelper.updateDisplayConfig({ stealthMode: enabled });
+      console.log(`[SETTINGS] Stealth mode: ${enabled}`);
+      return { success: true };
+    }
+    return { success: false, error: "Main window not available" };
+  })
+
+  // Toggle stealth mode at runtime (dev mode only)
+  ipcMain.handle("toggle-stealth", (_event, enable: boolean) => {
+    if (process.env.NODE_ENV !== "development") {
+      return { success: false, error: "Only available in dev mode" };
+    }
+    const win = deps.getMainWindow();
+    if (win) {
+      win.setContentProtection(enable);
+      win.setSkipTaskbar(enable);
+      console.log(`[DEBUG] Stealth mode ${enable ? 'ON' : 'OFF'}`);
+      return { success: true, stealth: enable };
     }
     return { success: false, error: "Main window not available" };
   })
@@ -537,6 +573,42 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
+  // ========== System Prompt Preview ==========
+  ipcMain.handle("get-system-prompt-preview", async () => {
+    const savedConfig = configHelper.loadConfig();
+    const prefs = savedConfig.interviewPreferences;
+
+    // Build the same prompt HintGenerationService would use
+    const { HintGenerationService } = await import('./audio/HintGenerationService');
+    const tempService = new HintGenerationService(
+      'preview-key',
+      undefined,
+      prefs?.language || 'en',
+      prefs?.mode,
+      prefs?.answerStyle
+    );
+    // Access the built system instruction
+    const hintPrompt = (tempService as any).systemInstruction as string;
+
+    // Build the transcription prompt from GeminiLiveService
+    const { GeminiLiveService } = await import('./audio/GeminiLiveService');
+    const tempGemini = new GeminiLiveService({
+      apiKey: 'preview-key',
+      spokenLanguage: prefs?.language || 'en',
+    });
+    const transcriptionPrompt = (tempGemini as any).config.systemInstruction as string;
+
+    return {
+      hintGenerationPrompt: hintPrompt,
+      transcriptionPrompt: transcriptionPrompt,
+      settings: {
+        interviewMode: prefs?.mode || 'coding',
+        answerStyle: prefs?.answerStyle || 'structured',
+        language: prefs?.language || 'en',
+      }
+    };
+  });
+
   // ========== Live Interview Handlers ==========
 
 
@@ -549,11 +621,23 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     spokenLanguage?: string;
   }) => {
     try {
+      // Clean up any existing service first
+      if (liveInterviewService) {
+        try {
+          await liveInterviewService.stop();
+        } catch (_) { /* ignore cleanup errors */ }
+        liveInterviewService = null;
+      }
+
       // Use override key if provided, otherwise use saved key
-      const apiKey = config?.apiKeyOverride || configHelper.loadConfig().apiKey;
+      const savedConfig = configHelper.loadConfig();
+      const apiKey = config?.apiKeyOverride || savedConfig.apiKey;
       if (!apiKey) {
         return { success: false, error: "No API key configured" };
       }
+
+      // Load saved interview preferences
+      const prefs = savedConfig.interviewPreferences;
 
       // Dynamically import to avoid circular dependencies
       const { LiveInterviewService } = await import('./audio/LiveInterviewService');
@@ -563,6 +647,8 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         model: config?.modelName,
         systemInstruction: config?.systemInstruction,
         spokenLanguage: config?.spokenLanguage || 'en',
+        interviewMode: prefs?.mode,
+        answerStyle: prefs?.answerStyle,
       }) as LiveInterviewServiceInstance;
 
       // Forward events to renderer

@@ -61,6 +61,7 @@ export class GeminiLiveService extends EventEmitter {
     private config: GeminiLiveConfig;
     private ws: WebSocket | null = null;
     private isConnected: boolean = false;
+    private intentionalDisconnect: boolean = false;
     private reconnectAttempts: number = 0;
     private maxReconnectAttempts: number = 3;
     private currentTranscript: string = '';
@@ -95,7 +96,9 @@ Keep your responses to 1-2 words maximum.`;
     }
 
     /**
-     * Connect to Gemini Live API
+     * Connect to Gemini Live API.
+     * Returns a Promise that resolves when the WebSocket is open
+     * and the setup message has been sent.
      */
     public async connect(): Promise<void> {
         if (this.isConnected) {
@@ -103,47 +106,69 @@ Keep your responses to 1-2 words maximum.`;
             return;
         }
 
-        try {
-            log.info('GeminiLiveService: Connecting to Gemini Live API...');
-            log.info(`GeminiLiveService: Using model: ${this.config.model}`);
-            log.info(`GeminiLiveService: API key prefix: ${this.config.apiKey.substring(0, 10)}...`);
+        this.intentionalDisconnect = false;
 
-            const url = `${WEBSOCKET_URL}?key=${this.config.apiKey}`;
-            this.ws = new WebSocket(url);
+        return new Promise<void>((resolve, reject) => {
+            try {
+                log.info('GeminiLiveService: Connecting to Gemini Live API...');
+                log.info(`GeminiLiveService: Using model: ${this.config.model}`);
+                log.info(`GeminiLiveService: API key prefix: ${this.config.apiKey.substring(0, 10)}...`);
 
-            this.ws.on('open', () => {
-                log.info('GeminiLiveService: WebSocket connected');
-                this.isConnected = true;
-                this.reconnectAttempts = 0;
-                this.sendSetup();
-                this.emit('connected');
-            });
+                const url = `${WEBSOCKET_URL}?key=${this.config.apiKey}`;
+                this.ws = new WebSocket(url);
 
-            this.ws.on('message', (data: WebSocket.Data) => {
-                this.handleMessage(data.toString());
-            });
+                this.ws.on('open', () => {
+                    log.info('GeminiLiveService: WebSocket connected');
+                    this.isConnected = true;
+                    this.reconnectAttempts = 0;
+                    this.sendSetup();
+                    this.emit('connected');
+                    resolve();
+                });
 
-            this.ws.on('error', (error: Error) => {
-                log.error('GeminiLiveService: WebSocket error', error);
-                this.emit('error', new Error('WebSocket connection error'));
-            });
+                this.ws.on('message', (data: WebSocket.Data) => {
+                    this.handleMessage(data.toString());
+                });
 
-            this.ws.on('close', (code: number, reason: Buffer) => {
-                log.info('GeminiLiveService: WebSocket closed', code, reason.toString());
-                this.isConnected = false;
-                this.emit('disconnected', reason.toString());
+                this.ws.on('error', (error: Error) => {
+                    log.error('GeminiLiveService: WebSocket error', error);
+                    this.emit('error', new Error('WebSocket connection error'));
+                    // Reject only if we haven't connected yet
+                    if (!this.isConnected) {
+                        reject(new Error('WebSocket connection error'));
+                    }
+                });
 
-                // Attempt reconnection
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
-                }
-            });
+                this.ws.on('close', (code: number, reason: Buffer) => {
+                    log.info('GeminiLiveService: WebSocket closed', code, reason.toString());
+                    const wasConnected = this.isConnected;
+                    this.isConnected = false;
+                    this.emit('disconnected', reason.toString());
 
-        } catch (error) {
-            log.error('GeminiLiveService: Failed to connect', error);
-            throw error;
-        }
+                    // Don't reconnect on auth errors — retrying with the same key is pointless
+                    const isAuthError = code === 1007 || code === 1008;
+                    if (isAuthError) {
+                        log.error(`GeminiLiveService: Auth error (code ${code}), not reconnecting`);
+                        this.emit('authError', reason.toString());
+                    }
+
+                    // Only attempt reconnection if not intentionally disconnected and not auth error
+                    if (!this.intentionalDisconnect && !isAuthError && this.reconnectAttempts < this.maxReconnectAttempts) {
+                        this.reconnectAttempts++;
+                        setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
+                    }
+
+                    // Reject if we closed before ever connecting
+                    if (!wasConnected) {
+                        reject(new Error(`WebSocket closed before connection established (code ${code})`));
+                    }
+                });
+
+            } catch (error) {
+                log.error('GeminiLiveService: Failed to connect', error);
+                reject(error);
+            }
+        });
     }
 
     /**
@@ -341,11 +366,20 @@ Keep your responses to 1-2 words maximum.`;
     }
 
     /**
-     * Disconnect from Gemini Live API
+     * Disconnect from Gemini Live API.
+     * Safe to call in any WebSocket state (CONNECTING, OPEN, CLOSING, CLOSED).
      */
     public disconnect(): void {
+        this.intentionalDisconnect = true;
         if (this.ws) {
-            this.ws.close();
+            // Remove all listeners first to prevent reconnection attempts
+            // and avoid 'close before established' errors
+            this.ws.removeAllListeners();
+            try {
+                this.ws.close();
+            } catch {
+                // Ignore errors from closing in CONNECTING state
+            }
             this.ws = null;
         }
         this.isConnected = false;

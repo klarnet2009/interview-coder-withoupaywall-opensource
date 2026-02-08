@@ -36,6 +36,8 @@ const electronAPI = {
   openSettingsPortal: () => ipcRenderer.invoke("open-settings-portal"),
   updateContentDimensions: (dimensions: { width: number; height: number }) =>
     ipcRenderer.invoke("update-content-dimensions", dimensions),
+  setSetupWindowSize: (dimensions: { width: number; height: number }) =>
+    ipcRenderer.invoke("set-setup-window-size", dimensions),
   clearStore: () => ipcRenderer.invoke("clear-store"),
   getScreenshots: () => ipcRenderer.invoke("get-screenshots"),
   deleteScreenshot: (path: string) =>
@@ -193,6 +195,7 @@ const electronAPI = {
   getConfig: () => ipcRenderer.invoke("get-config"),
   updateConfig: (config: { apiKey?: string; model?: string; language?: string; opacity?: number }) =>
     ipcRenderer.invoke("update-config", config),
+  getSystemPromptPreview: () => ipcRenderer.invoke("get-system-prompt-preview"),
   getSessionHistory: () => ipcRenderer.invoke("get-session-history"),
   getSessionHistoryItem: (sessionId: string) =>
     ipcRenderer.invoke("get-session-history-item", sessionId),
@@ -299,7 +302,15 @@ const electronAPI = {
   },
 
   // Quit application
-  quitApp: () => ipcRenderer.invoke("quit-app")
+  quitApp: () => ipcRenderer.invoke("quit-app"),
+
+  // Dev mode utilities
+  isDev: () => ipcRenderer.invoke("is-dev") as Promise<boolean>,
+  toggleStealth: (enable: boolean) => ipcRenderer.invoke("toggle-stealth", enable) as Promise<{ success: boolean; stealth?: boolean; error?: string }>,
+
+  // Window behavior settings
+  setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke("set-always-on-top", enabled) as Promise<{ success: boolean; error?: string }>,
+  setStealthMode: (enabled: boolean) => ipcRenderer.invoke("set-stealth-mode", enabled) as Promise<{ success: boolean; error?: string }>,
 }
 
 // Before exposing the API

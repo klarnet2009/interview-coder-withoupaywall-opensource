@@ -1,0 +1,225 @@
+{
+    "settings": {
+        "title": "Settings",
+        "sections": {
+            "api": "API",
+            "audio": "Audio",
+            "language": "Language",
+            "mode": "Interview Mode",
+            "profile": "Profile",
+            "style": "Response Style",
+            "window": "Window",
+            "shortcuts": "Shortcuts",
+            "debug": "Debug"
+        },
+        "api": {
+            "provider": "Provider",
+            "apiKey": "API Key",
+            "apiKeyPlaceholder": "Enter your API key",
+            "currentKey": "Current",
+            "storedLocally": "Stored locally. Only used for direct {{provider}} API calls.",
+            "noKey": "No key?",
+            "signup": "Sign up",
+            "getKey": "Get API Key",
+            "models": "Models",
+            "extraction": "Extraction",
+            "solution": "Solution",
+            "debugging": "Debugging"
+        },
+        "window": {
+            "alwaysOnTop": "Always on top",
+            "alwaysOnTopDesc": "Keep window above all other windows",
+            "stealthMode": "Stealth mode",
+            "stealthModeDesc": "Hide from screenshots & screen sharing",
+            "hint": "Changes apply immediately"
+        },
+        "audio": {
+            "title": "Audio Source",
+            "selectSource": "Select where to capture audio from",
+            "microphone": "Microphone",
+            "microphoneDesc": "Your voice (for practice)",
+            "system": "System Audio",
+            "systemDesc": "All computer audio (Zoom, Teams, etc.)",
+            "application": "Specific App",
+            "applicationDesc": "Select a specific application",
+            "recommended": "Recommended",
+            "selectApp": "Select Application",
+            "refreshList": "Refresh list",
+            "searchApps": "Search apps...",
+            "noMatches": "No matches",
+            "noApps": "No apps available",
+            "selected": "Selected: {{name}}",
+            "testTitle": "Test Audio Recognition",
+            "testButton": "Test Audio",
+            "startingIn": "Starting in {{count}}...",
+            "recording": "Recording...",
+            "processing": "Processing...",
+            "testing": "Testing...",
+            "quiet": "Quiet",
+            "optimal": "Optimal",
+            "loud": "Loud",
+            "speakWhenReady": "Speak into your microphone when countdown ends",
+            "speakNow": "🔴 Recording... Speak now!",
+            "sendingToAI": "⏳ Sending to Gemini for recognition...",
+            "recognitionSuccess": "Recognition Successful!",
+            "testFailed": "Test Failed",
+            "testHint": "Click Test Audio to record 3 seconds from your microphone and verify speech recognition works."
+        },
+        "language": {
+            "title": "Language",
+            "recognition": "Recognition Language",
+            "autoDetect": "Auto-detect",
+            "autoDetectHint": "Recommended: select language manually for better accuracy",
+            "interface": "Interface Language"
+        },
+        "actions": {
+            "cancel": "Cancel",
+            "save": "Save",
+            "saving": "Saving...",
+            "quit": "Quit"
+        },
+        "shortcuts": {
+            "title": "Keyboard Shortcuts",
+            "toggleVisibility": "Toggle Visibility",
+            "takeScreenshot": "Take Screenshot",
+            "processScreenshots": "Process Screenshots",
+            "deleteLastScreenshot": "Delete Last Screenshot",
+            "resetView": "Reset View",
+            "quit": "Quit",
+            "moveWindow": "Move Window",
+            "opacity": "Opacity −/+",
+            "zoom": "Zoom −/0/+"
+        },
+        "mode": {
+            "label": "Mode",
+            "programming": "💻 Programming",
+            "general": "💼 General",
+            "custom": "📝 Custom",
+            "progLang": "Programming Language",
+            "level": "Level",
+            "junior": "Junior",
+            "middle": "Middle",
+            "senior": "Senior",
+            "focus": "Focus",
+            "focusHint": "Select one or more areas",
+            "topic": "Topic",
+            "topicPlaceholder": "e.g. Product management, Sales, Marketing..."
+        },
+        "profile": {
+            "name": "Name",
+            "namePlaceholder": "Your name",
+            "experience": "Experience",
+            "experiencePlaceholder": "Brief summary of your experience, background, key achievements...",
+            "skills": "Skills & Technologies",
+            "skillsPlaceholder": "React, Node.js, Python, AWS, Docker...",
+            "skillsHint": "Comma-separated list",
+            "profileHint": "💡 Profile info is included in the system prompt so the AI tailors answers to your background."
+        },
+        "style": {
+            "responseStyle": "Response Style",
+            "hints": "Hints",
+            "hintsDesc": "Directions only — figure it out yourself",
+            "full": "Full Answer",
+            "fullDesc": "Complete, structured answer to read",
+            "bullets": "Bullet Points",
+            "bulletsDesc": "Key points, no fluff",
+            "echo": "Echo",
+            "echoDesc": "Speak-ready answer in first person — read it word for word",
+            "responseLength": "Response Length",
+            "short": "Short",
+            "medium": "Standard",
+            "long": "Detailed"
+        }
+    },
+    "welcome": {
+        "title": "Interview Coder",
+        "badge": "Open Source",
+        "subtitle": "AI-powered assistance for technical interviews. Configure your API key, then use shortcuts to capture and solve problems.",
+        "openSettings": "Open Settings",
+        "gettingStarted": "Getting Started",
+        "gettingStartedDesc": "Configure your AI provider API key to begin.",
+        "shortcutsTitle": "Keyboard Shortcuts",
+        "footerHint": "Press {{key}} to take your first screenshot",
+        "features": {
+            "screenshots": "Take & analyze screenshots",
+            "solutions": "Get AI-powered solutions",
+            "invisible": "Invisible to screen sharing"
+        }
+    },
+    "wizard": {
+        "title": "Interview Assistant",
+        "quickSetup": "Quick Setup",
+        "advancedSetup": "Advanced Setup",
+        "skipWizard": "Skip wizard",
+        "back": "Back",
+        "continue": "Continue",
+        "complete": "Complete",
+        "switchToAdvanced": "Switch to Advanced",
+        "start": "Get Started",
+        "steps": {
+            "welcome": {
+                "title": "Welcome",
+                "description": "Get started with Interview Assistant",
+                "heading": "Welcome to Interview Assistant",
+                "subtitle": "Your AI-powered companion for technical interviews",
+                "features": {
+                    "invisible": "99% Invisible — undetectable window",
+                    "ai": "AI-Powered coding solutions",
+                    "behavioral": "Behavioral interview (STAR format)",
+                    "privacy": "Privacy first — API keys stored locally"
+                },
+                "hints": {
+                    "invisible": "Our window is like a ninja 🥷 — screen sharing tools can't see it. Zoom, Teams, Meet — none of them will know you have a secret weapon.",
+                    "ai": "Paste a problem, get a full solution with time/space complexity, edge cases, and a step-by-step explanation. It's like having a senior dev whispering in your ear.",
+                    "behavioral": "Tell us about your experience, and we'll craft perfect STAR answers. No more 'uhh, let me think...' moments during those tricky behavioral questions.",
+                    "privacy": "Your API keys never leave your machine. Zero telemetry, zero tracking. We don't even have a server to send your data to 🤷"
+                }
+            },
+            "modeselect": {
+                "title": "Setup Mode",
+                "description": "Choose how you want to set up"
+            },
+            "provider": {
+                "title": "Provider",
+                "description": "Choose your AI provider"
+            },
+            "apikey": {
+                "title": "API Key",
+                "description": "Enter your API key"
+            },
+            "profile": {
+                "title": "Profile",
+                "description": "Set up your profile"
+            },
+            "mode": {
+                "title": "Mode",
+                "description": "Configure interview preferences"
+            },
+            "audio": {
+                "title": "Audio",
+                "description": "Configure audio input"
+            },
+            "display": {
+                "title": "Display",
+                "description": "Configure display settings"
+            },
+            "test": {
+                "title": "Test",
+                "description": "Test your setup"
+            },
+            "ready": {
+                "title": "Ready",
+                "description": "You are all set!"
+            }
+        }
+    },
+    "common": {
+        "loading": "Loading...",
+        "initializing": "Initializing...",
+        "success": "Success",
+        "error": "Error",
+        "settingsSaved": "Settings saved",
+        "settingsLoadError": "Failed to load settings",
+        "settingsSaveError": "Failed to save"
+    }
+}

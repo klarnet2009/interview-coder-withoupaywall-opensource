@@ -67,6 +67,11 @@ export interface ElectronAPI {
   // Config
   getConfig: () => Promise<Record<string, unknown>>;
   updateConfig: (config: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  getSystemPromptPreview: () => Promise<{
+    hintGenerationPrompt: string;
+    transcriptionPrompt: string;
+    settings: { interviewMode: string; answerStyle: string; language: string };
+  }>;
   getSessionHistory: () => Promise<SessionHistoryItem[]>;
   getSessionHistoryItem: (sessionId: string) => Promise<SessionHistoryItem | null>;
   deleteSessionHistoryItem: (sessionId: string) => Promise<{ success: boolean }>;
@@ -111,6 +116,7 @@ export interface ElectronAPI {
   triggerMoveUp: () => Promise<void>;
   triggerMoveDown: () => Promise<void>;
   updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<void>;
+  setSetupWindowSize: (dimensions: { width: number; height: number }) => Promise<void>;
   setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
 
   // Settings
@@ -167,6 +173,14 @@ export interface ElectronAPI {
   quitApp: () => Promise<void>;
   resetWindowSize: () => Promise<void>;
   setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
+
+  // Dev mode utilities
+  isDev: () => Promise<boolean>;
+  toggleStealth: (enable: boolean) => Promise<{ success: boolean; stealth?: boolean; error?: string }>;
+
+  // Window behavior settings
+  setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+  setStealthMode: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {

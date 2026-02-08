@@ -3,12 +3,14 @@ import DebugLive from "./_pages/DebugLive"
 import { Routes, Route } from "react-router-dom"
 import { ErrorBoundary } from "./components/ErrorBoundary"
 import { UpdateNotification } from "./components/UpdateNotification"
+import { DevModeToggle } from "./components/DevModeToggle"
 import { WizardContainer } from "./components/Wizard/WizardContainer"
 import {
   QueryClient,
   QueryClientProvider
 } from "@tanstack/react-query"
 import { useEffect, useState, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import {
   Toast,
   ToastDescription,
@@ -18,7 +20,7 @@ import {
 } from "./components/ui/toast"
 import { ToastContext } from "./contexts/toast"
 import { WelcomeScreen } from "./components/WelcomeScreen"
-import { SettingsDialog } from "./components/Settings/SettingsDialog"
+import { SettingsPage } from "./components/Settings/SettingsPage"
 import { AppConfig, WizardMode } from "./types"
 
 interface ProcessingStatusState {
@@ -44,6 +46,7 @@ const queryClient = new QueryClient({
 
 // Root component that provides the QueryClient
 function App() {
+  const { t } = useTranslation();
   const [toastState, setToastState] = useState({
     open: false,
     title: "",
@@ -334,9 +337,9 @@ function App() {
             <Routes>
               <Route path="/debug-live" element={<DebugLive />} />
               <Route path="*" element={
-                <div className="relative">
+                <div className="relative h-screen overflow-auto">
                   {processingStatus.visible && (
-                    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] w-[min(520px,90vw)] rounded-xl border border-white/10 bg-black/90 backdrop-blur-md shadow-xl functional-enter">
+                    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-70 w-[min(520px,90vw)] rounded-xl border border-white/10 bg-black/90 backdrop-blur-md shadow-xl functional-enter">
                       <div className="px-4 py-2.5 text-xs text-white/80">
                         {processingStatus.message}
                       </div>
@@ -349,7 +352,15 @@ function App() {
                     </div>
                   )}
                   {isInitialized ? (
-                    hasApiKey && wizardCompleted ? (
+                    isSettingsOpen ? (
+                      <SettingsPage onClose={() => handleCloseSettings(false)} />
+                    ) : showWizard ? (
+                      <WizardContainer
+                        initialMode="quick"
+                        onComplete={handleWizardComplete}
+                        onSkip={handleWizardSkip}
+                      />
+                    ) : hasApiKey && wizardCompleted ? (
                       <SubscribedApp
                         credits={credits}
                         currentLanguage={currentLanguage}
@@ -363,31 +374,19 @@ function App() {
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-6 h-6 border-2 border-white/20 border-t-white/80 rounded-full animate-spin"></div>
                         <p className="text-white/60 text-sm">
-                          Initializing...
+                          {t('common.initializing')}
                         </p>
                       </div>
                     </div>
                   )}
                   <UpdateNotification />
+                  <DevModeToggle />
                 </div>
               } />
             </Routes>
           </ErrorBoundary>
 
-          {/* Wizard */}
-          {showWizard && (
-            <WizardContainer
-              initialMode="quick"
-              onComplete={handleWizardComplete}
-              onSkip={handleWizardSkip}
-            />
-          )}
 
-          {/* Settings Dialog */}
-          <SettingsDialog
-            open={isSettingsOpen}
-            onOpenChange={handleCloseSettings}
-          />
 
           <Toast
             open={toastState.open}

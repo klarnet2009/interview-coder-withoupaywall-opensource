@@ -94,6 +94,23 @@ export interface ConfigUpdateInput {
     language?: string;
     opacity?: number;
     wizardCompleted?: boolean;
+    // Interview preferences (can be sent as flat or nested)
+    interviewMode?: string;
+    responseStyle?: string;
+    responseLength?: string;
+    programmingLanguage?: string;
+    interviewLevel?: string;
+    interviewFocus?: string;
+    customTopic?: string;
+    recognitionLanguage?: string;
+    interfaceLanguage?: string;
+    // Profile fields
+    profileName?: string;
+    profileExperience?: string;
+    profileSkills?: string;
+    // Nested objects
+    interviewPreferences?: Record<string, unknown>;
+    audioConfig?: Record<string, unknown>;
 }
 
 export function validateConfigUpdate(input: unknown): ValidationResult<ConfigUpdateInput> {
@@ -149,6 +166,27 @@ export function validateConfigUpdate(input: unknown): ValidationResult<ConfigUpd
             return { success: false, error: 'wizardCompleted must be a boolean' };
         }
         result.wizardCompleted = obj.wizardCompleted;
+    }
+
+    // Pass through string settings fields
+    const stringFields = [
+        'interviewMode', 'responseStyle', 'responseLength',
+        'programmingLanguage', 'interviewLevel', 'interviewFocus',
+        'customTopic', 'recognitionLanguage', 'interfaceLanguage',
+        'profileName', 'profileExperience', 'profileSkills'
+    ] as const;
+    for (const field of stringFields) {
+        if (obj[field] !== undefined && typeof obj[field] === 'string') {
+            (result as Record<string, unknown>)[field] = obj[field];
+        }
+    }
+
+    // Pass through nested objects
+    if (obj.interviewPreferences !== undefined && typeof obj.interviewPreferences === 'object') {
+        result.interviewPreferences = obj.interviewPreferences as Record<string, unknown>;
+    }
+    if (obj.audioConfig !== undefined && typeof obj.audioConfig === 'object') {
+        result.audioConfig = obj.audioConfig as Record<string, unknown>;
     }
 
     return { success: true, data: result };

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Mic, Monitor, Headphones, Check, RefreshCw, Search, Volume2, Loader2 } from "lucide-react";
 
 type AudioSource = 'microphone' | 'system' | 'application';
@@ -17,28 +18,6 @@ interface AudioSettingsProps {
     onApplicationChange: (appName: string) => void;
 }
 
-const AUDIO_SOURCES = [
-    {
-        id: 'microphone' as const,
-        title: 'Microphone',
-        description: 'Your voice (for practice)',
-        icon: Mic
-    },
-    {
-        id: 'system' as const,
-        title: 'System Audio',
-        description: 'All computer audio (Zoom, Teams, etc.)',
-        icon: Monitor,
-        recommended: true
-    },
-    {
-        id: 'application' as const,
-        title: 'Specific App',
-        description: 'Select a specific application',
-        icon: Headphones
-    }
-];
-
 export function AudioSettings({
     audioSource,
     applicationName,
@@ -46,6 +25,7 @@ export function AudioSettings({
     onAudioSourceChange,
     onApplicationChange
 }: AudioSettingsProps) {
+    const { t } = useTranslation();
     const [availableWindows, setAvailableWindows] = useState<AudioSourceItem[]>([]);
     const [isLoadingWindows, setIsLoadingWindows] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -59,6 +39,28 @@ export function AudioSettings({
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const levelIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const AUDIO_SOURCES = [
+        {
+            id: 'microphone' as const,
+            title: t('settings.audio.microphone'),
+            description: t('settings.audio.microphoneDesc'),
+            icon: Mic
+        },
+        {
+            id: 'system' as const,
+            title: t('settings.audio.system'),
+            description: t('settings.audio.systemDesc'),
+            icon: Monitor,
+            recommended: true
+        },
+        {
+            id: 'application' as const,
+            title: t('settings.audio.application'),
+            description: t('settings.audio.applicationDesc'),
+            icon: Headphones
+        }
+    ];
 
     useEffect(() => {
         if (audioSource === 'application') {
@@ -106,13 +108,11 @@ export function AudioSettings({
         setAudioLevel(0);
 
         try {
-            // Get microphone stream (simplest for testing)
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true },
                 video: false
             });
 
-            // Setup audio level monitoring
             audioContextRef.current = new AudioContext();
             const source = audioContextRef.current.createMediaStreamSource(stream);
             analyserRef.current = audioContextRef.current.createAnalyser();
@@ -128,13 +128,11 @@ export function AudioSettings({
                 }
             }, 100);
 
-            // Countdown
             for (let i = 5; i > 0; i--) {
                 setTestCountdown(i);
                 await new Promise(r => setTimeout(r, 1000));
             }
 
-            // Record audio
             const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
                 ? 'audio/webm;codecs=opus'
                 : 'audio/webm';
@@ -154,28 +152,26 @@ export function AudioSettings({
             });
 
             mediaRecorder.start();
-            setTestCountdown(-1); // Recording state
+            setTestCountdown(-1);
 
-            await new Promise(r => setTimeout(r, 3000)); // Record for 3 seconds
+            await new Promise(r => setTimeout(r, 3000));
             mediaRecorder.stop();
 
             const audioBlob = await recordingPromise;
 
-            // Cleanup
             if (levelIntervalRef.current) clearInterval(levelIntervalRef.current);
-            stream.getTracks().forEach(t => t.stop());
+            stream.getTracks().forEach(track => track.stop());
             if (audioContextRef.current) audioContextRef.current.close();
             setAudioLevel(0);
 
-            // Send to Gemini for recognition
-            setTestCountdown(-2); // Processing state
+            setTestCountdown(-2);
             const arrayBuffer = await audioBlob.arrayBuffer();
             const buffer = Array.from(new Uint8Array(arrayBuffer));
 
             const result = await window.electronAPI.testAudio({
                 buffer,
                 mimeType,
-                apiKey // Pass plain API key from Settings
+                apiKey
             });
 
             setTestResult(result);
@@ -193,9 +189,9 @@ export function AudioSettings({
 
     return (
         <div className="space-y-3">
-            <label className="text-sm font-medium text-white">Audio Source</label>
+            <label className="text-sm font-medium text-white">{t('settings.audio.title')}</label>
             <p className="text-xs text-white/60 -mt-2 mb-2">
-                Select where to capture audio from
+                {t('settings.audio.selectSource')}
             </p>
 
             {/* Source selection */}
@@ -220,7 +216,7 @@ export function AudioSettings({
                         </span>
                         {source.recommended && (
                             <span className="text-[8px] px-1 py-0.5 bg-green-500/20 text-green-400 rounded">
-                                Recommended
+                                {t('settings.audio.recommended')}
                             </span>
                         )}
                     </div>
@@ -229,14 +225,14 @@ export function AudioSettings({
 
             {/* Application selector */}
             {audioSource === 'application' && (
-                <div className="p-3 rounded-lg bg-white/[0.03] border border-white/10 space-y-3">
+                <div className="p-3 rounded-lg bg-white/3 border border-white/10 space-y-3">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-white/80">Select Application</span>
+                        <span className="text-xs font-medium text-white/80">{t('settings.audio.selectApp')}</span>
                         <button
                             onClick={fetchAudioSources}
                             disabled={isLoadingWindows}
                             className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"
-                            title="Refresh list"
+                            title={t('settings.audio.refreshList')}
                         >
                             <RefreshCw className={`w-3 h-3 ${isLoadingWindows ? 'animate-spin' : ''}`} />
                         </button>
@@ -251,7 +247,7 @@ export function AudioSettings({
                                     onClick={() => onApplicationChange(app.name)}
                                     className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${applicationName === app.name
                                         ? 'bg-white/20 text-white border border-white/30'
-                                        : 'bg-white/[0.05] text-white/70 hover:bg-white/10 border border-white/5'
+                                        : 'bg-white/5 text-white/70 hover:bg-white/10 border border-white/5'
                                         }`}
                                 >
                                     {app.appIcon && (
@@ -270,7 +266,7 @@ export function AudioSettings({
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search apps..."
+                            placeholder={t('settings.audio.searchApps')}
                             className="w-full pl-7 pr-2 py-1.5 bg-black/50 border border-white/10 rounded text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
                         />
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40" />
@@ -283,7 +279,7 @@ export function AudioSettings({
                             </div>
                         ) : filteredWindows.length === 0 ? (
                             <div className="text-center py-2 text-xs text-white/40">
-                                {searchQuery ? 'No matches' : 'No apps available'}
+                                {searchQuery ? t('settings.audio.noMatches') : t('settings.audio.noApps')}
                             </div>
                         ) : (
                             filteredWindows.slice(0, 10).map((window) => (
@@ -292,7 +288,7 @@ export function AudioSettings({
                                     onClick={() => onApplicationChange(window.name)}
                                     className={`w-full flex items-center gap-2 p-2 rounded text-left transition-all ${applicationName === window.name
                                         ? 'bg-white/10 border border-white/20'
-                                        : 'bg-white/[0.02] border border-transparent hover:bg-white/5'
+                                        : 'bg-white/2 border border-transparent hover:bg-white/5'
                                         }`}
                                 >
                                     {window.appIcon ? (
@@ -317,18 +313,18 @@ export function AudioSettings({
                     {applicationName && (
                         <div className="flex items-center gap-1 p-2 rounded bg-green-500/10 border border-green-500/20">
                             <Check className="w-3 h-3 text-green-400" />
-                            <span className="text-xs text-green-400 truncate">Selected: {applicationName}</span>
+                            <span className="text-xs text-green-400 truncate">{t('settings.audio.selected', { name: applicationName })}</span>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Audio Test Section */}
-            <div className="p-3 rounded-lg bg-white/[0.03] border border-white/10 space-y-3">
+            <div className="p-3 rounded-lg bg-white/3 border border-white/10 space-y-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Volume2 className="w-4 h-4 text-white/60" />
-                        <span className="text-sm font-medium text-white/80">Test Audio Recognition</span>
+                        <span className="text-sm font-medium text-white/80">{t('settings.audio.testTitle')}</span>
                     </div>
                     <button
                         onClick={testAudioRecognition}
@@ -338,14 +334,14 @@ export function AudioSettings({
                         {isTesting ? (
                             <>
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                {testCountdown > 0 ? `Starting in ${testCountdown}...` :
-                                    testCountdown === -1 ? 'Recording...' :
-                                        testCountdown === -2 ? 'Processing...' : 'Testing...'}
+                                {testCountdown > 0 ? t('settings.audio.startingIn', { count: testCountdown }) :
+                                    testCountdown === -1 ? t('settings.audio.recording') :
+                                        testCountdown === -2 ? t('settings.audio.processing') : t('settings.audio.testing')}
                             </>
                         ) : (
                             <>
                                 <Mic className="w-3 h-3" />
-                                Test Audio
+                                {t('settings.audio.testButton')}
                             </>
                         )}
                     </button>
@@ -364,14 +360,14 @@ export function AudioSettings({
                             />
                         </div>
                         <div className="flex justify-between text-xs text-white/40">
-                            <span>Quiet</span>
-                            <span>Optimal</span>
-                            <span>Loud</span>
+                            <span>{t('settings.audio.quiet')}</span>
+                            <span>{t('settings.audio.optimal')}</span>
+                            <span>{t('settings.audio.loud')}</span>
                         </div>
                         <p className="text-xs text-white/50 text-center">
-                            {testCountdown > 0 ? 'Speak into your microphone when countdown ends' :
-                                testCountdown === -1 ? '🔴 Recording... Speak now!' :
-                                    testCountdown === -2 ? '⏳ Sending to Gemini for recognition...' : ''}
+                            {testCountdown > 0 ? t('settings.audio.speakWhenReady') :
+                                testCountdown === -1 ? t('settings.audio.speakNow') :
+                                    testCountdown === -2 ? t('settings.audio.sendingToAI') : ''}
                         </p>
                     </div>
                 )}
@@ -386,7 +382,7 @@ export function AudioSettings({
                             <>
                                 <div className="flex items-center gap-2 mb-2">
                                     <Check className="w-4 h-4 text-green-400" />
-                                    <span className="text-sm font-medium text-green-400">Recognition Successful!</span>
+                                    <span className="text-sm font-medium text-green-400">{t('settings.audio.recognitionSuccess')}</span>
                                 </div>
                                 <p className="text-sm text-white/80 bg-black/30 p-2 rounded">
                                     "{testResult.transcript || testResult.text}"
@@ -395,7 +391,7 @@ export function AudioSettings({
                         ) : (
                             <>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-medium text-red-400">Test Failed</span>
+                                    <span className="text-sm font-medium text-red-400">{t('settings.audio.testFailed')}</span>
                                 </div>
                                 <p className="text-xs text-red-300/70">{testResult.error}</p>
                             </>
@@ -404,7 +400,7 @@ export function AudioSettings({
                 )}
 
                 <p className="text-xs text-white/40">
-                    Click Test Audio to record 3 seconds from your microphone and verify speech recognition works.
+                    {t('settings.audio.testHint')}
                 </p>
             </div>
         </div>

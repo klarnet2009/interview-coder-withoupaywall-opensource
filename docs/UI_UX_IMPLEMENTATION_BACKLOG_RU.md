@@ -246,3 +246,60 @@
 3. Успешность first-run setup.
 4. Количество misclick в critical path.
 5. Доля успешного recovery после ошибки.
+
+---
+
+## Sprint 5 — i18n & Polish (выполнено 2026-02-07)
+
+## I18N-001 — i18n инфраструктура
+- Приоритет: P1
+- Описание: установить `react-i18next` + `i18next`, создать locale-файлы EN/RU, инициализировать в App.
+- Файлы:
+- `src/i18n/index.ts`
+- `src/i18n/locales/en.json`
+- `src/i18n/locales/ru.json`
+- `src/App.tsx`
+- Статус: ✅ Закрыт.
+
+## I18N-002 — Локализация WelcomeScreen, Wizard, App
+- Приоритет: P1
+- Описание: перевести все hardcoded строки в WelcomeScreen, WizardContainer, App.tsx.
+- Файлы:
+- `src/components/WelcomeScreen.tsx`
+- `src/components/Wizard/WizardContainer.tsx`
+- `src/App.tsx`
+- Статус: ✅ Закрыт.
+
+## I18N-003 — Локализация AudioSettings
+- Приоритет: P1
+- Описание: перевести 30+ строк в AudioSettings (описания, тест аудио, выбор приложения).
+- Файлы:
+- `src/components/Settings/AudioSettings.tsx`
+- `src/i18n/locales/en.json`
+- `src/i18n/locales/ru.json`
+- Статус: ✅ Закрыт.
+
+## I18N-004 — Локализация SettingsPage (Mode, Profile, Style)
+- Приоритет: P1
+- Описание: перевести секции Mode, Profile, Style в SettingsPage. Удалить неиспользуемые константы.
+- Файлы:
+- `src/components/Settings/SettingsPage.tsx`
+- `src/i18n/locales/en.json`
+- `src/i18n/locales/ru.json`
+- Статус: ✅ Закрыт.
+
+## I18N-005 — Анимация переходов секций
+- Приоритет: P2
+- Описание: добавить CSS fade-in анимацию при переключении секций в настройках.
+- Файлы:
+- `src/index.css`
+- `src/components/Settings/SettingsPage.tsx`
+- Статус: ✅ Закрыт.
+
+## TECH-003 — Фикс ElectronAPI типов
+- Приоритет: P0
+- Описание: удалить дублирующий `ElectronAPI` из `env.d.ts`, оставить канонический тип в `electron.d.ts`.
+- Файлы:
+- `src/env.d.ts`
+- `src/types/electron.d.ts`
+- Статус: ✅ Закрыт.

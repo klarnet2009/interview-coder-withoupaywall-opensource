@@ -90,6 +90,7 @@ export interface IShortcutsHelperDeps {
 export interface IIpcHandlerDeps {
   getMainWindow: () => BrowserWindow | null
   setWindowDimensions: (width: number, height: number) => void
+  setSetupWindowSize: (width: number, height: number) => void
   getScreenshotQueue: () => string[]
   getExtraScreenshotQueue: () => string[]
   deleteScreenshot: (
@@ -173,14 +174,19 @@ async function createWindow(): Promise<void> {
   state.step = 60
   state.currentY = 50
 
+  // Debug mode: auto-enabled in development (npm run dev), disabled in production
+  if (isDev) {
+    console.log('[DEBUG MODE] Window invisibility disabled — window will appear in screen capture');
+  }
+
   const windowSettings: Electron.BrowserWindowConstructorOptions = {
-    width: 800,
+    width: isDev ? 560 : 800,
     height: 600,
-    minWidth: 750,
-    minHeight: 550,
+    minWidth: isDev ? 520 : 750,
+    minHeight: isDev ? 100 : 100,
     x: state.currentX,
     y: 50,
-    alwaysOnTop: true,
+    alwaysOnTop: isDev ? false : true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -191,14 +197,14 @@ async function createWindow(): Promise<void> {
     },
     show: true,
     frame: false,
-    transparent: true,
+    transparent: isDev ? false : true,
     fullscreenable: false,
-    hasShadow: false,
+    hasShadow: isDev ? true : false,
     opacity: 1.0,  // Start with full opacity
-    backgroundColor: "#00000000",
+    backgroundColor: isDev ? "#0a0a0a" : "#00000000",
     focusable: true,
-    skipTaskbar: true,
-    type: "panel",
+    skipTaskbar: isDev ? false : true,
+    ...(isDev ? {} : { type: "panel" as const }),
     paintWhenInitiallyHidden: true,
     titleBarStyle: "hidden",
     enableLargerThanScreen: true,
@@ -206,6 +212,11 @@ async function createWindow(): Promise<void> {
   }
 
   state.mainWindow = new BrowserWindow(windowSettings)
+
+  // In debug mode, ensure window is visible in screen capture
+  if (isDev) {
+    state.mainWindow.setContentProtection(false);
+  }
 
   // Add more detailed logging for window events
   state.mainWindow.webContents.on("did-finish-load", () => {
@@ -281,13 +292,15 @@ async function createWindow(): Promise<void> {
     return { action: "allow" };
   })
 
-  // Enhanced screen capture resistance
-  state.mainWindow.setContentProtection(true)
+  // Enhanced screen capture resistance (skip in debug mode)
+  if (!isDev) {
+    state.mainWindow.setContentProtection(true)
 
-  state.mainWindow.setVisibleOnAllWorkspaces(true, {
-    visibleOnFullScreen: true
-  })
-  state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+    state.mainWindow.setVisibleOnAllWorkspaces(true, {
+      visibleOnFullScreen: true
+    })
+    state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
+  }
 
   // Additional screen capture resistance settings
   if (process.platform === "darwin") {
@@ -384,11 +397,13 @@ function showMainWindow(): void {
       });
     }
     win.setIgnoreMouseEvents(false);
-    win.setAlwaysOnTop(true, "screen-saver", 1);
-    win.setVisibleOnAllWorkspaces(true, {
-      visibleOnFullScreen: true
-    });
-    win.setContentProtection(true);
+    if (!isDev) {
+      win.setAlwaysOnTop(true, "screen-saver", 1);
+      win.setVisibleOnAllWorkspaces(true, {
+        visibleOnFullScreen: true
+      });
+      win.setContentProtection(true);
+    }
     win.setOpacity(0); // Set opacity to 0 before showing
     win.showInactive(); // Use showInactive instead of show+focus
     win.setOpacity(1); // Then set opacity to 1 after showing
@@ -461,6 +476,16 @@ function setWindowDimensions(width: number, height: number): void {
       height: Math.ceil(height)
     })
   }
+}
+
+// Setup-mode window sizing (centered, no width cap)
+function setSetupWindowSize(width: number, height: number): void {
+  const win = state.mainWindow;
+  if (!win || win.isDestroyed()) return;
+  const { workAreaSize } = screen.getPrimaryDisplay();
+  const x = Math.round((workAreaSize.width - width) / 2);
+  const y = Math.round((workAreaSize.height - height) / 2);
+  win.setBounds({ x, y, width, height });
 }
 
 // Environment setup
@@ -561,6 +586,7 @@ async function initializeApp() {
     initializeIpcHandlers({
       getMainWindow,
       setWindowDimensions,
+      setSetupWindowSize,
       getScreenshotQueue,
       getExtraScreenshotQueue,
       deleteScreenshot,
@@ -685,6 +711,7 @@ export {
   showMainWindow,
   toggleMainWindow,
   setWindowDimensions,
+  setSetupWindowSize,
   moveWindowHorizontal,
   moveWindowVertical,
   getMainWindow,

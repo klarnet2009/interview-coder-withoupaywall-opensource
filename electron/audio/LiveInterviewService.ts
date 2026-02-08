@@ -5,7 +5,7 @@
 
 import { EventEmitter } from 'events';
 import log from 'electron-log';
-import { GeminiLiveService, TranscriptUpdate, AIResponse } from './GeminiLiveService';
+import { GeminiLiveService, TranscriptUpdate } from './GeminiLiveService';
 import { HintGenerationService, HintResponse } from './HintGenerationService';
 
 export type ListeningState =
@@ -30,6 +30,8 @@ export interface LiveInterviewConfig {
     model?: string;
     systemInstruction?: string;
     spokenLanguage?: string;
+    interviewMode?: string;
+    answerStyle?: string;
 }
 
 export class LiveInterviewService extends EventEmitter {
@@ -41,11 +43,11 @@ export class LiveInterviewService extends EventEmitter {
     private currentResponse: string = '';
     private responseHistory: string = '';
     private audioLevel: number = 0;
-    private silenceTimeout: NodeJS.Timeout | null = null;
+    private silenceTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    private transcribeHoldTimeout: NodeJS.Timeout | null = null;
-    private transcriptClearTimeout: NodeJS.Timeout | null = null;
-    private hintTriggerTimeout: NodeJS.Timeout | null = null;
+    private transcribeHoldTimeout: ReturnType<typeof setTimeout> | null = null;
+    private transcriptClearTimeout: ReturnType<typeof setTimeout> | null = null;
+    private hintTriggerTimeout: ReturnType<typeof setTimeout> | null = null;
     private lastTranscriptTime: number = 0;
     private lastHintTranscript: string = '';
     private pendingHint: boolean = false;
@@ -54,8 +56,9 @@ export class LiveInterviewService extends EventEmitter {
     private static readonly TRANSCRIBE_HOLD_MS = 2000;
     // Time after last response to clear accumulated transcript
     private static readonly TRANSCRIPT_CLEAR_MS = 5000;
-    // Minimum new transcript length to trigger new hint generation
-    private static readonly MIN_NEW_CHARS_FOR_HINT = 10;
+    // Minimum count of meaningful chars (letters/digits) in new transcript delta
+    // to trigger hint generation. Kept low to avoid dropping short questions.
+    private static readonly MIN_MEANINGFUL_NEW_CHARS_FOR_HINT = 2;
     // Silence duration after last transcript token to auto-trigger hint
     private static readonly HINT_TRIGGER_SILENCE_MS = 1500;
 
@@ -89,14 +92,11 @@ export class LiveInterviewService extends EventEmitter {
             this.hintService = new HintGenerationService(
                 this.config.apiKey,
                 undefined,
-                this.config.spokenLanguage
+                this.config.spokenLanguage,
+                this.config.interviewMode,
+                this.config.answerStyle
             );
             this.setupHintListeners();
-
-            // Create explicit cache for system instruction (non-blocking)
-            this.hintService.createCache().catch(err => {
-                log.warn('LiveInterviewService: Cache creation failed, using inline instructions', err);
-            });
 
             this.setupGeminiListeners();
             await this.geminiService.connect();
@@ -155,8 +155,7 @@ export class LiveInterviewService extends EventEmitter {
             }
             this.hintTriggerTimeout = setTimeout(() => {
                 this.hintTriggerTimeout = null;
-                const newContent = this.currentTranscript.length - this.lastHintTranscript.length;
-                if (newContent >= LiveInterviewService.MIN_NEW_CHARS_FOR_HINT) {
+                if (this.hasMeaningfulDeltaForHint()) {
                     log.info('LiveInterviewService: Auto-triggering hint after silence');
                     this.triggerHintGeneration();
                 }
@@ -166,7 +165,7 @@ export class LiveInterviewService extends EventEmitter {
         });
 
         // Ignore Live API model responses (just acknowledgments like "Heard.")
-        this.geminiService.on('response', (_response: AIResponse) => {
+        this.geminiService.on('response', () => {
             // Do nothing — hints come from HintGenerationService
         });
 
@@ -182,8 +181,7 @@ export class LiveInterviewService extends EventEmitter {
             log.info('LiveInterviewService: Turn complete');
 
             // Trigger hint generation if we have meaningful new transcript
-            const newContent = this.currentTranscript.length - this.lastHintTranscript.length;
-            if (this.currentTranscript && newContent >= LiveInterviewService.MIN_NEW_CHARS_FOR_HINT) {
+            if (this.currentTranscript && this.hasMeaningfulDeltaForHint()) {
                 this.triggerHintGeneration();
             }
 
@@ -196,6 +194,12 @@ export class LiveInterviewService extends EventEmitter {
         this.geminiService.on('error', (error: Error) => {
             log.error('LiveInterviewService: Gemini error', error);
             this.emit('error', error);
+        });
+
+        this.geminiService.on('authError', (reason: string) => {
+            log.error('LiveInterviewService: API key invalid —', reason);
+            this.emit('error', new Error('API key is invalid. Please check your key in Settings.'));
+            this.setState('error');
         });
 
         this.geminiService.on('disconnected', () => {
@@ -226,8 +230,7 @@ export class LiveInterviewService extends EventEmitter {
                 // If a hint was requested while this one was streaming, fire it now
                 if (this.pendingHint) {
                     this.pendingHint = false;
-                    const newContent = this.currentTranscript.length - this.lastHintTranscript.length;
-                    if (newContent >= LiveInterviewService.MIN_NEW_CHARS_FOR_HINT) {
+                    if (this.hasMeaningfulDeltaForHint()) {
                         log.info('LiveInterviewService: Firing pending hint generation');
                         this.triggerHintGeneration();
                     }
@@ -248,6 +251,7 @@ export class LiveInterviewService extends EventEmitter {
      */
     private triggerHintGeneration(): void {
         if (!this.hintService || !this.currentTranscript) return;
+        if (!this.hasMeaningfulDeltaForHint()) return;
 
         // Don't interrupt an in-flight hint — queue it for after completion
         if (this.hintService.isActive()) {
@@ -275,6 +279,8 @@ export class LiveInterviewService extends EventEmitter {
             this.transcriptClearTimeout = null;
             log.info('LiveInterviewService: Clearing accumulated transcript after silence');
             this.currentTranscript = '';
+            this.lastHintTranscript = '';
+            this.pendingHint = false;
             this.geminiService?.clearTranscript();
             this.emitStatus();
         }, LiveInterviewService.TRANSCRIPT_CLEAR_MS);
@@ -361,6 +367,8 @@ export class LiveInterviewService extends EventEmitter {
         this.currentResponse = '';
         this.responseHistory = '';
         this.lastHintTranscript = '';
+        this.pendingHint = false;
+        this.lastTranscriptTime = 0;
         this.audioLevel = 0;
         this.setState('idle');
     }
@@ -393,6 +401,39 @@ export class LiveInterviewService extends EventEmitter {
      */
     private emitStatus(): void {
         this.emit('status', this.getStatus());
+    }
+
+    /**
+     * Returns transcript content not covered by the last generated hint.
+     * Uses prefix matching instead of raw length diff to stay correct after transcript resets.
+     */
+    private getUnprocessedTranscriptDelta(): string {
+        if (!this.currentTranscript) return '';
+        if (!this.lastHintTranscript) return this.currentTranscript;
+        if (this.currentTranscript.startsWith(this.lastHintTranscript)) {
+            return this.currentTranscript.slice(this.lastHintTranscript.length);
+        }
+        return this.currentTranscript;
+    }
+
+    /**
+     * Avoid generating hints from punctuation-only noise while still allowing short phrases.
+     */
+    private hasMeaningfulDeltaForHint(): boolean {
+        const delta = this.getUnprocessedTranscriptDelta().trim();
+        if (!delta) return false;
+
+        let meaningfulCount = 0;
+        for (const char of delta) {
+            if (/[\p{L}\p{N}]/u.test(char)) {
+                meaningfulCount++;
+                if (meaningfulCount >= LiveInterviewService.MIN_MEANINGFUL_NEW_CHARS_FOR_HINT) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

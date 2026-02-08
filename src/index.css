@@ -13,43 +13,53 @@
     0% {
       background-position: 0% 50%;
     }
+
     100% {
       background-position: 200% 50%;
     }
   }
+
   @keyframes shimmer {
     0% {
       background-position: 200% 0;
     }
+
     100% {
       background-position: -200% 0;
     }
   }
+
   @keyframes in {
     0% {
       transform: translateY(100%);
       opacity: 0;
     }
+
     100% {
       transform: translateY(0);
       opacity: 1;
     }
   }
+
   @keyframes out {
     0% {
       transform: translateY(0);
       opacity: 1;
     }
+
     100% {
       transform: translateY(100%);
       opacity: 0;
     }
   }
+
   @keyframes pulse {
+
     0%,
     100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.5;
     }
@@ -65,10 +75,41 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
+
   html,
   body {
     font-size: 13px;
     line-height: 1.45;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Custom scrollbar — dark theme */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   *,
@@ -82,8 +123,15 @@
 
 /* Custom animations for UI elements */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50%, -48%); }
-  to { opacity: 0.98; transform: translate(-50%, -50%); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+
+  to {
+    opacity: 0.98;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* Dialog transition improvements */
@@ -137,11 +185,9 @@ option {
 }
 
 .auth-button:hover::before {
-  background: linear-gradient(
-    45deg,
-    rgba(255, 0, 0, 0.4),
-    rgba(0, 0, 255, 0.4)
-  );
+  background: linear-gradient(45deg,
+      rgba(255, 0, 0, 0.4),
+      rgba(0, 0, 255, 0.4));
   filter: blur(48px);
   inset: -16px;
   opacity: 1;
@@ -152,6 +198,7 @@ option {
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -170,7 +217,25 @@ option {
     opacity 0.16s ease;
 }
 
+
+@keyframes fadeSection {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeSection 0.18s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

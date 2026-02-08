@@ -329,9 +329,8 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
 
                           {extraScreenshots.length > 0 && (
                             <div
-                              className={`cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors ${
-                                credits <= 0 ? "opacity-50 pointer-events-none" : ""
-                              }`}
+                              className={`cursor-pointer rounded px-2 py-1.5 hover:bg-white/10 transition-colors ${credits <= 0 ? "opacity-50 pointer-events-none" : ""
+                                }`}
                               onClick={async () => {
                                 if (credits <= 0) {
                                   showToast(
@@ -432,7 +431,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                       {/* API Key Settings */}
                       <div className="mb-3 px-2 space-y-1">
                         <div className="flex items-center justify-between text-[13px] font-medium text-white/90">
-                          <span>API Settings</span>
+                          <span>Settings</span>
                           <button
                             className="bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-[12px]"
                             onClick={() => window.electronAPI.openSettingsPortal()}

@@ -37,10 +37,10 @@ interface StoreSchema {
 const MAX_SESSION_HISTORY = 30
 
 const store = new Store<StoreSchema>({
+  name: 'session-history',
   defaults: {
     sessionHistory: []
-  },
-  encryptionKey: "your-encryption-key"
+  }
 }) as Store<StoreSchema> & {
   store: StoreSchema
   get: <K extends keyof StoreSchema>(key: K) => StoreSchema[K]

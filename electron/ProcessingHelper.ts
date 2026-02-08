@@ -7,7 +7,7 @@ import { BrowserWindow } from "electron"
 import { OpenAI } from "openai"
 import { configHelper } from "./ConfigHelper"
 import Anthropic from '@anthropic-ai/sdk';
-import { appendSessionHistoryEntry } from "./store"
+
 
 // Interface for Gemini API requests
 interface GeminiMessage {
@@ -117,50 +117,7 @@ export class ProcessingHelper {
     }
   }
 
-  private recordSessionHistoryEntry(payload: {
-    question: string
-    answer: string
-    tags: string[]
-    notes?: string
-    workspace?: {
-      type: "solution" | "debug"
-      code?: string
-      keyPoints?: string[]
-      timeComplexity?: string
-      spaceComplexity?: string
-      issues?: string[]
-      fixes?: string[]
-      why?: string[]
-      verify?: string[]
-    }
-  }): void {
-    try {
-      const config = configHelper.loadConfig() as {
-        activeProfileId?: string
-        profiles?: Array<{ id: string; name?: string; targetRole?: string }>
-        interviewPreferences?: { mode?: string }
-      }
 
-      const activeProfile = config.profiles?.find(
-        (profile) => profile.id === config.activeProfileId
-      )
-
-      appendSessionHistoryEntry({
-        question: payload.question,
-        answer: payload.answer,
-        tags: payload.tags,
-        company: activeProfile?.name,
-        role:
-          activeProfile?.targetRole ||
-          config.interviewPreferences?.mode ||
-          "coding",
-        notes: payload.notes,
-        workspace: payload.workspace
-      })
-    } catch (storeError) {
-      console.error("Failed to persist session history entry:", storeError)
-    }
-  }
 
   private getErrorMessage(error: unknown, fallback: string): string {
     if (error instanceof Error && error.message) {
@@ -1040,22 +997,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
         space_complexity: spaceComplexity
       };
 
-      this.recordSessionHistoryEntry({
-        question:
-          typeof problemInfo.problem_statement === "string"
-            ? problemInfo.problem_statement
-            : "Coding interview question",
-        answer: formattedResponse.code,
-        tags: ["solution", language],
-        notes: `Provider: ${config.apiProvider}; Mode: ${config.interviewPreferences?.mode || "coding"}`,
-        workspace: {
-          type: "solution",
-          code: formattedResponse.code,
-          keyPoints: formattedResponse.thoughts,
-          timeComplexity: formattedResponse.time_complexity,
-          spaceComplexity: formattedResponse.space_complexity
-        }
-      });
+
 
       return { success: true, data: formattedResponse };
     } catch (error: unknown) {
@@ -1459,26 +1401,7 @@ Rules:
         space_complexity: "N/A - Debug mode"
       };
 
-      this.recordSessionHistoryEntry({
-        question:
-          typeof problemInfo.problem_statement === "string"
-            ? problemInfo.problem_statement
-            : "Debug interview solution",
-        answer: response.debug_analysis,
-        tags: ["debug", language],
-        notes: `Provider: ${config.apiProvider}; Debug session`,
-        workspace: {
-          type: "debug",
-          code: response.code,
-          keyPoints: response.thoughts,
-          timeComplexity: response.time_complexity,
-          spaceComplexity: response.space_complexity,
-          issues: response.issues,
-          fixes: response.fixes,
-          why: response.why,
-          verify: response.verify
-        }
-      });
+
 
       return { success: true, data: response };
     } catch (error: unknown) {
