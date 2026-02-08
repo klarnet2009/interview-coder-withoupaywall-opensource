@@ -26,10 +26,15 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - Added provider strategy layer (`electron/processing/providers/*`)
   - Added orchestration layer (`electron/processing/ProcessingProviderOrchestrator.ts`)
   - `electron/ProcessingHelper.ts` now delegates provider-specific API calls via shared strategy interface
+  - Response shaping/parsing extracted to formatter modules:
+    - `electron/processing/formatters/solutionResponseFormatter.ts`
+    - `electron/processing/formatters/debugResponseFormatter.ts`
 - Added integration reliability checks:
   - preload/main IPC contract test (`tests/integration/ipcContract.integration.test.ts`)
   - live lifecycle test for start/stop/reconnect and silence fallback (`tests/integration/liveInterviewLifecycle.integration.test.ts`)
   - screenshot processing/recovery test suite (`tests/integration/processingHelper.integration.test.ts`)
+- Added formatter unit tests:
+  - `tests/unit/responseFormatters.test.ts`
 - Closed missing IPC contract edge:
   - Added `clear-store` handler in `electron/ipcHandlers.ts` and store helper in `electron/store.ts`
 - Prepared release-level changelog:
@@ -46,7 +51,7 @@ Validation executed on current head:
 
 - `npx tsc --noEmit` -> pass
 - `npm run lint` -> pass (0 errors)
-- `npm test` -> pass (39/39)
+- `npm test` -> pass (43/43)
 - `npm run build` -> pass
 
 ## Residual Notes

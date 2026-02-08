@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-015)
+- Post-sprint technical hardening (TECH-004 to TECH-016)
 
 ## Sprint Highlights
 
@@ -75,6 +75,9 @@ This release consolidates the full UI/UX redesign program:
 - TECH-015: Screenshot-processing reliability coverage added:
   - new integration suite for `ProcessingHelper` queue/debug/recovery branches
   - validates transition and error-handling paths without external API calls
+- TECH-016: `ProcessingHelper` response shaping extracted to dedicated formatters:
+  - `solutionResponseFormatter` and `debugResponseFormatter`
+  - added formatter unit tests for stable parsing behavior
 
 ## Additional Reliability Updates
 
@@ -88,12 +91,14 @@ This release consolidates the full UI/UX redesign program:
   - `tests/integration/ipcContract.integration.test.ts`
   - `tests/integration/liveInterviewLifecycle.integration.test.ts`
   - `tests/integration/processingHelper.integration.test.ts`
+- New unit coverage:
+  - `tests/unit/responseFormatters.test.ts`
 
 ## Validation Summary
 
 - `npx tsc --noEmit`: pass
 - `npm run lint`: pass (0 errors)
-- `npm test`: pass (39/39)
+- `npm test`: pass (43/43)
 - `npm run build`: pass (no large chunk warnings)
 
 ## Notes

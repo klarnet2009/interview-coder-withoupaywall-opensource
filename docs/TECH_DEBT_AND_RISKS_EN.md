@@ -22,6 +22,7 @@ Resolved:
 - `ProcessingHelper` provider logic extracted to strategy-based provider layer + orchestrator.
 - Added integration tests for preload/main IPC channel contract and live lifecycle transitions.
 - Added integration tests for screenshot processing and recovery flows in `ProcessingHelper`.
+- `ProcessingHelper` response shaping/parsing extracted into dedicated formatter modules.
 
 Still open:
 - Core UI controller size is still high (`src/components/UnifiedPanel/UnifiedPanel.tsx`).
@@ -33,7 +34,7 @@ Still open:
 
 1. Single-file complexity remains high in critical paths
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` remains a multi-responsibility controller.
-- `electron/ProcessingHelper.ts` was improved via provider strategy extraction, but response-shaping/parsing is still dense.
+- `electron/ProcessingHelper.ts` was improved via provider strategy and formatter extraction, but orchestration flow is still broad.
 - Impact: higher change risk and slower onboarding/review.
 
 2. Limited automated coverage for runtime-critical flows
@@ -60,7 +61,7 @@ Still open:
 - Phase B: `strictNullChecks: true` (completed)
 - Phase C: `strict: true` (completed)
 
-2. Continue decomposition of `ProcessingHelper` by extracting response-format parsing into focused formatters.
+2. Continue decomposition of `ProcessingHelper` by splitting orchestration into queue/debug controllers.
 
 3. Split `UnifiedPanel` into:
 - session control controller

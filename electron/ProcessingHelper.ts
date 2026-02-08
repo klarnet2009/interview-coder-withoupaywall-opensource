@@ -6,6 +6,8 @@ import * as axios from "axios"
 import { BrowserWindow } from "electron"
 import { configHelper } from "./ConfigHelper"
 import { ProcessingProviderOrchestrator } from "./processing/ProcessingProviderOrchestrator"
+import { formatDebugResponse } from "./processing/formatters/debugResponseFormatter"
+import { formatSolutionResponse } from "./processing/formatters/solutionResponseFormatter"
 import type { ProviderConfig } from "./processing/types"
 export class ProcessingHelper {
   private deps: IProcessingHelperDeps
@@ -556,76 +558,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
       }
       const responseContent = generationResult.data
 
-      // Extract parts from the response
-      const codeMatch = responseContent.match(/```(?:\w+)?\s*([\s\S]*?)```/);
-      const code = codeMatch ? codeMatch[1].trim() : responseContent;
-
-      // Extract thoughts, looking for bullet points or numbered lists
-      const thoughtsRegex = /(?:Thoughts:|Key Insights:|Reasoning:|Approach:)([\s\S]*?)(?:Time complexity:|$)/i;
-      const thoughtsMatch = responseContent.match(thoughtsRegex);
-      let thoughts: string[] = [];
-
-      if (thoughtsMatch && thoughtsMatch[1]) {
-        // Extract bullet points or numbered items
-        const bulletPoints = thoughtsMatch[1].match(/(?:^|\n)\s*(?:[-*•]|\d+\.)\s*(.*)/g);
-        if (bulletPoints) {
-          thoughts = bulletPoints.map(point =>
-            point.replace(/^\s*(?:[-*•]|\d+\.)\s*/, '').trim()
-          ).filter(Boolean);
-        } else {
-          // If no bullet points found, split by newlines and filter empty lines
-          thoughts = thoughtsMatch[1].split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-        }
-      }
-
-      // Extract complexity information
-      const timeComplexityPattern = /Time complexity:?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*(?:Space complexity|$))/i;
-      const spaceComplexityPattern = /Space complexity:?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*(?:[A-Z]|$))/i;
-
-      let timeComplexity = "O(n) - Linear time complexity because we only iterate through the array once. Each element is processed exactly one time, and the hashmap lookups are O(1) operations.";
-      let spaceComplexity = "O(n) - Linear space complexity because we store elements in the hashmap. In the worst case, we might need to store all elements before finding the solution pair.";
-
-      const timeMatch = responseContent.match(timeComplexityPattern);
-      if (timeMatch && timeMatch[1]) {
-        timeComplexity = timeMatch[1].trim();
-        if (!timeComplexity.match(/O\([^)]+\)/i)) {
-          timeComplexity = `O(n) - ${timeComplexity}`;
-        } else if (!timeComplexity.includes('-') && !timeComplexity.includes('because')) {
-          const notationMatch = timeComplexity.match(/O\([^)]+\)/i);
-          if (notationMatch) {
-            const notation = notationMatch[0];
-            const rest = timeComplexity.replace(notation, '').trim();
-            timeComplexity = `${notation} - ${rest}`;
-          }
-        }
-      }
-
-      const spaceMatch = responseContent.match(spaceComplexityPattern);
-      if (spaceMatch && spaceMatch[1]) {
-        spaceComplexity = spaceMatch[1].trim();
-        if (!spaceComplexity.match(/O\([^)]+\)/i)) {
-          spaceComplexity = `O(n) - ${spaceComplexity}`;
-        } else if (!spaceComplexity.includes('-') && !spaceComplexity.includes('because')) {
-          const notationMatch = spaceComplexity.match(/O\([^)]+\)/i);
-          if (notationMatch) {
-            const notation = notationMatch[0];
-            const rest = spaceComplexity.replace(notation, '').trim();
-            spaceComplexity = `${notation} - ${rest}`;
-          }
-        }
-      }
-
-      const formattedResponse = {
-        code: code,
-        thoughts: thoughts.length > 0 ? thoughts : ["Solution approach based on efficiency and readability"],
-        time_complexity: timeComplexity,
-        space_complexity: spaceComplexity
-      };
-
-
-
+      const formattedResponse = formatSolutionResponse(responseContent)
       return { success: true, data: formattedResponse };
     } catch (error: unknown) {
       if (axios.isCancel(error)) {
@@ -750,142 +683,7 @@ Rules:
         });
       }
 
-      let extractedCode = "// Debug mode - see analysis below";
-      const codeMatch = debugContent.match(/```(?:[a-zA-Z]+)?([\s\S]*?)```/);
-      if (codeMatch && codeMatch[1]) {
-        extractedCode = codeMatch[1].trim();
-      }
-
-      let formattedDebugContent = debugContent;
-
-      if (!debugContent.includes('# ') && !debugContent.includes('## ')) {
-        formattedDebugContent = debugContent
-          .replace(/issues identified|problems found|bugs found/i, '### Issue')
-          .replace(/specific improvements and corrections|code improvements|improvements|suggested changes/i, '### Fix')
-          .replace(/explanation of changes needed|explanation|detailed analysis|rationale/i, '### Why')
-          .replace(/verify|validation|key points|checks/i, '### Verify');
-      }
-
-      const normalizeHeading = (line: string) =>
-        line
-          .replace(/^#+\s*/, "")
-          .replace(/\*\*/g, "")
-          .replace(/[:-]+$/, "")
-          .trim()
-          .toLowerCase();
-
-      const isPotentialHeading = (line: string) => {
-        const trimmed = line.trim();
-        if (!trimmed) return false;
-        if (/^#{1,3}\s+/.test(trimmed)) return true;
-        if (/^\*\*.+\*\*$/.test(trimmed)) return true;
-        return /^[A-Za-z][A-Za-z\s/&()-]{2,48}:?$/.test(trimmed);
-      };
-
-      const toBulletList = (raw: string): string[] => {
-        const normalized = raw
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-
-        const bullets = normalized
-          .filter((line) => /^[-*•]\s+/.test(line) || /^\d+\.\s+/.test(line))
-          .map((line) => line.replace(/^[-*•]\s+|^\d+\.\s+/, "").trim())
-          .filter(Boolean);
-
-        if (bullets.length > 0) {
-          return bullets;
-        }
-
-        return normalized
-          .join(" ")
-          .split(/(?<=\.)\s+/)
-          .map((line) => line.trim())
-          .filter(Boolean);
-      };
-
-      const extractSection = (analysis: string, aliases: string[]): string[] => {
-        const lines = analysis.split(/\r?\n/);
-        let start = -1;
-        let end = lines.length;
-
-        for (let index = 0; index < lines.length; index += 1) {
-          const normalized = normalizeHeading(lines[index] || "");
-          if (aliases.some((alias) => normalized.includes(alias))) {
-            start = index + 1;
-            break;
-          }
-        }
-
-        if (start === -1) {
-          return [];
-        }
-
-        for (let index = start; index < lines.length; index += 1) {
-          const line = lines[index];
-          if (
-            isPotentialHeading(line) &&
-            !aliases.some((alias) => normalizeHeading(line).includes(alias))
-          ) {
-            end = index;
-            break;
-          }
-        }
-
-        return toBulletList(lines.slice(start, end).join("\n"));
-      };
-
-      const issues = extractSection(formattedDebugContent, [
-        "issue",
-        "issues identified",
-        "problems",
-        "bugs"
-      ]);
-      const fixes = extractSection(formattedDebugContent, [
-        "fix",
-        "specific improvements",
-        "corrections",
-        "improvements"
-      ]);
-      const why = extractSection(formattedDebugContent, [
-        "why",
-        "explanation",
-        "rationale",
-        "changes needed"
-      ]);
-      const verify = extractSection(formattedDebugContent, [
-        "verify",
-        "validation",
-        "test plan",
-        "checks",
-        "key points"
-      ]);
-
-      const keyPoints = extractSection(formattedDebugContent, ["key points", "summary"]).slice(0, 5);
-      const thoughts =
-        keyPoints.length > 0
-          ? keyPoints
-          : [...issues, ...fixes].slice(0, 5);
-      const nextSteps =
-        verify.length > 0
-          ? verify
-          : ["Re-run failing tests and compare with expected output after applying fixes."];
-
-      const response = {
-        code: extractedCode,
-        debug_analysis: formattedDebugContent,
-        thoughts: thoughts,
-        issues,
-        fixes,
-        why,
-        verify,
-        next_steps: nextSteps,
-        time_complexity: "N/A - Debug mode",
-        space_complexity: "N/A - Debug mode"
-      };
-
-
-
+      const response = formatDebugResponse(debugContent)
       return { success: true, data: response };
     } catch (error: unknown) {
       console.error("Debug processing error:", error);
