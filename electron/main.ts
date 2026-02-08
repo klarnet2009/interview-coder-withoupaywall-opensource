@@ -196,7 +196,7 @@ async function createWindow(): Promise<void> {
     minHeight: isDev ? 100 : 100,
     x: state.currentX,
     y: 50,
-    alwaysOnTop: isDev ? false : true,
+    alwaysOnTop: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -207,14 +207,13 @@ async function createWindow(): Promise<void> {
     },
     show: true,
     frame: false,
-    transparent: isDev ? false : true,
+    transparent: false,
     fullscreenable: false,
-    hasShadow: isDev ? true : false,
+    hasShadow: true,
     opacity: 1.0,  // Start with full opacity
-    backgroundColor: isDev ? "#0a0a0a" : "#00000000",
+    backgroundColor: "#0a0a0a",
     focusable: true,
-    skipTaskbar: isDev ? false : true,
-    ...(isDev ? {} : { type: "panel" as const }),
+    skipTaskbar: false,
     paintWhenInitiallyHidden: true,
     titleBarStyle: "hidden",
     enableLargerThanScreen: true,
@@ -223,10 +222,8 @@ async function createWindow(): Promise<void> {
 
   state.mainWindow = new BrowserWindow(windowSettings)
 
-  // In debug mode, ensure window is visible in screen capture
-  if (isDev) {
-    state.mainWindow.setContentProtection(false);
-  }
+  // Content protection disabled — stealth mode will be managed server-side in the future
+  state.mainWindow.setContentProtection(false);
 
   // Add more detailed logging for window events
   state.mainWindow.webContents.on("did-finish-load", () => {
@@ -302,31 +299,7 @@ async function createWindow(): Promise<void> {
     return { action: "allow" };
   })
 
-  // Enhanced screen capture resistance (skip in debug mode)
-  if (!isDev) {
-    state.mainWindow.setContentProtection(true)
-
-    state.mainWindow.setVisibleOnAllWorkspaces(true, {
-      visibleOnFullScreen: true
-    })
-    state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
-  }
-
-  // Additional screen capture resistance settings
-  if (process.platform === "darwin") {
-    // Prevent window from being captured in screenshots
-    state.mainWindow.setHiddenInMissionControl(true)
-    state.mainWindow.setWindowButtonVisibility(false)
-    state.mainWindow.setBackgroundColor("#00000000")
-
-    // Prevent window from being included in window switcher
-    state.mainWindow.setSkipTaskbar(true)
-
-    // Disable window shadow
-    state.mainWindow.setHasShadow(false)
-  }
-
-  // Prevent the window from being captured by screen recording
+  // Prevent background throttling for uninterrupted audio processing
   state.mainWindow.webContents.setBackgroundThrottling(false)
   state.mainWindow.webContents.setFrameRate(60)
 
