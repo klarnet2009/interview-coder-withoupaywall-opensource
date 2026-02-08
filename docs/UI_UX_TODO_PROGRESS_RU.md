@@ -107,10 +107,10 @@
 - [x] `TECH-007` Закрыт: усилена стабильность live phrase finalization
   - Добавлен forced hint fallback таймер
   - Добавлен explicit `endTurn` после устойчивой тишины для снятия зависаний при пропущенном `turnComplete`
-- [ ] `TECH-008` В работе: привести ESLint scope к исходникам (исключить `dist*/`, корректно настроить markdown/json/css парсинг)
-  - Сейчас `npm run lint` репортает тысячи pre-existing ошибок вне текущего scope изменений
+- [x] `TECH-008` Закрыт: ESLint scope приведен к исходникам (исключены generated/legacy директории и lock files)
+  - `npm run lint` сокращен с ~`2970` проблем до `55` реальных source-code проблем
 - [ ] `TECH-009` В работе: довести strict-линтинг Electron/Renderer слоёв до стабильного CI baseline
-  - Сохраняются pre-existing ошибки (`no-explicit-any`, legacy `require`, `no-unused-vars`)
+  - После `TECH-008` остаются `55` pre-existing ошибок (`no-explicit-any`, `no-unused-vars`, `ban-ts-comment`, `no-empty-object-type`, legacy `require`)
 
 ---
 

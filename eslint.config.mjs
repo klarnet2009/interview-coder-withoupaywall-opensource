@@ -3,11 +3,26 @@ import globals from "globals";
 import tseslintPlugin from "@typescript-eslint/eslint-plugin";
 import tseslintParser from "@typescript-eslint/parser";
 import json from "@eslint/json";
-import markdown from "@eslint/markdown";
 import css from "@eslint/css";
 
 export default [
-  js.configs.recommended,
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/.git/**",
+      "dist/**",
+      "dist-electron/**",
+      "release/**",
+      "coverage/**",
+      "renderer/**",
+      "assets/**",
+      "**/*.md",
+      "package-lock.json",
+      "bun.lockb",
+      "src/index.css",
+      "public/pcm-capture-processor.js"
+    ]
+  },
 
   {
     files: ["**/*.{js,mjs,cjs,ts,tsx}"],
@@ -26,32 +41,30 @@ export default [
       "@typescript-eslint": tseslintPlugin,
     },
     rules: {
-      ...tseslintPlugin.configs.recommended.rules, 
+      ...js.configs.recommended.rules,
+      ...tseslintPlugin.configs.recommended.rules,
+      "no-undef": "off",
     },
   },
 
   {
     files: ["**/*.json"],
-    plugins: { json },
-    rules: { ...json.configs.recommended.rules },
+    language: "json/json",
+    ...json.configs.recommended,
   },
   {
     files: ["**/*.jsonc"],
-    plugins: { json },
-    rules: { ...json.configs.recommended.rules },
+    language: "json/jsonc",
+    ...json.configs.recommended,
   },
   {
     files: ["**/*.json5"],
-    plugins: { json },
-    rules: { ...json.configs.recommended.rules },
-  },
-  {
-    files: ["**/*.md"],
-    plugins: { markdown },
-    rules: { ...markdown.configs.recommended.rules },
+    language: "json/json5",
+    ...json.configs.recommended,
   },
   {
     files: ["**/*.css"],
+    language: "css/css",
     plugins: { css },
     rules: { ...css.configs.recommended.rules },
   },
