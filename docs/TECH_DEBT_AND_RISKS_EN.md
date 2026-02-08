@@ -31,10 +31,11 @@ Resolved:
 - Added bundle budget gate (`npm run check:bundle`) and CI enforcement.
 - Added ADR for live-audio ownership boundaries (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`).
 - Introduced centralized logger wrapper (`electron/logger.ts`) and migrated processing orchestration paths off direct `console.*`.
+- Quarantined unused parallel audio capture abstractions into `*.legacy.ts` modules and excluded them from active builds.
 
 Still open:
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` still owns runtime side-effects and can be further hook-extracted.
-- Legacy/parallel audio abstractions are still present and should be quarantined/removed.
+- Runtime startup self-check for invoke-channel parity is still test-driven (integration) rather than runtime-enforced.
 
 ## Current Findings
 
@@ -48,9 +49,9 @@ Still open:
 
 ### P2
 
-2. Legacy/parallel abstractions still exist
-- Multiple audio-related service layers with overlapping responsibilities.
-- Impact: confusion about active path, harder long-term maintenance.
+2. Runtime startup contract validation is still test-only
+- IPC invoke parity is enforced by integration tests and CI, but not by runtime startup assertion.
+- Impact: drift is caught in CI rather than immediately at local runtime boot.
 
 3. Runtime logging is still noisy in production paths
 - Logging policy is now centralized in processing paths, but broad `console.*` usage remains in other runtime modules.
@@ -89,8 +90,11 @@ Status: `partially completed` (lane/response/recovery/audio selector extracted; 
 ### P2 Actions (Cleanup)
 
 1. Remove or quarantine legacy modules not in active path.
+Status: `partially completed` (audio capture legacy abstractions quarantined and excluded from build).
 2. Consolidate logging behind a leveled logger policy.
+Status: `in progress` (processing path migrated; other runtime modules pending).
 3. Normalize shared runtime types across main/preload/renderer.
+Status: `completed` for active runtime contracts; continue incremental cleanup on newly touched surfaces.
 
 ## Quick Wins
 

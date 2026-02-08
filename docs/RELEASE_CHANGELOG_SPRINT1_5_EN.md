@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-021)
+- Post-sprint technical hardening (TECH-004 to TECH-022)
 
 ## Sprint Highlights
 
@@ -95,6 +95,10 @@ This release consolidates the full UI/UX redesign program:
 - TECH-021: Logging policy phase A:
   - introduced centralized main-process logger (`electron/logger.ts`)
   - migrated `ProcessingHelper` and processing controllers from direct `console.*` calls
+- TECH-022: Legacy audio abstraction quarantine:
+  - moved inactive capture abstractions to `*.legacy.ts`
+  - excluded `**/*.legacy.ts` from active TypeScript builds
+  - removed legacy capture exports from active audio module index
 
 ## Additional Reliability Updates
 

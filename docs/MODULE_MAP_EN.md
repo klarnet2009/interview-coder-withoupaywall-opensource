@@ -37,7 +37,7 @@
 - `electron/audio/GeminiLiveService.ts`: WebSocket streaming session with Gemini Live API.
 - `electron/audio/HintGenerationService.ts`: SSE hint generation over Gemini model.
 - `electron/audio/LiveInterviewService.ts`: orchestrates live transcript + hint state machine.
-- `electron/audio/AudioCaptureService.ts`: capture service abstraction (currently not used by main runtime flow).
+- `electron/audio/AudioCaptureService.legacy.ts`: quarantined legacy capture abstraction (excluded from active build).
 - `electron/audio/index.ts`: exports for audio module symbols.
 
 ## Renderer (`src/`)
@@ -71,7 +71,7 @@
 
 - `src/types/*`: app-wide TypeScript contracts.
 - `src/i18n/*`: localization bootstrap and locale files.
-- `src/services/AudioCaptureService.ts`: renderer audio capture service abstraction.
+- `src/services/AudioCaptureService.legacy.ts`: quarantined legacy renderer capture abstraction (excluded from active build).
 - `src/contexts/toast.tsx`: toast context state.
 
 ## Public Assets

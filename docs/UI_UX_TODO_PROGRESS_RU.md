@@ -174,6 +174,11 @@
 - [x] `TECH-021` Закрыт: logging policy phase-A для processing пути
   - Добавлен централизованный `electron/logger.ts`
   - `electron/ProcessingHelper.ts` и `electron/processing/controllers/*` переведены на `logger` вместо прямых `console.*`
+- [x] `TECH-022` Закрыт: quarantine неиспользуемых parallel audio abstractions
+  - `electron/audio/AudioCaptureService.ts` -> `electron/audio/AudioCaptureService.legacy.ts`
+  - `src/services/AudioCaptureService.ts` -> `src/services/AudioCaptureService.legacy.ts`
+  - Удалены legacy exports из `electron/audio/index.ts`
+  - `tsconfig.json` и `tsconfig.electron.json` исключают `**/*.legacy.ts`
 
 ---
 

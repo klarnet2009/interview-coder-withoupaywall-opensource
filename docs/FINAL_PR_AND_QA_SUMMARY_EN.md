@@ -58,6 +58,10 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
 - Logging policy phase A:
   - Added centralized logger utility (`electron/logger.ts`)
   - Migrated processing orchestrator/controller paths away from direct `console.*`
+- Legacy abstraction quarantine:
+  - moved inactive audio capture abstractions to `*.legacy.ts`
+  - excluded `**/*.legacy.ts` from active TS builds
+  - removed legacy capture exports from active audio module barrel
 
 ## Related Commits
 

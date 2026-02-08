@@ -2,8 +2,8 @@
  * Audio module exports
  */
 
-export { AudioCaptureService, audioCaptureService } from './AudioCaptureService';
-export type { AudioSource, AudioSourceType, AudioChunk, AudioCaptureConfig } from './AudioCaptureService';
+// Legacy capture abstraction quarantined:
+// `AudioCaptureService.legacy.ts` is intentionally excluded from active runtime builds.
 
 export { GeminiLiveService } from './GeminiLiveService';
 export type { GeminiLiveConfig, TranscriptUpdate, AIResponse } from './GeminiLiveService';

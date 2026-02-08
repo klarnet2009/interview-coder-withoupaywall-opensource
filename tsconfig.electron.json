@@ -16,5 +16,6 @@
       "main": ["electron/main.ts"]
     }
   },
-  "include": ["electron/**/*"]
+  "include": ["electron/**/*"],
+  "exclude": ["**/*.legacy.ts"]
 }

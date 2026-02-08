@@ -20,5 +20,6 @@
     "types": ["vite/client"]
   },
   "include": ["electron/**/*", "src/**/*"],
+  "exclude": ["**/*.legacy.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
