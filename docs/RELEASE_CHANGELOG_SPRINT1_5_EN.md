@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-023)
+- Post-sprint technical hardening (TECH-004 to TECH-024)
 
 ## Sprint Highlights
 
@@ -102,6 +102,8 @@ This release consolidates the full UI/UX redesign program:
 - TECH-023: Runtime IPC invoke self-check:
   - invoke handlers are now registered via tracked `registerHandle` in `ipcHandlers`
   - startup validates preload invoke-channel parity (with explicit external handler allowance)
+- TECH-024: Logging policy phase B:
+  - migrated `electron/ipcHandlers.ts` from direct `console.*` calls to centralized logger
 
 ## Additional Reliability Updates
 

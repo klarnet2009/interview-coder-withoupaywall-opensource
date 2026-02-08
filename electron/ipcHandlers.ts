@@ -126,7 +126,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     // Validate input before processing
     const validation = validateConfigUpdate(updates);
     if (!validation.success) {
-      console.warn('Invalid config update:', validation.error);
+      logger.warn('Invalid config update:', validation.error);
       throw new Error(validation.error);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,7 +184,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       const result = await configHelper.testApiKey(apiKey, provider);
       return result;
     } catch (error) {
-      console.error("Error testing API key:", error);
+      logger.error("Error testing API key:", error);
       return { valid: false, error: "Failed to test API key" };
     }
   })
@@ -218,7 +218,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         appIcon: source.appIcon?.toDataURL() || null
       }));
     } catch (error) {
-      console.error("Error getting audio sources:", error);
+      logger.error("Error getting audio sources:", error);
       return [];
     }
   })
@@ -235,7 +235,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       const result = await processor.testAudio(buffer, audioData.mimeType);
       return result;
     } catch (error) {
-      console.error("Error testing audio:", error);
+      logger.error("Error testing audio:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
@@ -255,7 +255,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         timestamp: result.timestamp
       };
     } catch (error) {
-      console.error("Error transcribing audio:", error);
+      logger.error("Error transcribing audio:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
@@ -270,7 +270,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       const hints = await processor.generateHints(transcript);
       return { success: true, hints };
     } catch (error) {
-      console.error("Error generating hints:", error);
+      logger.error("Error generating hints:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error)
@@ -290,7 +290,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       )
       mainWindow.webContents.send("credits-updated", credits)
     } catch (error) {
-      console.error("Error setting initial credits:", error)
+      logger.error("Error setting initial credits:", error)
       throw error
     }
   })
@@ -311,7 +311,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         mainWindow.webContents.send("credits-updated", newCredits)
       }
     } catch (error) {
-      console.error("Error decrementing credits:", error)
+      logger.error("Error decrementing credits:", error)
     }
   })
 
@@ -319,7 +319,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     try {
       clearStoreData()
     } catch (error) {
-      console.error("Error clearing store:", error)
+      logger.error("Error clearing store:", error)
       throw error
     }
   })
@@ -406,7 +406,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
       return previews
     } catch (error) {
-      console.error("Error getting screenshots:", error)
+      logger.error("Error getting screenshots:", error)
       throw error
     }
   })
@@ -424,7 +424,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         })
         return { success: true }
       } catch (error) {
-        console.error("Error triggering screenshot:", error)
+        logger.error("Error triggering screenshot:", error)
         return { error: "Failed to trigger screenshot" }
       }
     }
@@ -437,7 +437,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       const preview = await deps.getImagePreview(screenshotPath)
       return { path: screenshotPath, preview }
     } catch (error) {
-      console.error("Error taking screenshot:", error)
+      logger.error("Error taking screenshot:", error)
       return { error: "Failed to take screenshot" }
     }
   })
@@ -483,7 +483,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         win.setAlwaysOnTop(false);
       }
       configHelper.updateDisplayConfig({ alwaysOnTop: enabled });
-      console.log(`[SETTINGS] Always on top: ${enabled}`);
+      logger.info(`[SETTINGS] Always on top: ${enabled}`);
       return { success: true };
     }
     return { success: false, error: "Main window not available" };
@@ -496,7 +496,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       win.setContentProtection(enabled);
       win.setSkipTaskbar(enabled);
       configHelper.updateDisplayConfig({ stealthMode: enabled });
-      console.log(`[SETTINGS] Stealth mode: ${enabled}`);
+      logger.info(`[SETTINGS] Stealth mode: ${enabled}`);
       return { success: true };
     }
     return { success: false, error: "Main window not available" };
@@ -511,7 +511,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     if (win) {
       win.setContentProtection(enable);
       win.setSkipTaskbar(enable);
-      console.log(`[DEBUG] Stealth mode ${enable ? 'ON' : 'OFF'}`);
+      logger.info(`[DEBUG] Stealth mode ${enable ? 'ON' : 'OFF'}`);
       return { success: true, stealth: enable };
     }
     return { success: false, error: "Main window not available" };
@@ -528,7 +528,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.toggleMainWindow()
       return { success: true }
     } catch (error) {
-      console.error("Error toggling window:", error)
+      logger.error("Error toggling window:", error)
       return { error: "Failed to toggle window" }
     }
   })
@@ -538,7 +538,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.clearQueues()
       return { success: true }
     } catch (error) {
-      console.error("Error resetting queues:", error)
+      logger.error("Error resetting queues:", error)
       return { error: "Failed to reset queues" }
     }
   })
@@ -558,7 +558,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       await deps.processingHelper?.processScreenshots()
       return { success: true }
     } catch (error) {
-      console.error("Error processing screenshots:", error)
+      logger.error("Error processing screenshots:", error)
       return { error: "Failed to process screenshots" }
     }
   })
@@ -585,7 +585,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
       return { success: true }
     } catch (error) {
-      console.error("Error triggering reset:", error)
+      logger.error("Error triggering reset:", error)
       return { error: "Failed to trigger reset" }
     }
   })
@@ -596,7 +596,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.moveWindowLeft()
       return { success: true }
     } catch (error) {
-      console.error("Error moving window left:", error)
+      logger.error("Error moving window left:", error)
       return { error: "Failed to move window left" }
     }
   })
@@ -606,7 +606,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.moveWindowRight()
       return { success: true }
     } catch (error) {
-      console.error("Error moving window right:", error)
+      logger.error("Error moving window right:", error)
       return { error: "Failed to move window right" }
     }
   })
@@ -616,7 +616,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.moveWindowUp()
       return { success: true }
     } catch (error) {
-      console.error("Error moving window up:", error)
+      logger.error("Error moving window up:", error)
       return { error: "Failed to move window up" }
     }
   })
@@ -626,7 +626,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       deps.moveWindowDown()
       return { success: true }
     } catch (error) {
-      console.error("Error moving window down:", error)
+      logger.error("Error moving window down:", error)
       return { error: "Failed to move window down" }
     }
   })
@@ -656,7 +656,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
       return result
     } catch (error) {
-      console.error("Error deleting last screenshot:", error)
+      logger.error("Error deleting last screenshot:", error)
       return { success: false, error: "Failed to delete last screenshot" }
     }
   })
@@ -666,7 +666,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     try {
       return getSessionHistory()
     } catch (error) {
-      console.error("Error getting session history:", error)
+      logger.error("Error getting session history:", error)
       return []
     }
   })
@@ -679,7 +679,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       }
       return getSessionHistoryItem(id)
     } catch (error) {
-      console.error("Error getting session history item:", error)
+      logger.error("Error getting session history item:", error)
       return null
     }
   })
@@ -693,7 +693,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       const success = deleteSessionHistoryItem(id)
       return { success }
     } catch (error) {
-      console.error("Error deleting session history item:", error)
+      logger.error("Error deleting session history item:", error)
       return { success: false, error: "Failed to delete session history item" }
     }
   })
@@ -703,7 +703,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       clearSessionHistory()
       return { success: true }
     } catch (error) {
-      console.error("Error clearing session history:", error)
+      logger.error("Error clearing session history:", error)
       return { success: false, error: "Failed to clear session history" }
     }
   })
@@ -812,7 +812,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       await liveInterviewService.start();
       return { success: true };
     } catch (error: unknown) {
-      console.error("Error starting live interview:", error);
+      logger.error("Error starting live interview:", error);
       return { success: false, error: getErrorMessage(error, "Failed to start live interview") };
     }
   });
@@ -825,7 +825,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       }
       return { success: true };
     } catch (error: unknown) {
-      console.error("Error stopping live interview:", error);
+      logger.error("Error stopping live interview:", error);
       return { success: false, error: getErrorMessage(error, "Failed to stop live interview") };
     }
   });
@@ -873,5 +873,6 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   }
 
 }
+
 
 

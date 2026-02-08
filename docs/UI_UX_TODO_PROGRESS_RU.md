@@ -183,6 +183,9 @@
   - `electron/ipcHandlers.ts` теперь регистрирует invoke-каналы через реестр `registerHandle`
   - Добавлена startup-проверка соответствия preload invoke contract
   - Внешние каналы (`start-update`, `install-update`) помечены как external handlers
+- [x] `TECH-024` Закрыт: logging policy phase-B для IPC слоя
+  - `electron/ipcHandlers.ts` переведен с `console.*` на централизованный `logger`
+  - Снижен шум runtime-логов в горячем IPC пути
 
 ---
 

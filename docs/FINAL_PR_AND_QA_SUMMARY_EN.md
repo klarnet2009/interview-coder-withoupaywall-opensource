@@ -65,6 +65,8 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
 - Runtime IPC self-check:
   - `ipcHandlers` now tracks registered invoke channels via `registerHandle`
   - startup asserts preload invoke-channel parity (external updater channels explicitly allowlisted)
+- Logging policy phase B:
+  - migrated `electron/ipcHandlers.ts` to centralized logger usage
 
 ## Related Commits
 
