@@ -21,10 +21,11 @@ Resolved:
 - Electron TypeScript strictness migration completed (`noImplicitAny: true`, `strictNullChecks: true`, `strict: true`).
 - `ProcessingHelper` provider logic extracted to strategy-based provider layer + orchestrator.
 - Added integration tests for preload/main IPC channel contract and live lifecycle transitions.
+- Added integration tests for screenshot processing and recovery flows in `ProcessingHelper`.
 
 Still open:
 - Core UI controller size is still high (`src/components/UnifiedPanel/UnifiedPanel.tsx`).
-- Integration test coverage still misses screenshot-processing recovery flows.
+- Some runtime edge cases are still primarily validated by manual QA (provider timeout/cancellation race windows).
 
 ## Current Findings
 
@@ -36,9 +37,9 @@ Still open:
 - Impact: higher change risk and slower onboarding/review.
 
 2. Limited automated coverage for runtime-critical flows
-- IPC routing contract and live start/stop/reconnect transitions are now covered.
-- Screenshot processing, error recovery, and queue orchestration paths remain under-tested.
-- Impact: regressions likely appear late (manual QA/release).
+- IPC routing contract and live start/stop/reconnect transitions are covered.
+- Screenshot processing and recovery flows (queue empty, extraction failure, success path, debug path, provider-not-configured) are covered.
+- Remaining risk: provider timeout/cancellation race windows still lean on manual QA.
 
 ### P2
 
@@ -70,7 +71,7 @@ Still open:
 4. Add integration tests:
 - IPC channel contract tests (`preload <-> main`) (completed)
 - live start/stop/reconnect state transitions (completed)
-- screenshot process and recovery flow
+- screenshot process and recovery flow (completed)
 
 ### P2 Actions (Cleanup)
 

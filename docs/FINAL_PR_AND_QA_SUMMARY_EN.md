@@ -29,6 +29,7 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
 - Added integration reliability checks:
   - preload/main IPC contract test (`tests/integration/ipcContract.integration.test.ts`)
   - live lifecycle test for start/stop/reconnect and silence fallback (`tests/integration/liveInterviewLifecycle.integration.test.ts`)
+  - screenshot processing/recovery test suite (`tests/integration/processingHelper.integration.test.ts`)
 - Closed missing IPC contract edge:
   - Added `clear-store` handler in `electron/ipcHandlers.ts` and store helper in `electron/store.ts`
 - Prepared release-level changelog:
@@ -45,7 +46,7 @@ Validation executed on current head:
 
 - `npx tsc --noEmit` -> pass
 - `npm run lint` -> pass (0 errors)
-- `npm test` -> pass (34/34)
+- `npm test` -> pass (39/39)
 - `npm run build` -> pass
 
 ## Residual Notes

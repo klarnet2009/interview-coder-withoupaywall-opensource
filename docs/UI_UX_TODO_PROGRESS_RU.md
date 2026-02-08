@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после Electron full strict mode)  
+Дата обновления: 2026-02-08 (после screenshot-processing integration coverage)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -71,7 +71,7 @@
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
-- [x] `npm run test` (34/34)
+- [x] `npm run test` (39/39)
 - [x] `npm run build`
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
@@ -84,6 +84,7 @@
 - [x] `electron ts phase-a` — `tsconfig.electron.json`: `noImplicitAny: true`, сборка без TS ошибок
 - [x] `integration tests` — добавлены `tests/integration/ipcContract.integration.test.ts` и `tests/integration/liveInterviewLifecycle.integration.test.ts` (`34/34`)
 - [x] `electron ts phase-b/c` — `strictNullChecks: true` и `strict: true`, Electron сборка стабильна
+- [x] `processing integration tests` — покрыты screenshot-processing/recovery ветки `ProcessingHelper` (`tests/integration/processingHelper.integration.test.ts`)
 
 ---
 
@@ -137,6 +138,9 @@
 - [x] `TECH-014` Закрыт: завершена Electron TypeScript strict migration
   - `tsconfig.electron.json`: `strictNullChecks` и `strict` переведены в `true`
   - `npx tsc -p tsconfig.electron.json`, `npm run lint`, `npm test`, `npm run build` проходят
+- [x] `TECH-015` Закрыт: добавлено integration coverage для screenshot processing/recovery
+  - Тестовые сценарии: queue-empty, extraction-failure + recovery, queue-success transition, debug-success path, provider-not-configured path
+  - Файл: `tests/integration/processingHelper.integration.test.ts`
 
 ---
 
