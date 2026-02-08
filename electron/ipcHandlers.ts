@@ -5,6 +5,7 @@ import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
 import { validateConfigUpdate, validateString, validateEnum } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
+import { logger } from "./logger"
 import {
   clearStoreData,
   clearSessionHistory,
@@ -40,26 +41,88 @@ interface LiveInterviewServiceInstance {
   ((event: "error", callback: (error: Error) => void) => void)
 }
 
+const REQUIRED_PRELOAD_INVOKE_CHANNELS = [
+  "open-settings-portal",
+  "update-content-dimensions",
+  "set-setup-window-size",
+  "clear-store",
+  "get-screenshots",
+  "delete-screenshot",
+  "toggle-window",
+  "openLink",
+  "trigger-screenshot",
+  "trigger-process-screenshots",
+  "trigger-reset",
+  "trigger-move-left",
+  "trigger-move-right",
+  "trigger-move-up",
+  "trigger-move-down",
+  "start-update",
+  "install-update",
+  "get-config",
+  "update-config",
+  "get-system-prompt-preview",
+  "get-session-history",
+  "get-session-history-item",
+  "delete-session-history-item",
+  "clear-session-history",
+  "set-window-opacity",
+  "check-api-key",
+  "validate-api-key",
+  "open-external-url",
+  "delete-last-screenshot",
+  "test-api-key",
+  "wizard-complete",
+  "wizard-reset",
+  "is-wizard-completed",
+  "get-audio-sources",
+  "test-audio",
+  "transcribe-audio",
+  "generate-hints",
+  "live-interview-start",
+  "live-interview-stop",
+  "live-interview-status",
+  "live-interview-send-text",
+  "live-interview-send-audio",
+  "quit-app",
+  "is-dev",
+  "toggle-stealth",
+  "set-always-on-top",
+  "set-stealth-mode"
+] as const
+
+const EXTERNAL_INVOKE_CHANNELS = ["start-update", "install-update"] as const
+const EXTERNAL_INVOKE_CHANNEL_SET = new Set<string>(EXTERNAL_INVOKE_CHANNELS)
+
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
-  console.log("Initializing IPC handlers")
+  logger.info("Initializing IPC handlers")
+
+  const registeredInvokeChannels = new Set<string>()
+  const registerHandle = (
+    channel: string,
+    handler: Parameters<typeof ipcMain.handle>[1]
+  ) => {
+    registeredInvokeChannels.add(channel)
+    ipcMain.handle(channel, handler)
+  }
 
   const openExternalUrl = (url: string) => {
     try {
-      console.log(`Opening external URL: ${url}`)
+      logger.info(`Opening external URL: ${url}`)
       shell.openExternal(url)
       return { success: true }
     } catch (error) {
-      console.error(`Error opening URL ${url}:`, error)
+      logger.error(`Error opening URL ${url}:`, error)
       return { success: false, error: `Failed to open URL: ${error}` }
     }
   }
 
   // Configuration handlers
-  ipcMain.handle("get-config", () => {
+  registerHandle("get-config", () => {
     return configHelper.loadConfig();
   })
 
-  ipcMain.handle("update-config", (_event, updates) => {
+  registerHandle("update-config", (_event, updates) => {
     // Validate input before processing
     const validation = validateConfigUpdate(updates);
     if (!validation.success) {
@@ -70,7 +133,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return configHelper.updateConfig(validation.data! as any);
   })
 
-  ipcMain.handle("set-window-opacity", (_event, opacity: number) => {
+  registerHandle("set-window-opacity", (_event, opacity: number) => {
     const win = deps.getMainWindow();
     if (win && !win.isDestroyed()) {
       const clamped = Math.max(0.1, Math.min(1.0, opacity));
@@ -81,13 +144,13 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return { success: false, error: 'No window available' };
   })
 
-  ipcMain.handle("check-api-key", () => {
+  registerHandle("check-api-key", () => {
     return configHelper.hasApiKey();
   })
 
 
 
-  ipcMain.handle("validate-api-key", async (_event, apiKey) => {
+  registerHandle("validate-api-key", async (_event, apiKey) => {
     // First check the format
     if (!configHelper.isValidApiKeyFormat(apiKey)) {
       return {
@@ -102,7 +165,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Test API key with specific provider
-  ipcMain.handle("test-api-key", async (_event, apiKey: string, provider?: "openai" | "gemini" | "anthropic") => {
+  registerHandle("test-api-key", async (_event, apiKey: string, provider?: "openai" | "gemini" | "anthropic") => {
     try {
       // Validate API key input
       const keyValidation = validateString(apiKey, 'apiKey', { minLength: 10, maxLength: 200 });
@@ -127,22 +190,22 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Wizard handlers
-  ipcMain.handle("wizard-complete", (_event, mode: 'quick' | 'advanced') => {
+  registerHandle("wizard-complete", (_event, mode: 'quick' | 'advanced') => {
     configHelper.completeWizard(mode);
     return { success: true };
   })
 
-  ipcMain.handle("wizard-reset", () => {
+  registerHandle("wizard-reset", () => {
     configHelper.resetWizard();
     return { success: true };
   })
 
-  ipcMain.handle("is-wizard-completed", () => {
+  registerHandle("is-wizard-completed", () => {
     return configHelper.isWizardCompleted();
   })
 
   // Audio sources handler
-  ipcMain.handle("get-audio-sources", async () => {
+  registerHandle("get-audio-sources", async () => {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['window'],
@@ -161,7 +224,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Audio test handler - tests audio recognition with Gemini
-  ipcMain.handle("test-audio", async (_event, audioData: { buffer: number[]; mimeType: string; apiKey?: string }) => {
+  registerHandle("test-audio", async (_event, audioData: { buffer: number[]; mimeType: string; apiKey?: string }) => {
     try {
       const processor = getAudioProcessor();
       // If apiKey is provided, set it directly
@@ -181,7 +244,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Transcribe audio chunk handler
-  ipcMain.handle("transcribe-audio", async (_event, audioData: { buffer: number[]; mimeType: string }) => {
+  registerHandle("transcribe-audio", async (_event, audioData: { buffer: number[]; mimeType: string }) => {
     try {
       const processor = getAudioProcessor();
       const buffer = Buffer.from(audioData.buffer);
@@ -201,7 +264,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Generate hints from transcript
-  ipcMain.handle("generate-hints", async (_event, transcript: string) => {
+  registerHandle("generate-hints", async (_event, transcript: string) => {
     try {
       const processor = getAudioProcessor();
       const hints = await processor.generateHints(transcript);
@@ -216,7 +279,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Credits handlers
-  ipcMain.handle("set-initial-credits", async (_event, credits: number) => {
+  registerHandle("set-initial-credits", async (_event, credits: number) => {
     const mainWindow = deps.getMainWindow()
     if (!mainWindow) return
 
@@ -232,7 +295,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("decrement-credits", async () => {
+  registerHandle("decrement-credits", async () => {
     const mainWindow = deps.getMainWindow()
     if (!mainWindow) return
 
@@ -252,7 +315,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("clear-store", () => {
+  registerHandle("clear-store", () => {
     try {
       clearStoreData()
     } catch (error) {
@@ -262,24 +325,24 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Screenshot queue handlers
-  ipcMain.handle("get-screenshot-queue", () => {
+  registerHandle("get-screenshot-queue", () => {
     return deps.getScreenshotQueue()
   })
 
-  ipcMain.handle("get-extra-screenshot-queue", () => {
+  registerHandle("get-extra-screenshot-queue", () => {
     return deps.getExtraScreenshotQueue()
   })
 
-  ipcMain.handle("delete-screenshot", async (event, path: string) => {
+  registerHandle("delete-screenshot", async (event, path: string) => {
     return deps.deleteScreenshot(path)
   })
 
-  ipcMain.handle("get-image-preview", async (event, path: string) => {
+  registerHandle("get-image-preview", async (event, path: string) => {
     return deps.getImagePreview(path)
   })
 
   // Screenshot processing handlers
-  ipcMain.handle("process-screenshots", async () => {
+  registerHandle("process-screenshots", async () => {
     // Check for API key before processing
     if (!configHelper.hasApiKey()) {
       const mainWindow = deps.getMainWindow();
@@ -293,7 +356,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Window dimension handlers
-  ipcMain.handle(
+  registerHandle(
     "update-content-dimensions",
     async (event, { width, height }: { width: number; height: number }) => {
       if (width && height) {
@@ -302,7 +365,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   )
 
-  ipcMain.handle(
+  registerHandle(
     "set-window-dimensions",
     (event, width: number, height: number) => {
       deps.setWindowDimensions(width, height)
@@ -310,7 +373,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   )
 
   // Setup-mode window sizing (centered, no width cap)
-  ipcMain.handle(
+  registerHandle(
     "set-setup-window-size",
     (_event, { width, height }: { width: number; height: number }) => {
       deps.setSetupWindowSize(width, height)
@@ -318,7 +381,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   )
 
   // Screenshot management handlers
-  ipcMain.handle("get-screenshots", async () => {
+  registerHandle("get-screenshots", async () => {
     try {
       let previews = []
       const currentView = deps.getView()
@@ -349,7 +412,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Screenshot trigger handlers
-  ipcMain.handle("trigger-screenshot", async () => {
+  registerHandle("trigger-screenshot", async () => {
     const mainWindow = deps.getMainWindow()
     if (mainWindow) {
       try {
@@ -368,7 +431,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return { error: "No main window available" }
   })
 
-  ipcMain.handle("take-screenshot", async () => {
+  registerHandle("take-screenshot", async () => {
     try {
       const screenshotPath = await deps.takeScreenshot()
       const preview = await deps.getImagePreview(screenshotPath)
@@ -381,22 +444,22 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   // Auth-related handlers removed
 
-  ipcMain.handle("open-external-url", (event, url: string) => {
+  registerHandle("open-external-url", (event, url: string) => {
     return openExternalUrl(url)
   })
 
   // Open external URL handler
-  ipcMain.handle("openLink", (event, url: string) => {
+  registerHandle("openLink", (event, url: string) => {
     return openExternalUrl(url)
   })
 
   // Keep backward compatibility for preload/runtime code that still invokes "openExternal"
-  ipcMain.handle("openExternal", (_event, url: string) => {
+  registerHandle("openExternal", (_event, url: string) => {
     return openExternalUrl(url)
   })
 
   // Settings portal handler
-  ipcMain.handle("open-settings-portal", () => {
+  registerHandle("open-settings-portal", () => {
     const mainWindow = deps.getMainWindow();
     if (mainWindow) {
       mainWindow.webContents.send("show-settings-dialog");
@@ -406,12 +469,12 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Dev mode detection
-  ipcMain.handle("is-dev", () => {
+  registerHandle("is-dev", () => {
     return process.env.NODE_ENV === "development";
   })
 
   // Set always-on-top at runtime and persist to config
-  ipcMain.handle("set-always-on-top", (_event, enabled: boolean) => {
+  registerHandle("set-always-on-top", (_event, enabled: boolean) => {
     const win = deps.getMainWindow();
     if (win) {
       if (enabled) {
@@ -427,7 +490,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Set stealth mode at runtime and persist to config
-  ipcMain.handle("set-stealth-mode", (_event, enabled: boolean) => {
+  registerHandle("set-stealth-mode", (_event, enabled: boolean) => {
     const win = deps.getMainWindow();
     if (win) {
       win.setContentProtection(enabled);
@@ -440,7 +503,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Toggle stealth mode at runtime (dev mode only)
-  ipcMain.handle("toggle-stealth", (_event, enable: boolean) => {
+  registerHandle("toggle-stealth", (_event, enable: boolean) => {
     if (process.env.NODE_ENV !== "development") {
       return { success: false, error: "Only available in dev mode" };
     }
@@ -455,12 +518,12 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Quit application handler
-  ipcMain.handle("quit-app", () => {
+  registerHandle("quit-app", () => {
     app.quit();
   })
 
   // Window management handlers
-  ipcMain.handle("toggle-window", () => {
+  registerHandle("toggle-window", () => {
     try {
       deps.toggleMainWindow()
       return { success: true }
@@ -470,7 +533,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("reset-queues", async () => {
+  registerHandle("reset-queues", async () => {
     try {
       deps.clearQueues()
       return { success: true }
@@ -481,7 +544,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Process screenshot handlers
-  ipcMain.handle("trigger-process-screenshots", async () => {
+  registerHandle("trigger-process-screenshots", async () => {
     try {
       // Check for API key before processing
       if (!configHelper.hasApiKey()) {
@@ -501,7 +564,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Reset handlers
-  ipcMain.handle("trigger-reset", () => {
+  registerHandle("trigger-reset", () => {
     try {
       // First cancel any ongoing requests
       deps.processingHelper?.cancelOngoingRequests()
@@ -528,7 +591,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Window movement handlers
-  ipcMain.handle("trigger-move-left", () => {
+  registerHandle("trigger-move-left", () => {
     try {
       deps.moveWindowLeft()
       return { success: true }
@@ -538,7 +601,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("trigger-move-right", () => {
+  registerHandle("trigger-move-right", () => {
     try {
       deps.moveWindowRight()
       return { success: true }
@@ -548,7 +611,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("trigger-move-up", () => {
+  registerHandle("trigger-move-up", () => {
     try {
       deps.moveWindowUp()
       return { success: true }
@@ -558,7 +621,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("trigger-move-down", () => {
+  registerHandle("trigger-move-down", () => {
     try {
       deps.moveWindowDown()
       return { success: true }
@@ -569,7 +632,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Delete last screenshot handler
-  ipcMain.handle("delete-last-screenshot", async () => {
+  registerHandle("delete-last-screenshot", async () => {
     try {
       const queue = deps.getView() === "queue"
         ? deps.getScreenshotQueue()
@@ -599,7 +662,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // ========== Session History ==========
-  ipcMain.handle("get-session-history", () => {
+  registerHandle("get-session-history", () => {
     try {
       return getSessionHistory()
     } catch (error) {
@@ -608,7 +671,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("get-session-history-item", (_event, sessionId: string) => {
+  registerHandle("get-session-history-item", (_event, sessionId: string) => {
     try {
       const id = typeof sessionId === "string" ? sessionId : ""
       if (!id) {
@@ -621,7 +684,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("delete-session-history-item", (_event, sessionId: string) => {
+  registerHandle("delete-session-history-item", (_event, sessionId: string) => {
     try {
       const id = typeof sessionId === "string" ? sessionId : ""
       if (!id) {
@@ -635,7 +698,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  ipcMain.handle("clear-session-history", () => {
+  registerHandle("clear-session-history", () => {
     try {
       clearSessionHistory()
       return { success: true }
@@ -646,7 +709,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // ========== System Prompt Preview ==========
-  ipcMain.handle("get-system-prompt-preview", async () => {
+  registerHandle("get-system-prompt-preview", async () => {
     const savedConfig = configHelper.loadConfig();
     const prefs = savedConfig.interviewPreferences;
 
@@ -686,7 +749,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   let liveInterviewService: LiveInterviewServiceInstance | null = null;
 
-  ipcMain.handle("live-interview-start", async (_event, config: {
+  registerHandle("live-interview-start", async (_event, config: {
     systemInstruction?: string;
     modelName?: string;
     apiKeyOverride?: string;
@@ -754,7 +817,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   });
 
-  ipcMain.handle("live-interview-stop", async () => {
+  registerHandle("live-interview-stop", async () => {
     try {
       if (liveInterviewService) {
         await liveInterviewService.stop();
@@ -767,14 +830,14 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   });
 
-  ipcMain.handle("live-interview-status", () => {
+  registerHandle("live-interview-status", () => {
     if (liveInterviewService) {
       return liveInterviewService.getStatus();
     }
     return { state: 'idle', transcript: '', response: '', audioLevel: 0 };
   });
 
-  ipcMain.handle("live-interview-send-text", async (_event, text: string) => {
+  registerHandle("live-interview-send-text", async (_event, text: string) => {
     try {
       if (liveInterviewService && liveInterviewService.geminiService) {
         liveInterviewService.geminiService.sendText(text);
@@ -787,7 +850,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   });
 
   // Receive audio chunks from renderer process
-  ipcMain.handle("live-interview-send-audio", (_event, pcmBase64: string, level: number) => {
+  registerHandle("live-interview-send-audio", (_event, pcmBase64: string, level: number) => {
     if (liveInterviewService && liveInterviewService.isActive()) {
       liveInterviewService.receiveAudio(pcmBase64, level);
       return { success: true };
@@ -795,5 +858,20 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return { success: false };
   });
 
+  const missingInvokeChannels = REQUIRED_PRELOAD_INVOKE_CHANNELS.filter(
+    (channel) =>
+      !registeredInvokeChannels.has(channel) &&
+      !EXTERNAL_INVOKE_CHANNEL_SET.has(channel)
+  )
+
+  if (missingInvokeChannels.length > 0) {
+    const message = `IPC invoke contract mismatch. Missing handlers: ${missingInvokeChannels.join(", ")}`
+    logger.error(message)
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(message)
+    }
+  }
+
 }
+
 

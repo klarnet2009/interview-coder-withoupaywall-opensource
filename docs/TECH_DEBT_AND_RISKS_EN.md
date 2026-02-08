@@ -32,10 +32,11 @@ Resolved:
 - Added ADR for live-audio ownership boundaries (`docs/adr/ADR-001-live-audio-pipeline-boundaries.md`).
 - Introduced centralized logger wrapper (`electron/logger.ts`) and migrated processing orchestration paths off direct `console.*`.
 - Quarantined unused parallel audio capture abstractions into `*.legacy.ts` modules and excluded them from active builds.
+- Added runtime IPC invoke self-check in `initializeIpcHandlers` (with explicit external-channel allowance).
 
 Still open:
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` still owns runtime side-effects and can be further hook-extracted.
-- Runtime startup self-check for invoke-channel parity is still test-driven (integration) rather than runtime-enforced.
+- Logging policy rollout beyond processing path is still pending in several runtime modules.
 
 ## Current Findings
 
@@ -49,15 +50,11 @@ Still open:
 
 ### P2
 
-2. Runtime startup contract validation is still test-only
-- IPC invoke parity is enforced by integration tests and CI, but not by runtime startup assertion.
-- Impact: drift is caught in CI rather than immediately at local runtime boot.
-
-3. Runtime logging is still noisy in production paths
+2. Runtime logging is still noisy in production paths
 - Logging policy is now centralized in processing paths, but broad `console.*` usage remains in other runtime modules.
 - Impact: noisy diagnostics and increased risk of leaking internal state.
 
-4. UnifiedPanel still has runtime side-effect ownership
+3. UnifiedPanel still has runtime side-effect ownership
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` was reduced substantially but still coordinates multiple runtime concerns.
 - Impact: medium change risk in UI runtime control logic.
 
@@ -99,7 +96,7 @@ Status: `completed` for active runtime contracts; continue incremental cleanup o
 ## Quick Wins
 
 1. Add a startup IPC contract self-check (assert all preload invokes are handled in main).
-Status: `partially covered` by `ipcContract.integration.test.ts` + CI gate.
+Status: `completed` (runtime self-check + integration test + CI gate).
 2. Add CI gates for `lint`, `test`, and targeted integration smoke tests.
 Status: `completed`.
 3. Add architectural ADR notes for audio/live pipeline ownership boundaries.

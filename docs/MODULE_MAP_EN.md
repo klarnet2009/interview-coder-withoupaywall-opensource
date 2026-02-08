@@ -13,7 +13,7 @@
 ### Core Runtime
 
 - `electron/main.ts`: app lifecycle, BrowserWindow setup, helper wiring, IPC bootstrap, shortcuts registration.
-- `electron/ipcHandlers.ts`: all `ipcMain.handle` routes for config, screenshot flow, live interview flow, and window controls.
+- `electron/ipcHandlers.ts`: all `ipcMain.handle` routes for config, screenshot flow, live interview flow, window controls, and startup invoke-contract self-check.
 - `electron/preload.ts`: `window.electronAPI` bridge with invoke/listener wrappers.
 - `electron/shortcuts.ts`: global shortcut registrations and handlers.
 - `electron/autoUpdater.ts`: update check/download/install wiring.

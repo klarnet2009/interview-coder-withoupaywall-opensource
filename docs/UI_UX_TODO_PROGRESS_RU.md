@@ -179,6 +179,10 @@
   - `src/services/AudioCaptureService.ts` -> `src/services/AudioCaptureService.legacy.ts`
   - Удалены legacy exports из `electron/audio/index.ts`
   - `tsconfig.json` и `tsconfig.electron.json` исключают `**/*.legacy.ts`
+- [x] `TECH-023` Закрыт: runtime IPC invoke self-check на старте
+  - `electron/ipcHandlers.ts` теперь регистрирует invoke-каналы через реестр `registerHandle`
+  - Добавлена startup-проверка соответствия preload invoke contract
+  - Внешние каналы (`start-update`, `install-update`) помечены как external handlers
 
 ---
 

@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-022)
+- Post-sprint technical hardening (TECH-004 to TECH-023)
 
 ## Sprint Highlights
 
@@ -99,6 +99,9 @@ This release consolidates the full UI/UX redesign program:
   - moved inactive capture abstractions to `*.legacy.ts`
   - excluded `**/*.legacy.ts` from active TypeScript builds
   - removed legacy capture exports from active audio module index
+- TECH-023: Runtime IPC invoke self-check:
+  - invoke handlers are now registered via tracked `registerHandle` in `ipcHandlers`
+  - startup validates preload invoke-channel parity (with explicit external handler allowance)
 
 ## Additional Reliability Updates
 

@@ -62,6 +62,9 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - moved inactive audio capture abstractions to `*.legacy.ts`
   - excluded `**/*.legacy.ts` from active TS builds
   - removed legacy capture exports from active audio module barrel
+- Runtime IPC self-check:
+  - `ipcHandlers` now tracks registered invoke channels via `registerHandle`
+  - startup asserts preload invoke-channel parity (external updater channels explicitly allowlisted)
 
 ## Related Commits
 
