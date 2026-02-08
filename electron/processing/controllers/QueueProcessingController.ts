@@ -34,93 +34,117 @@ const isProviderConfigError = (message: string): boolean => {
 
 export class QueueProcessingController {
   private readonly context: ProcessingControllerContext
+  private isRunning = false
 
   constructor(context: ProcessingControllerContext) {
     this.context = context
+  }
+
+  /**
+   * Safe IPC send — guards against window being destroyed during async processing
+   */
+  private safeSend(channel: string, ...args: unknown[]): void {
+    const mainWindow = this.context.getMainWindow()
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, ...args)
+      }
+    } catch (error) {
+      logger.warn(`Failed to send IPC message '${channel}':`, error)
+    }
   }
 
   public async run(
     signal: AbortSignal,
     onTimeoutAbort: () => void
   ): Promise<void> {
-    const { deps, screenshotHelper } = this.context
-    const mainWindow = this.context.getMainWindow()
-    if (!mainWindow) {
+    if (this.isRunning) {
+      logger.warn("QueueProcessingController: Already running, ignoring duplicate call")
       return
     }
-
-    mainWindow.webContents.send(deps.PROCESSING_EVENTS.INITIAL_START)
-
-    const screenshotQueue = screenshotHelper.getScreenshotQueue()
-    logger.info("Processing main queue screenshots:", screenshotQueue)
-
-    if (!screenshotQueue || screenshotQueue.length === 0) {
-      logger.info("No screenshots found in queue")
-      mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
-      return
-    }
-
-    const existingScreenshots = filterExistingScreenshotPaths(screenshotQueue)
-    if (existingScreenshots.length === 0) {
-      logger.warn("Screenshot files don't exist on disk")
-      mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
-      return
-    }
+    this.isRunning = true
 
     try {
-      const screenshots = await loadScreenshotPayloads(existingScreenshots)
-      if (screenshots.length === 0) {
-        throw new Error("Failed to load screenshot data")
+      const { deps, screenshotHelper } = this.context
+      const mainWindow = this.context.getMainWindow()
+      if (!mainWindow) {
+        return
       }
 
-      const result = await this.processScreenshots(
-        screenshots,
-        signal,
-        onTimeoutAbort
-      )
+      this.safeSend(deps.PROCESSING_EVENTS.INITIAL_START)
 
-      if (!result.success) {
-        if (result.error && isProviderConfigError(result.error)) {
-          mainWindow.webContents.send(deps.PROCESSING_EVENTS.API_KEY_INVALID)
-        } else {
-          mainWindow.webContents.send(
+      const screenshotQueue = screenshotHelper.getScreenshotQueue()
+      logger.info("Processing main queue screenshots:", screenshotQueue)
+
+      if (!screenshotQueue || screenshotQueue.length === 0) {
+        logger.info("No screenshots found in queue")
+        this.safeSend(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+        return
+      }
+
+      const existingScreenshots = await filterExistingScreenshotPaths(screenshotQueue)
+      if (existingScreenshots.length === 0) {
+        logger.warn("Screenshot files don't exist on disk")
+        this.safeSend(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+        return
+      }
+
+      try {
+        const screenshots = await loadScreenshotPayloads(existingScreenshots)
+        if (screenshots.length === 0) {
+          throw new Error("Failed to load screenshot data")
+        }
+
+        const result = await this.processScreenshots(
+          screenshots,
+          signal,
+          onTimeoutAbort
+        )
+
+        if (!result.success) {
+          if (result.error && isProviderConfigError(result.error)) {
+            this.safeSend(deps.PROCESSING_EVENTS.API_KEY_INVALID)
+          } else {
+            this.safeSend(
+              deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+              result.error
+            )
+          }
+          logger.info("Resetting view to queue due to error")
+          deps.setView("queue")
+          return
+        }
+
+        logger.info("Setting view to solutions after successful processing")
+        this.safeSend(
+          deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
+          result.data
+        )
+        deps.setView("solutions")
+      } catch (error: unknown) {
+        if (isProviderTimeoutError(error)) {
+          this.safeSend(
             deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
-            result.error
+            `AI provider timed out while ${error.stage}. Please retry or switch provider/model.`
+          )
+        } else if (axios.isCancel(error)) {
+          this.safeSend(
+            deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            "Processing was canceled by the user."
+          )
+        } else {
+          this.safeSend(
+            deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            this.context.getErrorMessage(error, "Server error. Please try again.")
           )
         }
         logger.info("Resetting view to queue due to error")
         deps.setView("queue")
-        return
       }
-
-      logger.info("Setting view to solutions after successful processing")
-      mainWindow.webContents.send(
-        deps.PROCESSING_EVENTS.SOLUTION_SUCCESS,
-        result.data
-      )
-      deps.setView("solutions")
-    } catch (error: unknown) {
-      if (isProviderTimeoutError(error)) {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
-          `AI provider timed out while ${error.stage}. Please retry or switch provider/model.`
-        )
-      } else if (axios.isCancel(error)) {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
-          "Processing was canceled by the user."
-        )
-      } else {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
-          this.context.getErrorMessage(error, "Server error. Please try again.")
-        )
-      }
-      logger.info("Resetting view to queue due to error")
-      deps.setView("queue")
+    } finally {
+      this.isRunning = false
     }
   }
-
   private async processScreenshots(
     screenshots: Base64ScreenshotPayload[],
     signal: AbortSignal,
@@ -134,7 +158,7 @@ export class QueueProcessingController {
       const imageDataList = screenshots.map((screenshot) => screenshot.data)
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Analyzing problem from screenshots...",
           progress: 20
         })
@@ -171,7 +195,7 @@ export class QueueProcessingController {
       const problemInfo = extractionResult.data
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Problem analyzed successfully. Preparing to generate solution...",
           progress: 40
         })
@@ -180,7 +204,7 @@ export class QueueProcessingController {
       this.context.deps.setProblemInfo(problemInfo)
 
       if (mainWindow) {
-        mainWindow.webContents.send(
+        this.safeSend(
           this.context.deps.PROCESSING_EVENTS.PROBLEM_EXTRACTED,
           problemInfo
         )
@@ -202,7 +226,7 @@ export class QueueProcessingController {
       this.context.screenshotHelper.clearExtraScreenshotQueue()
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Solution generated successfully",
           progress: 100
         })
@@ -267,7 +291,7 @@ export class QueueProcessingController {
       const mainWindow = this.context.getMainWindow()
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Creating optimal solution with detailed explanations...",
           progress: 60
         })

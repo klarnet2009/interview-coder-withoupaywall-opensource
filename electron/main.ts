@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, shell } from "electron"
+import { app, BrowserWindow, desktopCapturer, screen, session, shell } from "electron"
 import path from "path"
 import fs from "fs"
 import { initializeIpcHandlers } from "./ipcHandlers"
@@ -276,10 +276,10 @@ async function createWindow(): Promise<void> {
 
   // Configure window behavior
   state.mainWindow.webContents.setZoomFactor(1)
-  // DevTools hidden by default, toggle with F12
-  // if (isDev) {
-  //   state.mainWindow.webContents.openDevTools()
-  // }
+  // DevTools auto-open in development
+  if (isDev) {
+    state.mainWindow.webContents.openDevTools({ mode: 'detach' })
+  }
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     runtimeLogger.debug("Attempting to open URL:", url)
     try {
@@ -586,6 +586,19 @@ async function initializeApp() {
     } catch (error) {
       runtimeLogger.error("Failed to register protocol:", error)
     }
+
+    // Allow getDisplayMedia() in renderer for system audio capture
+    session.defaultSession.setDisplayMediaRequestHandler(
+      async (_request, callback) => {
+        // Auto-grant with the entire screen so we get system audio
+        const sources = await desktopCapturer.getSources({ types: ['screen'] })
+        if (sources.length > 0) {
+          callback({ video: sources[0], audio: 'loopback' })
+        } else {
+          callback({})
+        }
+      }
+    )
 
     // Ensure a configuration file exists
     if (!configHelper.hasApiKey()) {

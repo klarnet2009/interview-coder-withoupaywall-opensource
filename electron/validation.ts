@@ -193,17 +193,70 @@ export function validateConfigUpdate(input: unknown): ValidationResult<ConfigUpd
 }
 
 /**
- * Validate file path (basic security check)
+ * Validate file path (security check with normalization)
  */
 export function validateFilePath(value: unknown, fieldName: string): ValidationResult<string> {
     if (typeof value !== 'string') {
         return { success: false, error: `${fieldName} must be a string` };
     }
 
-    // Basic path traversal protection
-    if (value.includes('..') || value.includes('\0')) {
+    // Reject null bytes
+    if (value.includes('\0')) {
         return { success: false, error: `${fieldName} contains invalid characters` };
     }
 
-    return { success: true, data: value };
+    // Normalize and resolve to catch traversal via encoding tricks
+    const path = require('path');
+    const resolved = path.resolve(value);
+
+    // Check that resolved path doesn't differ in a suspicious way (traversal attempt)
+    if (resolved.includes('..')) {
+        return { success: false, error: `${fieldName} contains path traversal` };
+    }
+
+    return { success: true, data: resolved };
+}
+
+/**
+ * Validate that a file path is contained within an allowed directory
+ */
+export function validateFilePathContained(
+    value: unknown,
+    fieldName: string,
+    allowedDir: string
+): ValidationResult<string> {
+    const pathResult = validateFilePath(value, fieldName);
+    if (!pathResult.success) {
+        return pathResult;
+    }
+
+    const path = require('path');
+    const normalizedAllowed = path.resolve(allowedDir);
+    const normalizedPath = pathResult.data!;
+
+    if (!normalizedPath.startsWith(normalizedAllowed + path.sep) && normalizedPath !== normalizedAllowed) {
+        return { success: false, error: `${fieldName} is outside allowed directory` };
+    }
+
+    return { success: true, data: normalizedPath };
+}
+
+/**
+ * Validate URL with protocol whitelist
+ */
+export function validateUrl(value: unknown, fieldName: string): ValidationResult<string> {
+    if (typeof value !== 'string') {
+        return { success: false, error: `${fieldName} must be a string` };
+    }
+
+    try {
+        const parsed = new URL(value);
+        const allowedProtocols = ['http:', 'https:'];
+        if (!allowedProtocols.includes(parsed.protocol)) {
+            return { success: false, error: `${fieldName} uses disallowed protocol: ${parsed.protocol}` };
+        }
+        return { success: true, data: value };
+    } catch {
+        return { success: false, error: `${fieldName} is not a valid URL` };
+    }
 }

@@ -6,8 +6,20 @@ export interface Base64ScreenshotPayload {
   data: string
 }
 
-export const filterExistingScreenshotPaths = (paths: string[]): string[] => {
-  return paths.filter((path) => fs.existsSync(path))
+export const filterExistingScreenshotPaths = async (
+  paths: string[]
+): Promise<string[]> => {
+  const results = await Promise.all(
+    paths.map(async (p) => {
+      try {
+        await fs.promises.access(p)
+        return p
+      } catch {
+        return null
+      }
+    })
+  )
+  return results.filter((p): p is string => p !== null)
 }
 
 export const loadScreenshotPayloads = async (
@@ -16,9 +28,10 @@ export const loadScreenshotPayloads = async (
   const loaded = await Promise.all(
     paths.map(async (path) => {
       try {
+        const data = await fs.promises.readFile(path)
         return {
           path,
-          data: fs.readFileSync(path).toString("base64")
+          data: data.toString("base64")
         }
       } catch (error) {
         logger.error(`Error reading screenshot ${path}:`, error)

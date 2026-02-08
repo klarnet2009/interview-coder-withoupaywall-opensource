@@ -3,7 +3,7 @@
 import { app, ipcMain, shell, desktopCapturer } from "electron"
 import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
-import { validateConfigUpdate, validateString, validateEnum } from "./validation"
+import { validateConfigUpdate, validateString, validateEnum, validateUrl, validateFilePath } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
 import { logger } from "./logger"
 import {
@@ -33,12 +33,11 @@ interface LiveInterviewServiceInstance {
   }
   receiveAudio: (pcmBase64: string, level: number) => void
   isActive: () => boolean
-  geminiService?: {
-    sendText: (text: string) => void
-  }
+  sendText: (text: string) => void
   on: ((event: "status", callback: (status: unknown) => void) => void) &
   ((event: "stateChange", callback: (state: string) => void) => void) &
   ((event: "error", callback: (error: Error) => void) => void)
+  removeAllListeners: (event?: string) => void
 }
 
 const REQUIRED_PRELOAD_INVOKE_CHANNELS = [
@@ -108,6 +107,11 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   const openExternalUrl = (url: string) => {
     try {
+      const urlValidation = validateUrl(url, 'url');
+      if (!urlValidation.success) {
+        logger.warn(`Blocked external URL: ${url} - ${urlValidation.error}`);
+        return { success: false, error: urlValidation.error };
+      }
       logger.info(`Opening external URL: ${url}`)
       shell.openExternal(url)
       return { success: true }
@@ -122,15 +126,14 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return configHelper.loadConfig();
   })
 
-  registerHandle("update-config", (_event, updates) => {
+  registerHandle("update-config", (_event, updates: Record<string, unknown>) => {
     // Validate input before processing
     const validation = validateConfigUpdate(updates);
     if (!validation.success) {
       logger.warn('Invalid config update:', validation.error);
       throw new Error(validation.error);
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return configHelper.updateConfig(validation.data! as any);
+    return configHelper.updateConfig(validation.data as unknown as Partial<ReturnType<typeof configHelper.loadConfig>>);
   })
 
   registerHandle("set-window-opacity", (_event, opacity: number) => {
@@ -150,7 +153,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
 
 
-  registerHandle("validate-api-key", async (_event, apiKey) => {
+  registerHandle("validate-api-key", async (_event, apiKey: string) => {
     // First check the format
     if (!configHelper.isValidApiKeyFormat(apiKey)) {
       return {
@@ -230,6 +233,10 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       // If apiKey is provided, set it directly
       if (audioData.apiKey) {
         processor.setApiKey(audioData.apiKey);
+      }
+      const MAX_AUDIO_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB
+      if (!audioData.buffer || audioData.buffer.length > MAX_AUDIO_BUFFER_SIZE) {
+        return { success: false, error: `Audio buffer exceeds maximum size (${MAX_AUDIO_BUFFER_SIZE} bytes)` };
       }
       const buffer = Buffer.from(audioData.buffer);
       const result = await processor.testAudio(buffer, audioData.mimeType);
@@ -334,11 +341,21 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   registerHandle("delete-screenshot", async (event, path: string) => {
-    return deps.deleteScreenshot(path)
+    const pathValidation = validateFilePath(path, 'path');
+    if (!pathValidation.success) {
+      logger.warn(`delete-screenshot: invalid path - ${pathValidation.error}`);
+      return { success: false, error: pathValidation.error };
+    }
+    return deps.deleteScreenshot(pathValidation.data!)
   })
 
   registerHandle("get-image-preview", async (event, path: string) => {
-    return deps.getImagePreview(path)
+    const pathValidation = validateFilePath(path, 'path');
+    if (!pathValidation.success) {
+      logger.warn(`get-image-preview: invalid path - ${pathValidation.error}`);
+      return '';
+    }
+    return deps.getImagePreview(pathValidation.data!)
   })
 
   // Screenshot processing handlers
@@ -758,6 +775,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     try {
       // Clean up any existing service first
       if (liveInterviewService) {
+        liveInterviewService.removeAllListeners?.();
         try {
           await liveInterviewService.stop();
         } catch {
@@ -820,6 +838,7 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   registerHandle("live-interview-stop", async () => {
     try {
       if (liveInterviewService) {
+        liveInterviewService.removeAllListeners?.();
         await liveInterviewService.stop();
         liveInterviewService = null;
       }
@@ -839,12 +858,13 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   registerHandle("live-interview-send-text", async (_event, text: string) => {
     try {
-      if (liveInterviewService && liveInterviewService.geminiService) {
-        liveInterviewService.geminiService.sendText(text);
+      if (liveInterviewService) {
+        liveInterviewService.sendText(text);
         return { success: true };
       }
       return { success: false, error: "Not connected" };
     } catch (error: unknown) {
+      logger.error("Failed to send live text:", error);
       return { success: false, error: getErrorMessage(error, "Failed to send live text") };
     }
   });

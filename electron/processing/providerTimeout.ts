@@ -50,7 +50,7 @@ export const runWithProviderTimeout = async <T>(
     throw new Error("Processing was canceled by the user.")
   }
 
-  let timer: NodeJS.Timeout | null = null
+  let timer: ReturnType<typeof setTimeout> | null = null
 
   try {
     return await Promise.race([

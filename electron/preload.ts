@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron"
-import { createScopedLogger } from "./logger"
 
-const runtimeLogger = createScopedLogger("preload")
+// NOTE: Cannot use createScopedLogger here — it imports path/fs which are
+// unavailable in Electron's sandboxed preload context.
+const log = (msg: string, ...args: unknown[]) => console.log(`[preload] ${msg}`, ...args)
+const logError = (msg: string, ...args: unknown[]) => console.error(`[preload] ${msg}`, ...args)
 
-runtimeLogger.debug("Preload script starting...")
+log("Preload script starting...")
 
 type UnknownPayload = Record<string, unknown>
 type UpdateEventInfo = {
@@ -14,7 +16,7 @@ type UpdateEventInfo = {
 
 export const PROCESSING_EVENTS = {
   //global states
-  UNAUTHORIZED: "procesing-unauthorized",
+  UNAUTHORIZED: "processing-unauthorized",
   NO_SCREENSHOTS: "processing-no-screenshots",
   OUT_OF_CREDITS: "out-of-credits",
   API_KEY_INVALID: "api-key-invalid",
@@ -33,7 +35,7 @@ export const PROCESSING_EVENTS = {
 } as const
 
 // At the top of the file
-runtimeLogger.debug("Preload script is running")
+log("Preload script is running")
 
 const electronAPI = {
   // Original methods
@@ -47,13 +49,13 @@ const electronAPI = {
   deleteScreenshot: (path: string) =>
     ipcRenderer.invoke("delete-screenshot", path),
   toggleMainWindow: async () => {
-    runtimeLogger.debug("toggleMainWindow called from preload")
+    log("toggleMainWindow called from preload")
     try {
       const result = await ipcRenderer.invoke("toggle-window")
-      runtimeLogger.debug("toggle-window result:", result)
+      log("toggle-window result:", result)
       return result
     } catch (error) {
-      runtimeLogger.error("Error in toggleMainWindow:", error)
+      logError("Error in toggleMainWindow:", error)
       throw error
     }
   },
@@ -318,7 +320,7 @@ const electronAPI = {
 }
 
 // Before exposing the API
-runtimeLogger.debug(
+log(
   "About to expose electronAPI with methods:",
   Object.keys(electronAPI)
 )
@@ -326,7 +328,7 @@ runtimeLogger.debug(
 // Expose the API
 contextBridge.exposeInMainWorld("electronAPI", electronAPI)
 
-runtimeLogger.debug("electronAPI exposed to window")
+log("electronAPI exposed to window")
 
 // Add this focus restoration handler
 ipcRenderer.on("restore-focus", () => {

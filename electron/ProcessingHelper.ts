@@ -10,6 +10,10 @@ import { getProviderTimeoutMs } from "./processing/providerTimeout"
 import type { ProviderConfig } from "./processing/types"
 import { logger } from "./logger"
 
+/** Maximum polls while waiting for renderer initialization (50 × 100ms = 5s) */
+const INITIALIZATION_MAX_ATTEMPTS = 50
+const INITIALIZATION_POLL_MS = 100
+
 export class ProcessingHelper {
   private readonly deps: IProcessingHelperDeps
   private readonly screenshotHelper: ScreenshotHelper | null
@@ -67,18 +71,14 @@ export class ProcessingHelper {
   }
 
   private async waitForInitialization(mainWindow: BrowserWindow): Promise<void> {
-    let attempts = 0
-    const maxAttempts = 50
-
-    while (attempts < maxAttempts) {
+    for (let attempt = 0; attempt < INITIALIZATION_MAX_ATTEMPTS; attempt++) {
       const isInitialized = await mainWindow.webContents.executeJavaScript(
         "window.__IS_INITIALIZED__"
       )
       if (isInitialized) {
         return
       }
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      attempts++
+      await new Promise((resolve) => setTimeout(resolve, INITIALIZATION_POLL_MS))
     }
 
     throw new Error("App failed to initialize after 5 seconds")
@@ -162,7 +162,7 @@ export class ProcessingHelper {
       try {
         const queueController = new QueueProcessingController(context)
         await queueController.run(signal, () => {
-          if (this.currentProcessingAbortController?.signal.aborted) {
+          if (signal.aborted || this.currentProcessingAbortController?.signal.aborted) {
             return
           }
           this.currentProcessingAbortController?.abort()
@@ -178,7 +178,7 @@ export class ProcessingHelper {
     try {
       const debugController = new DebugProcessingController(context)
       await debugController.run(signal, () => {
-        if (this.currentExtraProcessingAbortController?.signal.aborted) {
+        if (signal.aborted || this.currentExtraProcessingAbortController?.signal.aborted) {
           return
         }
         this.currentExtraProcessingAbortController?.abort()

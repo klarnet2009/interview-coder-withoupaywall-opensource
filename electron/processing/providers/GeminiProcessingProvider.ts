@@ -91,9 +91,16 @@ export class GeminiProcessingProvider implements ProcessingProviderStrategy {
       }
 
       const jsonText = responseText.replace(/```json|```/g, "").trim()
-      return {
-        success: true,
-        data: JSON.parse(jsonText) as ProblemInfo
+      try {
+        return {
+          success: true,
+          data: JSON.parse(jsonText) as ProblemInfo
+        }
+      } catch {
+        return {
+          success: false,
+          error: "Failed to parse problem information from Gemini response. Please try again."
+        }
       }
     } catch {
       return {

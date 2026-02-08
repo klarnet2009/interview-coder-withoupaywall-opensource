@@ -90,9 +90,14 @@ export class SecureStorage {
     }
 
     /**
-     * Save encrypted data to disk
+     * Save encrypted data to disk (async, fire-and-forget).
+     * The in-memory cache is always authoritative.
      */
     private save(): void {
+        void this.performSave();
+    }
+
+    private async performSave(): Promise<void> {
         try {
             const encrypted: { [key: string]: string } = {};
             log.info('SecureStorage: Saving to', this.filePath);
@@ -105,14 +110,13 @@ export class SecureStorage {
                         encrypted[key] = buffer.toString('base64');
                         log.info(`SecureStorage: Encrypted "${key}", original length: ${this.cache[key].length}, encrypted length: ${encrypted[key].length}`);
                     } else {
-                        // Fallback: store as plain text (with warning)
                         log.warn('safeStorage not available, storing data without encryption');
                         encrypted[key] = this.cache[key];
                     }
                 }
             }
 
-            fs.writeFileSync(this.filePath, JSON.stringify(encrypted, null, 2));
+            await fs.promises.writeFile(this.filePath, JSON.stringify(encrypted, null, 2));
             log.info('SecureStorage: Saved successfully');
         } catch (err) {
             log.error('Failed to save secure storage:', err);

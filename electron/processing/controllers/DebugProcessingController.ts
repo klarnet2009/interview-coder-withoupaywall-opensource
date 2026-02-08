@@ -21,84 +21,109 @@ interface DebugFlowResult {
 
 export class DebugProcessingController {
   private readonly context: ProcessingControllerContext
+  private isRunning = false
 
   constructor(context: ProcessingControllerContext) {
     this.context = context
+  }
+
+  /**
+   * Safe IPC send — guards against window being destroyed during async processing
+   */
+  private safeSend(channel: string, ...args: unknown[]): void {
+    const mainWindow = this.context.getMainWindow()
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, ...args)
+      }
+    } catch (error) {
+      logger.warn(`Failed to send IPC message '${channel}':`, error)
+    }
   }
 
   public async run(
     signal: AbortSignal,
     onTimeoutAbort: () => void
   ): Promise<void> {
-    const { deps, screenshotHelper } = this.context
-    const mainWindow = this.context.getMainWindow()
-    if (!mainWindow) {
+    if (this.isRunning) {
+      logger.warn("DebugProcessingController: Already running, ignoring duplicate call")
       return
     }
-
-    const extraScreenshotQueue = screenshotHelper.getExtraScreenshotQueue()
-    logger.info("Processing extra queue screenshots:", extraScreenshotQueue)
-
-    if (!extraScreenshotQueue || extraScreenshotQueue.length === 0) {
-      logger.info("No extra screenshots found in queue")
-      mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
-      return
-    }
-
-    const existingExtraScreenshots = filterExistingScreenshotPaths(extraScreenshotQueue)
-    if (existingExtraScreenshots.length === 0) {
-      logger.warn("Extra screenshot files don't exist on disk")
-      mainWindow.webContents.send(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
-      return
-    }
-
-    mainWindow.webContents.send(deps.PROCESSING_EVENTS.DEBUG_START)
+    this.isRunning = true
 
     try {
-      const allPaths = [
-        ...screenshotHelper.getScreenshotQueue(),
-        ...existingExtraScreenshots
-      ]
-      const existingAllPaths = filterExistingScreenshotPaths(allPaths)
-      const screenshots = await loadScreenshotPayloads(existingAllPaths)
-      if (screenshots.length === 0) {
-        throw new Error("Failed to load screenshot data for debugging")
-      }
-
-      logger.info(
-        "Combined screenshots for processing:",
-        screenshots.map((shot) => shot.path)
-      )
-
-      const result = await this.processDebugScreenshots(
-        screenshots,
-        signal,
-        onTimeoutAbort
-      )
-      if (result.success) {
-        deps.setHasDebugged(true)
-        mainWindow.webContents.send(deps.PROCESSING_EVENTS.DEBUG_SUCCESS, result.data)
+      const { deps, screenshotHelper } = this.context
+      const mainWindow = this.context.getMainWindow()
+      if (!mainWindow) {
         return
       }
 
-      mainWindow.webContents.send(deps.PROCESSING_EVENTS.DEBUG_ERROR, result.error)
-    } catch (error: unknown) {
-      if (isProviderTimeoutError(error)) {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.DEBUG_ERROR,
-          `AI provider timed out while ${error.stage}. Please retry or switch provider/model.`
-        )
-      } else if (axios.isCancel(error)) {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.DEBUG_ERROR,
-          "Extra processing was canceled by the user."
-        )
-      } else {
-        mainWindow.webContents.send(
-          deps.PROCESSING_EVENTS.DEBUG_ERROR,
-          this.context.getErrorMessage(error, "Debug processing failed")
-        )
+      const extraScreenshotQueue = screenshotHelper.getExtraScreenshotQueue()
+      logger.info("Processing extra queue screenshots:", extraScreenshotQueue)
+
+      if (!extraScreenshotQueue || extraScreenshotQueue.length === 0) {
+        logger.info("No extra screenshots found in queue")
+        this.safeSend(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+        return
       }
+
+      const existingExtraScreenshots = await filterExistingScreenshotPaths(extraScreenshotQueue)
+      if (existingExtraScreenshots.length === 0) {
+        logger.warn("Extra screenshot files don't exist on disk")
+        this.safeSend(deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+        return
+      }
+
+      this.safeSend(deps.PROCESSING_EVENTS.DEBUG_START)
+
+      try {
+        const allPaths = [
+          ...screenshotHelper.getScreenshotQueue(),
+          ...existingExtraScreenshots
+        ]
+        const existingAllPaths = await filterExistingScreenshotPaths(allPaths)
+        const screenshots = await loadScreenshotPayloads(existingAllPaths)
+        if (screenshots.length === 0) {
+          throw new Error("Failed to load screenshot data for debugging")
+        }
+
+        logger.info(
+          "Combined screenshots for processing:",
+          screenshots.map((shot) => shot.path)
+        )
+
+        const result = await this.processDebugScreenshots(
+          screenshots,
+          signal,
+          onTimeoutAbort
+        )
+        if (result.success) {
+          deps.setHasDebugged(true)
+          this.safeSend(deps.PROCESSING_EVENTS.DEBUG_SUCCESS, result.data)
+          return
+        }
+
+        this.safeSend(deps.PROCESSING_EVENTS.DEBUG_ERROR, result.error)
+      } catch (error: unknown) {
+        if (isProviderTimeoutError(error)) {
+          this.safeSend(
+            deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            `AI provider timed out while ${error.stage}. Please retry or switch provider/model.`
+          )
+        } else if (axios.isCancel(error)) {
+          this.safeSend(
+            deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            "Extra processing was canceled by the user."
+          )
+        } else {
+          this.safeSend(
+            deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            this.context.getErrorMessage(error, "Debug processing failed")
+          )
+        }
+      }
+    } finally {
+      this.isRunning = false
     }
   }
 
@@ -118,7 +143,7 @@ export class DebugProcessingController {
       }
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Processing debug screenshots...",
           progress: 30
         })
@@ -160,7 +185,7 @@ Rules:
         progressMessage = "Analyzing code and generating debug feedback with Claude..."
       }
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: progressMessage,
           progress: 60
         })
@@ -195,7 +220,7 @@ Rules:
       }
 
       if (mainWindow) {
-        mainWindow.webContents.send("processing-status", {
+        this.safeSend("processing-status", {
           message: "Debug analysis complete",
           progress: 100
         })

@@ -1,4 +1,16 @@
-import Store from "electron-store"
+/**
+ * Simple fs-based JSON store.
+ *
+ * electron-store v10+ is ESM-only and cannot be loaded in Vite's
+ * CJS-bundled Electron main process.  The usage here is trivial
+ * (single "sessionHistory" key), so a lightweight replacement
+ * removes the dependency entirely.
+ */
+import { app } from "electron"
+import path from "path"
+import fs from "fs"
+
+// ─── Types ──────────────────────────────────────────────────────────
 
 export interface SessionWorkspaceSnapshot {
   type: "solution" | "debug"
@@ -34,18 +46,53 @@ interface StoreSchema {
   sessionHistory: StoredSession[]
 }
 
+// ─── Simple JSON Store ──────────────────────────────────────────────
+
+const DEFAULTS: StoreSchema = { sessionHistory: [] }
 const MAX_SESSION_HISTORY = 30
 
-const store = new Store<StoreSchema>({
-  name: 'session-history',
-  defaults: {
-    sessionHistory: []
-  }
-}) as Store<StoreSchema> & {
-  store: StoreSchema
-  get: <K extends keyof StoreSchema>(key: K) => StoreSchema[K]
-  set: <K extends keyof StoreSchema>(key: K, value: StoreSchema[K]) => void
+function getStorePath(): string {
+  return path.join(app.getPath("userData"), "session-history.json")
 }
+
+function readStore(): StoreSchema {
+  try {
+    const raw = fs.readFileSync(getStorePath(), "utf-8")
+    const parsed = JSON.parse(raw) as Partial<StoreSchema>
+    return { ...DEFAULTS, ...parsed }
+  } catch {
+    return { ...DEFAULTS }
+  }
+}
+
+function writeStore(data: StoreSchema): void {
+  try {
+    const dir = path.dirname(getStorePath())
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+    fs.writeFileSync(getStorePath(), JSON.stringify(data, null, 2), "utf-8")
+  } catch (error) {
+    console.error("[store] Failed to write store:", error)
+  }
+}
+
+// Public typed store interface (compatible with previous electron-store usage)
+const store = {
+  get<K extends keyof StoreSchema>(key: K): StoreSchema[K] {
+    return readStore()[key]
+  },
+  set<K extends keyof StoreSchema>(key: K, value: StoreSchema[K]): void {
+    const data = readStore()
+    data[key] = value
+    writeStore(data)
+  },
+  clear(): void {
+    writeStore({ ...DEFAULTS })
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────
 
 const randomId = (prefix: string) =>
   `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -56,6 +103,8 @@ const normalizeHistory = (value: unknown): StoredSession[] => {
   }
   return value as StoredSession[]
 }
+
+// ─── Exported API (unchanged signatures) ────────────────────────────
 
 export const getSessionHistory = (): StoredSession[] => {
   const sessionHistory = normalizeHistory(store.get("sessionHistory"))
@@ -124,7 +173,7 @@ export const clearSessionHistory = () => {
 }
 
 export const clearStoreData = () => {
-  ;(store as unknown as { clear: () => void }).clear()
+  store.clear()
 }
 
 export { store }

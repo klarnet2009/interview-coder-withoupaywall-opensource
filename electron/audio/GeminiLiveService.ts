@@ -66,6 +66,8 @@ export class GeminiLiveService extends EventEmitter {
     private maxReconnectAttempts: number = 3;
     private currentTranscript: string = '';
     private currentResponse: string = '';
+    private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    private static readonly MAX_TRANSCRIPT_LENGTH = 100_000;
 
     constructor(config: GeminiLiveConfig) {
         super();
@@ -149,13 +151,21 @@ Keep your responses to 1-2 words maximum.`;
                     const isAuthError = code === 1007 || code === 1008;
                     if (isAuthError) {
                         log.error(`GeminiLiveService: Auth error (code ${code}), not reconnecting`);
+                        // Clean up ws to prevent listener/socket leaks
+                        if (this.ws) {
+                            this.ws.removeAllListeners();
+                            this.ws = null;
+                        }
                         this.emit('authError', reason.toString());
                     }
 
                     // Only attempt reconnection if not intentionally disconnected and not auth error
                     if (!this.intentionalDisconnect && !isAuthError && this.reconnectAttempts < this.maxReconnectAttempts) {
                         this.reconnectAttempts++;
-                        setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);
+                        this.reconnectTimeout = setTimeout(() => {
+                            this.reconnectTimeout = null;
+                            this.connect();
+                        }, 1000 * this.reconnectAttempts);
                     }
 
                     // Reject if we closed before ever connecting
@@ -207,14 +217,53 @@ Keep your responses to 1-2 words maximum.`;
 
         this.ws.send(JSON.stringify(setupMessage));
         log.info('GeminiLiveService: Setup message sent');
+        this.startDebugStats();
     }
 
     /**
      * Handle incoming messages from Gemini
      */
+    // ── Debug stats ──────────────────────────────────────────────
+    private debugAudioChunksSent = 0;
+    private debugWsMsgsReceived = 0;
+    private debugTranscriptsReceived = 0;
+    private debugStatsInterval: ReturnType<typeof setInterval> | null = null;
+
+    private startDebugStats(): void {
+        if (this.debugStatsInterval) return;
+        this.debugStatsInterval = setInterval(() => {
+            log.info(
+                `GeminiLiveService: [STATS] audioSent=${this.debugAudioChunksSent}` +
+                ` wsMsgs=${this.debugWsMsgsReceived}` +
+                ` transcripts=${this.debugTranscriptsReceived}` +
+                ` wsState=${this.ws?.readyState ?? 'null'}`
+            );
+            this.debugAudioChunksSent = 0;
+            this.debugWsMsgsReceived = 0;
+            this.debugTranscriptsReceived = 0;
+        }, 5000);
+    }
+
+    private stopDebugStats(): void {
+        if (this.debugStatsInterval) {
+            clearInterval(this.debugStatsInterval);
+            this.debugStatsInterval = null;
+        }
+    }
+    // ── End debug stats ──────────────────────────────────────────
+
     private handleMessage(data: string): void {
         try {
+            this.debugWsMsgsReceived++;
             const message: GeminiLiveMessage = JSON.parse(data);
+
+            // Log message type for debugging
+            const msgType = message.error ? 'error'
+                : message.serverContent?.inputTranscription ? 'inputTranscription'
+                    : message.serverContent?.modelTurn ? 'modelTurn'
+                        : message.serverContent?.turnComplete ? 'turnComplete'
+                            : 'other';
+            log.debug(`GeminiLiveService: [MSG] type=${msgType}`);
 
             // Handle errors
             if (message.error) {
@@ -231,8 +280,15 @@ Keep your responses to 1-2 words maximum.`;
             if (serverContent.inputTranscription?.text) {
                 const newText = serverContent.inputTranscription.text;
                 if (newText) {
+                    this.debugTranscriptsReceived++;
                     // Append directly — the API includes spaces/punctuation in token text
                     this.currentTranscript += newText;
+                    // Prevent unbounded growth in long sessions
+                    if (this.currentTranscript.length > GeminiLiveService.MAX_TRANSCRIPT_LENGTH) {
+                        this.currentTranscript = this.currentTranscript.slice(
+                            -Math.floor(GeminiLiveService.MAX_TRANSCRIPT_LENGTH / 2)
+                        );
+                    }
                     const transcript: TranscriptUpdate = {
                         text: this.currentTranscript,
                         isFinal: false,
@@ -323,7 +379,12 @@ Keep your responses to 1-2 words maximum.`;
             }
         };
 
-        this.ws.send(JSON.stringify(audioMessage));
+        try {
+            this.debugAudioChunksSent++;
+            this.ws.send(JSON.stringify(audioMessage));
+        } catch (error) {
+            log.warn('GeminiLiveService: Failed to send audio (WebSocket may have closed)', error);
+        }
     }
 
     /**
@@ -349,20 +410,16 @@ Keep your responses to 1-2 words maximum.`;
     }
 
     /**
-     * End the current turn (signal end of speech)
+     * End the current turn (signal end of speech).
+     *
+     * NOTE: With automaticActivityDetection enabled in the setup config,
+     * sending explicit activityEnd messages causes a 1007 disconnect:
+     * "Explicit activity control is not supported when automatic activity
+     * detection is enabled."  The API handles end-of-speech detection
+     * automatically, so this method is intentionally a no-op.
      */
     public endTurn(): void {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-            return;
-        }
-
-        const endMessage = {
-            realtimeInput: {
-                activityEnd: {}
-            }
-        };
-
-        this.ws.send(JSON.stringify(endMessage));
+        // Automatic activity detection is enabled — no-op.
     }
 
     /**
@@ -371,6 +428,10 @@ Keep your responses to 1-2 words maximum.`;
      */
     public disconnect(): void {
         this.intentionalDisconnect = true;
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
         if (this.ws) {
             // Remove all listeners first to prevent reconnection attempts
             // and avoid 'close before established' errors
@@ -385,6 +446,7 @@ Keep your responses to 1-2 words maximum.`;
         this.isConnected = false;
         this.currentTranscript = '';
         this.currentResponse = '';
+        this.stopDebugStats();
     }
 
     /**

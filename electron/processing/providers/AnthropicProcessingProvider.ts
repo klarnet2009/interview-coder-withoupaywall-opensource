@@ -44,10 +44,10 @@ export class AnthropicProcessingProvider implements ProcessingProviderStrategy {
   constructor(apiKey?: string) {
     this.client = apiKey
       ? new Anthropic({
-          apiKey,
-          timeout: 60000,
-          maxRetries: 2
-        })
+        apiKey,
+        timeout: 60000,
+        maxRetries: 2
+      })
       : null
   }
 
@@ -97,9 +97,16 @@ export class AnthropicProcessingProvider implements ProcessingProviderStrategy {
       }
 
       const jsonText = responseText.replace(/```json|```/g, "").trim()
-      return {
-        success: true,
-        data: JSON.parse(jsonText) as ProblemInfo
+      try {
+        return {
+          success: true,
+          data: JSON.parse(jsonText) as ProblemInfo
+        }
+      } catch {
+        return {
+          success: false,
+          error: "Failed to parse problem information from Anthropic response. Please try again."
+        }
       }
     } catch (error: unknown) {
       if (getErrorStatus(error) === 429) {

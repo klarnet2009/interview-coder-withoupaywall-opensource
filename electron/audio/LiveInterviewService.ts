@@ -36,12 +36,13 @@ export interface LiveInterviewConfig {
 
 export class LiveInterviewService extends EventEmitter {
     private config: LiveInterviewConfig;
-    public geminiService: GeminiLiveService | null = null;
+    private geminiService: GeminiLiveService | null = null;
     private hintService: HintGenerationService | null = null;
     private state: ListeningState = 'idle';
     private currentTranscript: string = '';
     private currentResponse: string = '';
     private responseHistory: string = '';
+    private static readonly MAX_RESPONSE_HISTORY_LENGTH = 200_000;
     private audioLevel: number = 0;
     private silenceTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -117,6 +118,15 @@ export class LiveInterviewService extends EventEmitter {
 
         } catch (error) {
             log.error('LiveInterviewService: Failed to start', error);
+            // Cleanup any partially-initialized resources to prevent leaks
+            if (this.geminiService) {
+                this.geminiService.disconnect();
+                this.geminiService = null;
+            }
+            if (this.hintService) {
+                this.hintService.removeAllListeners();
+                this.hintService = null;
+            }
             this.setState('error');
             this.emit('error', error);
             throw error;
@@ -249,6 +259,12 @@ export class LiveInterviewService extends EventEmitter {
             if (hint.isComplete) {
                 // Save to history (newest first)
                 this.responseHistory = this.currentResponse;
+                // Cap response history to prevent unbounded growth
+                if (this.responseHistory.length > LiveInterviewService.MAX_RESPONSE_HISTORY_LENGTH) {
+                    this.responseHistory = this.responseHistory.slice(
+                        0, Math.floor(LiveInterviewService.MAX_RESPONSE_HISTORY_LENGTH / 2)
+                    );
+                }
                 this.scheduleTranscriptClear();
                 this.setState('listening');
 
@@ -364,6 +380,9 @@ export class LiveInterviewService extends EventEmitter {
     }
 
 
+    // Debug: log audio levels periodically
+    private lastAudioLevelLogAt = 0;
+
     /**
      * Receive audio chunk from renderer process
      * @param pcmBase64 - Base64 encoded PCM audio
@@ -371,6 +390,13 @@ export class LiveInterviewService extends EventEmitter {
      */
     public receiveAudio(pcmBase64: string, level: number): void {
         this.audioLevel = level;
+
+        // Periodic audio level debug log (every 3s)
+        const now = Date.now();
+        if (now - this.lastAudioLevelLogAt >= 3000) {
+            this.lastAudioLevelLogAt = now;
+            log.info(`LiveInterviewService: [AUDIO] level=${level.toFixed(4)} state=${this.state} wsActive=${!!this.geminiService?.isActive()}`);
+        }
 
         // Handle silence detection
         const isSilent = level < LiveInterviewService.AUDIO_SILENCE_LEVEL;
@@ -397,8 +423,12 @@ export class LiveInterviewService extends EventEmitter {
 
         // Send to Gemini
         if (this.geminiService?.isActive()) {
-            const buffer = Buffer.from(pcmBase64, 'base64');
-            this.geminiService.sendAudio(buffer);
+            try {
+                const buffer = Buffer.from(pcmBase64, 'base64');
+                this.geminiService.sendAudio(buffer);
+            } catch (error) {
+                log.warn('LiveInterviewService: Failed to decode/send audio chunk', error);
+            }
         }
 
         this.emitStatus();
@@ -463,6 +493,15 @@ export class LiveInterviewService extends EventEmitter {
         this.lastEndTurnAt = 0;
         this.audioLevel = 0;
         this.setState('idle');
+    }
+
+    /**
+     * Send text to the Gemini service (proxy for private geminiService)
+     */
+    public sendText(text: string): void {
+        if (this.geminiService) {
+            this.geminiService.sendText(text);
+        }
     }
 
     /**
@@ -535,3 +574,4 @@ export class LiveInterviewService extends EventEmitter {
         return this.state !== 'idle' && this.state !== 'error';
     }
 }
+

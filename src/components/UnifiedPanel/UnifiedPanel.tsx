@@ -134,7 +134,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
           displayMode: typedConfig.displayConfig?.mode || "standard"
         });
       } catch (configError) {
-        console.error("Failed to load preferred audio source:", configError);
+        console.warn("Failed to load preferred audio source:", configError);
       }
     };
 
@@ -232,7 +232,11 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
 
   const handleStop = useCallback(async () => {
-    stopAudioCapture();
+    try {
+      await stopAudioCapture();
+    } catch (error) {
+      console.warn('Failed to stop audio capture:', error);
+    }
     await window.electronAPI.liveInterviewStop();
     isActiveRef.current = false;
     setIsActive(false);

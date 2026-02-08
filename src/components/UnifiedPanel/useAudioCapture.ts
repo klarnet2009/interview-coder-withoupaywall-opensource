@@ -17,7 +17,7 @@ interface UseAudioCaptureResult {
     source: AudioSourceType,
     appSourceId?: string
   ) => Promise<void>
-  stopAudioCapture: () => void
+  stopAudioCapture: () => Promise<void>
 }
 
 export function useAudioCapture({
@@ -28,13 +28,13 @@ export function useAudioCapture({
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const processorRef = useRef<AudioWorkletNode | null>(null)
 
-  const stopAudioCapture = useCallback(() => {
+  const stopAudioCapture = useCallback(async () => {
     if (processorRef.current) {
       processorRef.current.disconnect()
       processorRef.current = null
     }
     if (audioContextRef.current) {
-      void audioContextRef.current.close()
+      await audioContextRef.current.close()
       audioContextRef.current = null
     }
     if (mediaStreamRef.current) {
@@ -116,7 +116,12 @@ export function useAudioCapture({
           }
 
           const uint8Array = new Uint8Array(pcmBuffer)
-          const binary = String.fromCharCode(...Array.from(uint8Array))
+          // Chunked conversion to avoid stack overflow on large buffers
+          const chunkSize = 0x8000 // 32KB
+          let binary = ""
+          for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            binary += String.fromCharCode(...uint8Array.subarray(i, i + chunkSize))
+          }
           const base64 = btoa(binary)
           void window.electronAPI.liveInterviewSendAudio(base64, level)
         }
@@ -125,6 +130,17 @@ export function useAudioCapture({
         processor.connect(audioContextRef.current.destination)
         processorRef.current = processor
       } catch (error: unknown) {
+        // Cleanup any partially-initialized resources to prevent MediaStream leak
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((track) => track.stop())
+          mediaStreamRef.current = null
+        }
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => { })
+          audioContextRef.current = null
+        }
+        processorRef.current = null
+
         if (error instanceof Error && error.name === "NotAllowedError") {
           throw new Error("Permission denied. Please allow audio capture and retry.")
         }

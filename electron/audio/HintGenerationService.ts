@@ -326,6 +326,25 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
         return new Promise<string>((resolve, reject) => {
             let accumulatedText = '';
             let buffer = '';
+            let settled = false;
+            const STREAM_TIMEOUT_MS = 60_000;
+
+            const settle = (fn: typeof resolve | typeof reject, value: string | Error) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutHandle);
+                (fn as (v: string | Error) => void)(value);
+            };
+
+            // Timeout guard — prevents indefinitely hanging promises
+            const timeoutHandle = setTimeout(() => {
+                log.warn(`HintGenerationService: streamRequest timed out after ${STREAM_TIMEOUT_MS}ms`);
+                if (this.currentRequest) {
+                    this.currentRequest.destroy();
+                    this.currentRequest = null;
+                }
+                settle(reject, new Error(`Stream request timed out after ${STREAM_TIMEOUT_MS / 1000}s`));
+            }, STREAM_TIMEOUT_MS);
 
             const options = {
                 hostname: API_BASE_HOST,
@@ -343,7 +362,7 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                     let errorBody = '';
                     res.on('data', (chunk: Buffer) => { errorBody += chunk.toString(); });
                     res.on('end', () => {
-                        reject(new Error(`API error ${res.statusCode}: ${errorBody}`));
+                        settle(reject, new Error(`API error ${res.statusCode}: ${errorBody}`));
                     });
                     return;
                 }
@@ -412,13 +431,13 @@ Be helpful but don't give away complete solutions - guide the candidate.`;
                             timestamp: Date.now()
                         } as HintResponse);
                     }
-                    resolve(accumulatedText);
+                    settle(resolve, accumulatedText);
                 });
 
-                res.on('error', (err: Error) => reject(err));
+                res.on('error', (err: Error) => settle(reject, err));
             });
 
-            req.on('error', (err: Error) => reject(err));
+            req.on('error', (err: Error) => settle(reject, err));
 
             this.currentRequest = req;
             req.write(requestBody);
