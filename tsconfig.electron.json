@@ -4,13 +4,13 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "skipLibCheck": true,
-    "strict": false,
+    "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "outDir": "dist-electron",
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "baseUrl": ".",
     "paths": {
       "main": ["electron/main.ts"]

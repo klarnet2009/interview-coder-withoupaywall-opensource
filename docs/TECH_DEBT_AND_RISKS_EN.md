@@ -18,12 +18,11 @@ Resolved:
 - Live phrase finalization hangs reduced with explicit end-turn fallback logic.
 - Strict ESLint baseline restored (`npm run lint` passes with `0` errors).
 - Build chunk size warnings removed via renderer chunk-splitting and lighter syntax-highlighting usage.
-- Electron TypeScript strictness Phase A completed (`noImplicitAny: true`).
+- Electron TypeScript strictness migration completed (`noImplicitAny: true`, `strictNullChecks: true`, `strict: true`).
 - `ProcessingHelper` provider logic extracted to strategy-based provider layer + orchestrator.
 - Added integration tests for preload/main IPC channel contract and live lifecycle transitions.
 
 Still open:
-- Electron TypeScript strictness is still partial (`strict: false`, `strictNullChecks: false`).
 - Core UI controller size is still high (`src/components/UnifiedPanel/UnifiedPanel.tsx`).
 - Integration test coverage still misses screenshot-processing recovery flows.
 
@@ -31,16 +30,12 @@ Still open:
 
 ### P1
 
-1. Electron TypeScript strictness is still permissive
-- `tsconfig.electron.json` now has `noImplicitAny: true`, but `strictNullChecks` and full `strict` remain off.
-- Impact: type regressions can still escape into runtime.
-
-2. Single-file complexity remains high in critical paths
+1. Single-file complexity remains high in critical paths
 - `src/components/UnifiedPanel/UnifiedPanel.tsx` remains a multi-responsibility controller.
 - `electron/ProcessingHelper.ts` was improved via provider strategy extraction, but response-shaping/parsing is still dense.
 - Impact: higher change risk and slower onboarding/review.
 
-3. Limited automated coverage for runtime-critical flows
+2. Limited automated coverage for runtime-critical flows
 - IPC routing contract and live start/stop/reconnect transitions are now covered.
 - Screenshot processing, error recovery, and queue orchestration paths remain under-tested.
 - Impact: regressions likely appear late (manual QA/release).
@@ -59,10 +54,10 @@ Still open:
 
 ### P1 Actions (Next Sprint)
 
-1. Introduce strictness in Electron TS config in phases:
+1. Electron strictness migration:
 - Phase A: `noImplicitAny: true` (completed)
-- Phase B: `strictNullChecks: true`
-- Phase C: `strict: true`
+- Phase B: `strictNullChecks: true` (completed)
+- Phase C: `strict: true` (completed)
 
 2. Continue decomposition of `ProcessingHelper` by extracting response-format parsing into focused formatters.
 

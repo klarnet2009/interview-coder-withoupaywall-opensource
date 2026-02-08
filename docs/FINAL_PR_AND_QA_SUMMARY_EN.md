@@ -20,7 +20,8 @@ This summary consolidates the final delivery wave after Sprint 1-5 and tech hard
   - Replaced direct heavy syntax-highlighter usage with shared light component (`src/components/shared/CodeSyntax.tsx`)
 - Raised Electron TypeScript baseline:
   - Enabled `noImplicitAny: true` in `tsconfig.electron.json`
-  - Electron compilation passes with Phase A strictness
+  - Enabled `strictNullChecks: true` and `strict: true`
+  - Electron compilation passes with full strictness
 - Refactored screenshot-processing architecture:
   - Added provider strategy layer (`electron/processing/providers/*`)
   - Added orchestration layer (`electron/processing/ProcessingProviderOrchestrator.ts`)

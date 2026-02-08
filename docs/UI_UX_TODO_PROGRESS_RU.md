@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после strictness + provider orchestration + integration tests)  
+Дата обновления: 2026-02-08 (после Electron full strict mode)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -71,7 +71,7 @@
 ## Техническая валидация (последний прогон)
 
 - [x] `eslint` по измененным UI-flow файлам
-- [x] `npm run test` (30/30)
+- [x] `npm run test` (34/34)
 - [x] `npm run build`
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
@@ -83,6 +83,7 @@
 - [x] `build warnings` — предупреждения `Some chunks are larger than 500 kB` отсутствуют
 - [x] `electron ts phase-a` — `tsconfig.electron.json`: `noImplicitAny: true`, сборка без TS ошибок
 - [x] `integration tests` — добавлены `tests/integration/ipcContract.integration.test.ts` и `tests/integration/liveInterviewLifecycle.integration.test.ts` (`34/34`)
+- [x] `electron ts phase-b/c` — `strictNullChecks: true` и `strict: true`, Electron сборка стабильна
 
 ---
 
@@ -133,6 +134,9 @@
   - Добавлен `clear-store` handler в `electron/ipcHandlers.ts`
   - Добавлен `clearStoreData` helper в `electron/store.ts`
   - Добавлены integration tests на контракт preload/main и live lifecycle
+- [x] `TECH-014` Закрыт: завершена Electron TypeScript strict migration
+  - `tsconfig.electron.json`: `strictNullChecks` и `strict` переведены в `true`
+  - `npx tsc -p tsconfig.electron.json`, `npm run lint`, `npm test`, `npm run build` проходят
 
 ---
 

@@ -12,7 +12,7 @@ This release consolidates the full UI/UX redesign program:
 - Sprint 3: P1 architecture completion
 - Sprint 4: P2 enhancements + hardening
 - Sprint 5: i18n and polish
-- Post-sprint technical hardening (TECH-004 to TECH-009)
+- Post-sprint technical hardening (TECH-004 to TECH-014)
 
 ## Sprint Highlights
 
@@ -68,6 +68,10 @@ This release consolidates the full UI/UX redesign program:
 - TECH-013: Runtime hardening for live/IPC:
   - added missing `clear-store` handler in main IPC
   - added integration tests for preload/main IPC contract and live lifecycle transitions
+- TECH-014: Electron strict typing migration completed:
+  - `strictNullChecks: true`
+  - `strict: true`
+  - Electron/renderer QA checks pass on strict baseline
 
 ## Additional Reliability Updates
 
