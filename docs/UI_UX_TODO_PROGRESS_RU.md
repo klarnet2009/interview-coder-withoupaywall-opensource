@@ -123,5 +123,6 @@
 2. [x] Провести UX smoke по history restore flows (solution/debug snippets).
 3. [x] Подготовить релизный changelog по Sprint 1-5 + tech hardening.
    - `docs/RELEASE_CHANGELOG_SPRINT1_5_EN.md`
-4. Собрать финальный PR с кратким change summary.
-5. Провести финальный QA pass перед release candidate.
+4. [x] Собрать финальный PR с кратким change summary.
+5. [x] Провести финальный QA pass перед release candidate.
+   - `docs/FINAL_PR_AND_QA_SUMMARY_EN.md`
