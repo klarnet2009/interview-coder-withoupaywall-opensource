@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после bundle/perf optimization)  
+Дата обновления: 2026-02-08 (после strictness + provider orchestration + integration tests)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -81,6 +81,8 @@
 - [x] `history restore smoke` — добавлены unit-smoke тесты для snippet restore (`tests/unit/sessionRestore.test.ts`)
 - [x] `build chunking` — включен manual chunking для renderer + external deps для Electron main
 - [x] `build warnings` — предупреждения `Some chunks are larger than 500 kB` отсутствуют
+- [x] `electron ts phase-a` — `tsconfig.electron.json`: `noImplicitAny: true`, сборка без TS ошибок
+- [x] `integration tests` — добавлены `tests/integration/ipcContract.integration.test.ts` и `tests/integration/liveInterviewLifecycle.integration.test.ts` (`34/34`)
 
 ---
 
@@ -120,6 +122,17 @@
   - `vite.config.ts`: manual chunks для renderer (`code-highlighting`, `radix-ui`, `react-query`, `i18n`, `react-core`, `vendor`)
   - `vite.config.ts`: externalized runtime dependencies для Electron main build
   - Вынесен облегченный `CodeSyntax` (`PrismLight` + ограниченный language set) и подключен в `Solutions`/`Debug`
+- [x] `TECH-011` Закрыт: внедрен Electron TypeScript strictness Phase A
+  - `tsconfig.electron.json`: `noImplicitAny` переведен в `true`
+  - `npx tsc -p tsconfig.electron.json` проходит без ошибок
+- [x] `TECH-012` Закрыт: `ProcessingHelper` переведен на provider strategy + orchestration
+  - Добавлен слой `electron/processing/providers/*` (`OpenAI`, `Gemini`, `Anthropic`)
+  - Добавлен `electron/processing/ProcessingProviderOrchestrator.ts`
+  - `electron/ProcessingHelper.ts` использует единый провайдер-интерфейс вместо branch-heavy inline API логики
+- [x] `TECH-013` Закрыт: усилен IPC/live runtime QA и устранен IPC contract gap
+  - Добавлен `clear-store` handler в `electron/ipcHandlers.ts`
+  - Добавлен `clearStoreData` helper в `electron/store.ts`
+  - Добавлены integration tests на контракт preload/main и live lifecycle
 
 ---
 

@@ -6,6 +6,7 @@ import { configHelper } from "./ConfigHelper"
 import { validateConfigUpdate, validateString, validateEnum } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
 import {
+  clearStoreData,
   clearSessionHistory,
   deleteSessionHistoryItem,
   getSessionHistory,
@@ -248,6 +249,15 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       }
     } catch (error) {
       console.error("Error decrementing credits:", error)
+    }
+  })
+
+  ipcMain.handle("clear-store", () => {
+    try {
+      clearStoreData()
+    } catch (error) {
+      console.error("Error clearing store:", error)
+      throw error
     }
   })
 

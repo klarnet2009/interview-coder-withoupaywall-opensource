@@ -123,4 +123,8 @@ export const clearSessionHistory = () => {
   store.set("sessionHistory", [])
 }
 
+export const clearStoreData = () => {
+  ;(store as unknown as { clear: () => void }).clear()
+}
+
 export { store }

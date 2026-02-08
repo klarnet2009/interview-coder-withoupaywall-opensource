@@ -63,6 +63,11 @@ This release consolidates the full UI/UX redesign program:
   - renderer manual chunking enabled for heavy dependency groups
   - Electron main build externalized runtime dependencies
   - shared `CodeSyntax` component introduced (`PrismLight` + registered language subset)
+- TECH-011: Electron TypeScript strictness Phase A completed (`noImplicitAny: true`).
+- TECH-012: `ProcessingHelper` refactored to provider strategies + orchestration layer (`electron/processing/providers/*`, `ProcessingProviderOrchestrator`).
+- TECH-013: Runtime hardening for live/IPC:
+  - added missing `clear-store` handler in main IPC
+  - added integration tests for preload/main IPC contract and live lifecycle transitions
 
 ## Additional Reliability Updates
 
@@ -72,12 +77,15 @@ This release consolidates the full UI/UX redesign program:
 - Session history restore logic extracted to a testable helper:
   - `src/lib/sessionRestore.ts`
   - Covered by unit tests in `tests/unit/sessionRestore.test.ts`.
+- New integration coverage:
+  - `tests/integration/ipcContract.integration.test.ts`
+  - `tests/integration/liveInterviewLifecycle.integration.test.ts`
 
 ## Validation Summary
 
 - `npx tsc --noEmit`: pass
 - `npm run lint`: pass (0 errors)
-- `npm test`: pass (30/30)
+- `npm test`: pass (34/34)
 - `npm run build`: pass (no large chunk warnings)
 
 ## Notes

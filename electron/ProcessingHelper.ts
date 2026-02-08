@@ -4,39 +4,13 @@ import { ScreenshotHelper } from "./ScreenshotHelper"
 import { IProcessingHelperDeps } from "./main"
 import * as axios from "axios"
 import { BrowserWindow } from "electron"
-import { OpenAI } from "openai"
 import { configHelper } from "./ConfigHelper"
-import Anthropic from '@anthropic-ai/sdk';
-
-
-// Interface for Gemini API requests
-interface GeminiMessage {
-  role: string;
-  parts: Array<{
-    text?: string;
-    inlineData?: {
-      mimeType: string;
-      data: string;
-    }
-  }>;
-}
-
-interface GeminiResponse {
-  candidates: Array<{
-    content: {
-      parts: Array<{
-        text: string;
-      }>;
-    };
-    finishReason: string;
-  }>;
-}
+import { ProcessingProviderOrchestrator } from "./processing/ProcessingProviderOrchestrator"
+import type { ProviderConfig } from "./processing/types"
 export class ProcessingHelper {
   private deps: IProcessingHelperDeps
   private screenshotHelper: ScreenshotHelper | null
-  private openaiClient: OpenAI | null = null
-  private geminiApiKey: string | null = null
-  private anthropicClient: Anthropic | null = null
+  private readonly providerOrchestrator: ProcessingProviderOrchestrator
 
   // AbortControllers for API requests
   private currentProcessingAbortController: AbortController | null = null
@@ -45,75 +19,33 @@ export class ProcessingHelper {
   constructor(deps: IProcessingHelperDeps) {
     this.deps = deps
     this.screenshotHelper = deps.getScreenshotHelper()
+    this.providerOrchestrator = new ProcessingProviderOrchestrator()
 
-    // Initialize AI client based on config
-    this.initializeAIClient();
+    // Initialize AI provider based on config
+    this.initializeProvider()
 
-    // Listen for config changes to re-initialize the AI client
-    configHelper.on('config-updated', () => {
-      this.initializeAIClient();
-    });
+    // Listen for config changes to re-initialize provider
+    configHelper.on("config-updated", () => {
+      this.initializeProvider()
+    })
   }
 
-  /**
-   * Initialize or reinitialize the AI client with current config
-   */
-  private initializeAIClient(): void {
-    try {
-      const config = configHelper.loadConfig();
+  private getProviderConfig(): ProviderConfig {
+    const config = configHelper.loadConfig()
+    return {
+      apiProvider: config.apiProvider,
+      apiKey: config.apiKey,
+      extractionModel: config.extractionModel,
+      solutionModel: config.solutionModel,
+      debuggingModel: config.debuggingModel
+    }
+  }
 
-      if (config.apiProvider === "openai") {
-        if (config.apiKey) {
-          this.openaiClient = new OpenAI({
-            apiKey: config.apiKey,
-            timeout: 60000, // 60 second timeout
-            maxRetries: 2   // Retry up to 2 times
-          });
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.log("OpenAI client initialized successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, OpenAI client not initialized");
-        }
-      } else if (config.apiProvider === "gemini") {
-        // Gemini client initialization
-        this.openaiClient = null;
-        this.anthropicClient = null;
-        if (config.apiKey) {
-          this.geminiApiKey = config.apiKey;
-          console.log("Gemini API key set successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, Gemini client not initialized");
-        }
-      } else if (config.apiProvider === "anthropic") {
-        // Reset other clients
-        this.openaiClient = null;
-        this.geminiApiKey = null;
-        if (config.apiKey) {
-          this.anthropicClient = new Anthropic({
-            apiKey: config.apiKey,
-            timeout: 60000,
-            maxRetries: 2
-          });
-          console.log("Anthropic client initialized successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, Anthropic client not initialized");
-        }
-      }
+  private initializeProvider(): void {
+    try {
+      this.providerOrchestrator.sync(this.getProviderConfig())
     } catch (error) {
-      console.error("Failed to initialize AI client:", error);
-      this.openaiClient = null;
-      this.geminiApiKey = null;
-      this.anthropicClient = null;
+      console.error("Failed to initialize processing provider:", error)
     }
   }
 
@@ -207,38 +139,12 @@ export class ProcessingHelper {
 
     const config = configHelper.loadConfig();
 
-    // First verify we have a valid AI client
-    if (config.apiProvider === "openai" && !this.openaiClient) {
-      this.initializeAIClient();
-
-      if (!this.openaiClient) {
-        console.error("OpenAI client not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
-        return;
-      }
-    } else if (config.apiProvider === "gemini" && !this.geminiApiKey) {
-      this.initializeAIClient();
-
-      if (!this.geminiApiKey) {
-        console.error("Gemini API key not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
-        return;
-      }
-    } else if (config.apiProvider === "anthropic" && !this.anthropicClient) {
-      // Add check for Anthropic client
-      this.initializeAIClient();
-
-      if (!this.anthropicClient) {
-        console.error("Anthropic client not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
-        return;
-      }
+    // Verify currently selected provider is configured.
+    this.initializeProvider()
+    if (!this.providerOrchestrator.isConfigured(this.getProviderConfig())) {
+      console.error(`${config.apiProvider} provider is not configured`)
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID)
+      return
     }
 
     const view = this.deps.getView()
@@ -476,188 +382,26 @@ export class ProcessingHelper {
         });
       }
 
-      let problemInfo;
+      const provider = this.providerOrchestrator.getProvider(
+        this.getProviderConfig()
+      )
+      const extractionResult = await provider.extractProblem({
+        imageDataList,
+        language,
+        model: config.extractionModel,
+        signal
+      })
 
-      if (config.apiProvider === "openai") {
-        // Verify OpenAI client
-        if (!this.openaiClient) {
-          this.initializeAIClient(); // Try to reinitialize
-
-          if (!this.openaiClient) {
-            return {
-              success: false,
-              error: "OpenAI API key not configured or invalid. Please check your settings."
-            };
-          }
-        }
-
-        // Use OpenAI for processing
-        const messages = [
-          {
-            role: "system" as const,
-            content: "You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text."
-          },
-          {
-            role: "user" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: `Extract the coding problem details from these screenshots. Return in JSON format. Preferred coding language we gonna use for this problem is ${language}.`
-              },
-              ...imageDataList.map(data => ({
-                type: "image_url" as const,
-                image_url: { url: `data:image/png;base64,${data}` }
-              }))
-            ]
-          }
-        ];
-
-        // Send to OpenAI Vision API
-        const extractionResponse = await this.openaiClient.chat.completions.create({
-          model: config.extractionModel || "gpt-4o",
-          messages: messages,
-          max_tokens: 4000,
-          temperature: 0.2
-        });
-
-        // Parse the response
-        try {
-          const responseText = extractionResponse.choices[0].message.content;
-          if (!responseText) {
-            throw new Error("Empty response from OpenAI");
-          }
-          // Handle when OpenAI might wrap the JSON in markdown code blocks
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
-        } catch (error) {
-          console.error("Error parsing OpenAI response:", error);
-          return {
-            success: false,
-            error: "Failed to parse problem information. Please try again or use clearer screenshots."
-          };
-        }
-      } else if (config.apiProvider === "gemini") {
-        // Use Gemini API
-        if (!this.geminiApiKey) {
-          return {
-            success: false,
-            error: "Gemini API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          // Create Gemini message structure
-          const geminiMessages: GeminiMessage[] = [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `You are a coding challenge interpreter. Analyze the screenshots of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text. Preferred coding language we gonna use for this problem is ${language}.`
-                },
-                ...imageDataList.map(data => ({
-                  inlineData: {
-                    mimeType: "image/png",
-                    data: data
-                  }
-                }))
-              ]
-            }
-          ];
-
-          // Make API request to Gemini
-          const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.extractionModel || "gemini-3-flash-preview"}:generateContent?key=${this.geminiApiKey}`,
-            {
-              contents: geminiMessages,
-              generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 4000
-              }
-            },
-            { signal }
-          );
-
-          const responseData = response.data as GeminiResponse;
-
-          if (!responseData.candidates || responseData.candidates.length === 0) {
-            throw new Error("Empty response from Gemini API");
-          }
-
-          const responseText = responseData.candidates[0].content.parts[0].text;
-
-          // Handle when Gemini might wrap the JSON in markdown code blocks
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
-        } catch (error) {
-          console.error("Error using Gemini API:", error);
-          return {
-            success: false,
-            error: "Failed to process with Gemini API. Please check your API key or try again later."
-          };
-        }
-      } else if (config.apiProvider === "anthropic") {
-        if (!this.anthropicClient) {
-          return {
-            success: false,
-            error: "Anthropic API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          const messages = [
-            {
-              role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Extract the coding problem details from these screenshots. Return in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`
-                },
-                ...imageDataList.map(data => ({
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: "image/png" as const,
-                    data: data
-                  }
-                }))
-              ]
-            }
-          ];
-
-          const response = await this.anthropicClient.messages.create({
-            model: config.extractionModel || "claude-3-7-sonnet-20250219",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
-
-          const responseText = (response.content[0] as { type: 'text', text: string }).text;
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
-        } catch (error: unknown) {
-          console.error("Error using Anthropic API:", error);
-          const status = this.getErrorStatus(error);
-          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
-
-          // Add specific handling for Claude's limitations
-          if (status === 429) {
-            return {
-              success: false,
-              error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
-            };
-          } else if (status === 413 || message.includes("token")) {
-            return {
-              success: false,
-              error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
-            };
-          }
-
-          return {
-            success: false,
-            error: "Failed to process with Anthropic API. Please check your API key or try again later."
-          };
+      if (!extractionResult.success || !extractionResult.data) {
+        return {
+          success: false,
+          error:
+            extractionResult.error ||
+            "Failed to process screenshots. Please try again."
         }
       }
+
+      const problemInfo = extractionResult.data
 
       // Update the user on progress
       if (mainWindow) {
@@ -793,141 +537,24 @@ For complexity explanations, please be thorough. For example: "Time complexity: 
 Your solution should be efficient, well-commented, and handle edge cases.
 `;
 
-      let responseContent;
+      const provider = this.providerOrchestrator.getProvider(
+        this.getProviderConfig()
+      )
+      const generationResult = await provider.generateSolution({
+        promptText,
+        model: config.solutionModel,
+        signal
+      })
 
-      if (config.apiProvider === "openai") {
-        // OpenAI processing
-        if (!this.openaiClient) {
-          return {
-            success: false,
-            error: "OpenAI API key not configured. Please check your settings."
-          };
-        }
-
-        // Send to OpenAI API
-        const solutionResponse = await this.openaiClient.chat.completions.create({
-          model: config.solutionModel || "gpt-4o",
-          messages: [
-            { role: "system", content: "You are an expert coding interview assistant. Provide clear, optimal solutions with detailed explanations." },
-            { role: "user", content: promptText }
-          ],
-          max_tokens: 4000,
-          temperature: 0.2
-        });
-
-        responseContent = solutionResponse.choices[0].message.content;
-      } else if (config.apiProvider === "gemini") {
-        // Gemini processing
-        if (!this.geminiApiKey) {
-          return {
-            success: false,
-            error: "Gemini API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          // Create Gemini message structure
-          const geminiMessages = [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `You are an expert coding interview assistant. Provide a clear, optimal solution with detailed explanations for this problem:\n\n${promptText}`
-                }
-              ]
-            }
-          ];
-
-          // Make API request to Gemini
-          const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || "gemini-3-flash-preview"}:generateContent?key=${this.geminiApiKey}`,
-            {
-              contents: geminiMessages,
-              generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 4000
-              }
-            },
-            { signal }
-          );
-
-          const responseData = response.data as GeminiResponse;
-
-          if (!responseData.candidates || responseData.candidates.length === 0) {
-            throw new Error("Empty response from Gemini API");
-          }
-
-          responseContent = responseData.candidates[0].content.parts[0].text;
-        } catch (error) {
-          console.error("Error using Gemini API for solution:", error);
-          return {
-            success: false,
-            error: "Failed to generate solution with Gemini API. Please check your API key or try again later."
-          };
-        }
-      } else if (config.apiProvider === "anthropic") {
-        // Anthropic processing
-        if (!this.anthropicClient) {
-          return {
-            success: false,
-            error: "Anthropic API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          const messages = [
-            {
-              role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: `You are an expert coding interview assistant. Provide a clear, optimal solution with detailed explanations for this problem:\n\n${promptText}`
-                }
-              ]
-            }
-          ];
-
-          // Send to Anthropic API
-          const response = await this.anthropicClient.messages.create({
-            model: config.solutionModel || "claude-3-7-sonnet-20250219",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
-
-          responseContent = (response.content[0] as { type: 'text', text: string }).text;
-        } catch (error: unknown) {
-          console.error("Error using Anthropic API for solution:", error);
-          const status = this.getErrorStatus(error);
-          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
-
-          // Add specific handling for Claude's limitations
-          if (status === 429) {
-            return {
-              success: false,
-              error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
-            };
-          } else if (status === 413 || message.includes("token")) {
-            return {
-              success: false,
-              error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
-            };
-          }
-
-          return {
-            success: false,
-            error: "Failed to generate solution with Anthropic API. Please check your API key or try again later."
-          };
-        }
-      }
-
-      // Ensure responseContent is defined
-      if (!responseContent) {
+      if (!generationResult.success || !generationResult.data) {
         return {
           success: false,
-          error: "Failed to generate solution. No response from AI provider."
-        };
+          error:
+            generationResult.error ||
+            "Failed to generate solution. No response from AI provider."
+        }
       }
+      const responseContent = generationResult.data
 
       // Extract parts from the response
       const codeMatch = responseContent.match(/```(?:\w+)?\s*([\s\S]*?)```/);
@@ -1081,184 +708,40 @@ Rules:
 4. Do not omit any of the four sections.
 `;
 
-      let debugContent;
-
-      if (config.apiProvider === "openai") {
-        if (!this.openaiClient) {
-          return {
-            success: false,
-            error: "OpenAI API key not configured. Please check your settings."
-          };
-        }
-
-        const messages = [
-          {
-            role: "system" as const,
-            content: "Follow the user's required debug report format exactly. Do not skip section headers."
-          },
-          {
-            role: "user" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: debugPrompt
-              },
-              ...imageDataList.map(data => ({
-                type: "image_url" as const,
-                image_url: { url: `data:image/png;base64,${data}` }
-              }))
-            ]
-          }
-        ];
-
-        if (mainWindow) {
-          mainWindow.webContents.send("processing-status", {
-            message: "Analyzing code and generating debug feedback...",
-            progress: 60
-          });
-        }
-
-        const debugResponse = await this.openaiClient.chat.completions.create({
-          model: config.debuggingModel || "gpt-4o",
-          messages: messages,
-          max_tokens: 4000,
-          temperature: 0.2
-        });
-
-        debugContent = debugResponse.choices[0].message.content;
-      } else if (config.apiProvider === "gemini") {
-        if (!this.geminiApiKey) {
-          return {
-            success: false,
-            error: "Gemini API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          const geminiMessages = [
-            {
-              role: "user",
-              parts: [
-                { text: debugPrompt },
-                ...imageDataList.map(data => ({
-                  inlineData: {
-                    mimeType: "image/png",
-                    data: data
-                  }
-                }))
-              ]
-            }
-          ];
-
-          if (mainWindow) {
-            mainWindow.webContents.send("processing-status", {
-              message: "Analyzing code and generating debug feedback with Gemini...",
-              progress: 60
-            });
-          }
-
-          const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.debuggingModel || "gemini-3-flash-preview"}:generateContent?key=${this.geminiApiKey}`,
-            {
-              contents: geminiMessages,
-              generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 4000
-              }
-            },
-            { signal }
-          );
-
-          const responseData = response.data as GeminiResponse;
-
-          if (!responseData.candidates || responseData.candidates.length === 0) {
-            throw new Error("Empty response from Gemini API");
-          }
-
-          debugContent = responseData.candidates[0].content.parts[0].text;
-        } catch (error) {
-          console.error("Error using Gemini API for debugging:", error);
-          return {
-            success: false,
-            error: "Failed to process debug request with Gemini API. Please check your API key or try again later."
-          };
-        }
+      let progressMessage = "Analyzing code and generating debug feedback..."
+      if (config.apiProvider === "gemini") {
+        progressMessage =
+          "Analyzing code and generating debug feedback with Gemini..."
       } else if (config.apiProvider === "anthropic") {
-        if (!this.anthropicClient) {
-          return {
-            success: false,
-            error: "Anthropic API key not configured. Please check your settings."
-          };
-        }
-
-        try {
-          const messages = [
-            {
-              role: "user" as const,
-              content: [
-                {
-                  type: "text" as const,
-                  text: debugPrompt
-                },
-                ...imageDataList.map(data => ({
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: "image/png" as const,
-                    data: data
-                  }
-                }))
-              ]
-            }
-          ];
-
-          if (mainWindow) {
-            mainWindow.webContents.send("processing-status", {
-              message: "Analyzing code and generating debug feedback with Claude...",
-              progress: 60
-            });
-          }
-
-          const response = await this.anthropicClient.messages.create({
-            model: config.debuggingModel || "claude-3-7-sonnet-20250219",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
-
-          debugContent = (response.content[0] as { type: 'text', text: string }).text;
-        } catch (error: unknown) {
-          console.error("Error using Anthropic API for debugging:", error);
-          const status = this.getErrorStatus(error);
-          const message = this.getErrorMessage(error, "Unknown Anthropic API error");
-
-          // Add specific handling for Claude's limitations
-          if (status === 429) {
-            return {
-              success: false,
-              error: "Claude API rate limit exceeded. Please wait a few minutes before trying again."
-            };
-          } else if (status === 413 || message.includes("token")) {
-            return {
-              success: false,
-              error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
-            };
-          }
-
-          return {
-            success: false,
-            error: "Failed to process debug request with Anthropic API. Please check your API key or try again later."
-          };
-        }
+        progressMessage =
+          "Analyzing code and generating debug feedback with Claude..."
+      }
+      if (mainWindow) {
+        mainWindow.webContents.send("processing-status", {
+          message: progressMessage,
+          progress: 60
+        })
       }
 
-      // Ensure debugContent is defined
-      if (!debugContent) {
+      const provider = this.providerOrchestrator.getProvider(
+        this.getProviderConfig()
+      )
+      const debugResult = await provider.generateDebug({
+        debugPrompt,
+        imageDataList,
+        model: config.debuggingModel,
+        signal
+      })
+
+      if (!debugResult.success || !debugResult.data) {
         return {
           success: false,
-          error: "Failed to generate debug analysis. No response from AI provider."
-        };
+          error:
+            debugResult.error ||
+            "Failed to generate debug analysis. No response from AI provider."
+        }
       }
+      const debugContent = debugResult.data
 
       if (mainWindow) {
         mainWindow.webContents.send("processing-status", {

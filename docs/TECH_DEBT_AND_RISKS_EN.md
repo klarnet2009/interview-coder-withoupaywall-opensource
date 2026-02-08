@@ -18,26 +18,31 @@ Resolved:
 - Live phrase finalization hangs reduced with explicit end-turn fallback logic.
 - Strict ESLint baseline restored (`npm run lint` passes with `0` errors).
 - Build chunk size warnings removed via renderer chunk-splitting and lighter syntax-highlighting usage.
+- Electron TypeScript strictness Phase A completed (`noImplicitAny: true`).
+- `ProcessingHelper` provider logic extracted to strategy-based provider layer + orchestrator.
+- Added integration tests for preload/main IPC channel contract and live lifecycle transitions.
 
 Still open:
-- Electron TypeScript strictness remains disabled (`strict: false`, `noImplicitAny: false`, `strictNullChecks: false`).
-- Core files are still too large in responsibility (`ProcessingHelper`, `UnifiedPanel`).
-- Integration test coverage is still narrow (mostly unit validation tests).
+- Electron TypeScript strictness is still partial (`strict: false`, `strictNullChecks: false`).
+- Core UI controller size is still high (`src/components/UnifiedPanel/UnifiedPanel.tsx`).
+- Integration test coverage still misses screenshot-processing recovery flows.
 
 ## Current Findings
 
 ### P1
 
 1. Electron TypeScript strictness is still permissive
-- `tsconfig.electron.json` keeps strictness flags off.
+- `tsconfig.electron.json` now has `noImplicitAny: true`, but `strictNullChecks` and full `strict` remain off.
 - Impact: type regressions can still escape into runtime.
 
 2. Single-file complexity remains high in critical paths
-- `electron/ProcessingHelper.ts` and `src/components/UnifiedPanel/UnifiedPanel.tsx` are multi-responsibility controllers.
+- `src/components/UnifiedPanel/UnifiedPanel.tsx` remains a multi-responsibility controller.
+- `electron/ProcessingHelper.ts` was improved via provider strategy extraction, but response-shaping/parsing is still dense.
 - Impact: higher change risk and slower onboarding/review.
 
 3. Limited automated coverage for runtime-critical flows
-- Unit tests pass, but IPC routing, live audio state machine, and screenshot-processing paths are under-tested.
+- IPC routing contract and live start/stop/reconnect transitions are now covered.
+- Screenshot processing, error recovery, and queue orchestration paths remain under-tested.
 - Impact: regressions likely appear late (manual QA/release).
 
 ### P2
@@ -55,11 +60,11 @@ Still open:
 ### P1 Actions (Next Sprint)
 
 1. Introduce strictness in Electron TS config in phases:
-- Phase A: `noImplicitAny: true`
+- Phase A: `noImplicitAny: true` (completed)
 - Phase B: `strictNullChecks: true`
 - Phase C: `strict: true`
 
-2. Split `ProcessingHelper` into provider strategies and orchestration layer.
+2. Continue decomposition of `ProcessingHelper` by extracting response-format parsing into focused formatters.
 
 3. Split `UnifiedPanel` into:
 - session control controller
@@ -68,8 +73,8 @@ Still open:
 - recovery/actions component
 
 4. Add integration tests:
-- IPC channel contract tests (`preload <-> main`)
-- live start/stop/reconnect state transitions
+- IPC channel contract tests (`preload <-> main`) (completed)
+- live start/stop/reconnect state transitions (completed)
 - screenshot process and recovery flow
 
 ### P2 Actions (Cleanup)

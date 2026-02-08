@@ -9,7 +9,7 @@
     "noUnusedParameters": false,
     "outDir": "dist-electron",
     "esModuleInterop": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "strictNullChecks": false,
     "baseUrl": ".",
     "paths": {
