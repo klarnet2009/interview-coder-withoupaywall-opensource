@@ -26,11 +26,13 @@ import {
 } from "./constants";
 import { LiveStateLane } from "./LiveStateLane";
 import { ResponseSection } from "./ResponseSection";
+import { useAudioCapture } from "./useAudioCapture";
+import { useUnifiedPanelSubscriptions } from "./useUnifiedPanelSubscriptions";
+import { useUnifiedPanelUiEffects } from "./useUnifiedPanelUiEffects";
 import type {
   ActionNotice,
   AudioAppSource,
   AudioSourceType,
-  ListeningState,
   LiveInterviewStatus,
   RuntimePreferences,
   UnifiedPanelProps
@@ -59,7 +61,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     audioLevel: 0
   });
   const [error, setError] = useState<string | null>(null);
-  const [localAudioLevel, setLocalAudioLevel] = useState(0);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
 
   const [showAudioDropdown, setShowAudioDropdown] = useState(false);
@@ -78,145 +79,34 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     displayMode: "standard"
   });
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const processorRef = useRef<AudioWorkletNode | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const audioDropdownRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const unsubStatus = window.electronAPI.onLiveInterviewStatus(
-      (newStatus: LiveInterviewStatus) => {
-        setStatus(newStatus);
-      }
-    );
-    const unsubState = window.electronAPI.onLiveInterviewState(
-      (state: ListeningState) => {
-        setStatus((prev) => ({ ...prev, state }));
-      }
-    );
-    const unsubError = window.electronAPI.onLiveInterviewError((errorMsg: string) => {
-      setError(errorMsg);
-      setStatus((prev) => ({ ...prev, state: "error" }));
-      setActionNotice({
-        ...NOTICE_MAP.live_error,
-        message: errorMsg || NOTICE_MAP.live_error.message
-      });
-    });
+  const { localAudioLevel, startAudioCapture, stopAudioCapture } = useAudioCapture({
+    isActiveRef
+  });
 
-    const unsubProcessError = window.electronAPI.onSolutionError(
-      (errorMessage: string) => {
-        setActionNotice({
-          ...NOTICE_MAP.process_failed,
-          message: errorMessage || NOTICE_MAP.process_failed.message
-        });
-      }
-    );
+  useUnifiedPanelSubscriptions({
+    isCapturing,
+    isActive,
+    setStatus,
+    setError,
+    setActionNotice,
+    setDebugMode,
+    statusState: status.state
+  });
 
-    const unsubNoScreenshots = window.electronAPI.onProcessingNoScreenshots(() => {
-      setActionNotice(NOTICE_MAP.no_screenshots);
-    });
-
-    const unsubInvalidKey = window.electronAPI.onApiKeyInvalid(() => {
-      setActionNotice(NOTICE_MAP.api_key_invalid);
-    });
-
-    const clearFailures = () => {
-      setActionNotice((prev) => {
-        if (!prev) {
-          return prev;
-        }
-        if (
-          prev.code === "process_failed" ||
-          prev.code === "no_screenshots" ||
-          prev.code === "api_key_invalid"
-        ) {
-          return null;
-        }
-        return prev;
-      });
-    };
-
-    const unsubSolutionSuccess = window.electronAPI.onSolutionSuccess(clearFailures);
-    const unsubReset = window.electronAPI.onResetView(() => {
-      setActionNotice(null);
-      setError(null);
-    });
-
-    return () => {
-      unsubStatus();
-      unsubState();
-      unsubError();
-      unsubProcessError();
-      unsubNoScreenshots();
-      unsubInvalidKey();
-      unsubSolutionSuccess();
-      unsubReset();
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      stopAudioCapture();
-    };
-  }, []);
-
-  useEffect(() => {
-    let tooltipHeight = 0;
-    if (tooltipRef.current && isTooltipVisible) {
-      tooltipHeight = tooltipRef.current.offsetHeight + 10;
-    }
-    onTooltipVisibilityChange(isTooltipVisible, tooltipHeight);
-  }, [isTooltipVisible, onTooltipVisibilityChange]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        audioDropdownRef.current &&
-        !audioDropdownRef.current.contains(e.target as Node)
-      ) {
-        setShowAudioDropdown(false);
-      }
-    };
-    if (showAudioDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showAudioDropdown]);
-
-  useEffect(() => {
-    if (responseRef.current) {
-      responseRef.current.scrollTop = 0; // New content appears at top
-    }
-  }, [status.response]);
-
-  // Listen for debug mode changes from DevModeToggle
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setDebugMode((e as CustomEvent).detail as boolean);
-    };
-    window.addEventListener('debug-mode-change', handler);
-    return () => window.removeEventListener('debug-mode-change', handler);
-  }, []);
-
-  useEffect(() => {
-    // Only show no_signal warning during initial audio setup, not during live interview
-    // (silence between questions is normal during an active session)
-    if (status.state === "no_signal" && isCapturing && !isActive) {
-      setActionNotice((prev) => {
-        if (prev?.code === "audio_no_signal") {
-          return prev;
-        }
-        return NOTICE_MAP.audio_no_signal;
-      });
-      return;
-    }
-
-    if (status.state !== "no_signal") {
-      setActionNotice((prev) => (prev?.code === "audio_no_signal" ? null : prev));
-    }
-  }, [status.state, isActive, isCapturing]);
+  useUnifiedPanelUiEffects({
+    isTooltipVisible,
+    tooltipRef,
+    onTooltipVisibilityChange,
+    showAudioDropdown,
+    audioDropdownRef,
+    setShowAudioDropdown,
+    responseRef,
+    response: status.response
+  });
 
   useEffect(() => {
     const loadPreferredSource = async () => {
@@ -263,114 +153,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     }
   }, []);
 
-  const startAudioCapture = async (source: AudioSourceType, appSourceId?: string) => {
-    try {
-      let stream: MediaStream;
-
-      if (source === "application" && appSourceId) {
-        // Per-window audio capture via Electron chromeMediaSourceId
-        const desktopCaptureConstraints: MediaStreamConstraints = {
-          audio: {
-            mandatory: {
-              chromeMediaSource: "desktop",
-              chromeMediaSourceId: appSourceId
-            }
-          } as unknown as MediaTrackConstraints,
-          video: {
-            mandatory: {
-              chromeMediaSource: "desktop",
-              chromeMediaSourceId: appSourceId
-            }
-          } as unknown as MediaTrackConstraints
-        };
-        stream = await navigator.mediaDevices.getUserMedia(desktopCaptureConstraints);
-        // We only need audio — stop the video track
-        stream.getVideoTracks().forEach((track) => track.stop());
-        if (stream.getAudioTracks().length === 0) {
-          throw new Error("No audio track detected from the selected application.");
-        }
-      } else if (source === "system") {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        });
-        stream.getVideoTracks().forEach((track) => track.stop());
-        if (stream.getAudioTracks().length === 0) {
-          throw new Error("No audio track detected. Enable audio sharing and try again.");
-        }
-      } else {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            sampleRate: 16000,
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true
-          }
-        });
-      }
-
-      mediaStreamRef.current = stream;
-
-      // For system/app audio: use native sample rate (typically 48kHz)
-      // and let the AudioWorklet handle resampling to 16kHz.
-      // For microphone: use 16kHz directly since getUserMedia supports it.
-      const useNativeRate = source === "system" || source === "application";
-      const contextSampleRate = useNativeRate ? undefined : 16000;
-      audioContextRef.current = new AudioContext(
-        contextSampleRate ? { sampleRate: contextSampleRate } : {}
-      );
-
-      const actualRate = audioContextRef.current.sampleRate;
-      console.log(`Audio capture: source=${source}, contextSampleRate=${actualRate}`);
-
-      const audioSrc = audioContextRef.current.createMediaStreamSource(stream);
-
-      await audioContextRef.current.audioWorklet.addModule("/pcm-capture-processor.js");
-      const processor = new AudioWorkletNode(
-        audioContextRef.current,
-        "pcm-capture-processor",
-        { processorOptions: { inputSampleRate: actualRate } }
-      );
-
-      processor.port.onmessage = (event) => {
-        const { pcmBuffer, level } = event.data;
-        setLocalAudioLevel(level);
-
-        // Only send audio to Gemini when interview is actively running
-        if (!isActiveRef.current) return;
-
-        const uint8Array = new Uint8Array(pcmBuffer);
-        const binary = String.fromCharCode.apply(null, Array.from(uint8Array));
-        const base64 = btoa(binary);
-        window.electronAPI.liveInterviewSendAudio(base64, level);
-      };
-
-      audioSrc.connect(processor);
-      processor.connect(audioContextRef.current.destination);
-      processorRef.current = processor;
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "NotAllowedError") {
-        throw new Error("Permission denied. Please allow audio capture and retry.");
-      }
-      throw err;
-    }
-  };
-
-  const stopAudioCapture = () => {
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-    }
-    setLocalAudioLevel(0);
-  };
   const handleSourceSelect = async (source: AudioSourceType, appSource?: AudioAppSource) => {
     setShowAudioDropdown(false);
     setError(null);
@@ -467,7 +249,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       }
       return prev;
     });
-  }, []);
+  }, [stopAudioCapture]);
 
   const handleScreenshot = async () => {
     try {

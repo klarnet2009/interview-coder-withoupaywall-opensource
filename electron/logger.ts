@@ -22,3 +22,10 @@ export const logger = {
     }
   }
 }
+
+export const createScopedLogger = (scope: string) => ({
+  info: (...args: LogArgs) => logger.info(`[${scope}]`, ...args),
+  warn: (...args: LogArgs) => logger.warn(`[${scope}]`, ...args),
+  error: (...args: LogArgs) => logger.error(`[${scope}]`, ...args),
+  debug: (...args: LogArgs) => logger.debug(`[${scope}]`, ...args)
+})

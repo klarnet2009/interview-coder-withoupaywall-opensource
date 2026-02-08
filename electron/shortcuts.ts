@@ -1,6 +1,9 @@
 import { globalShortcut, app } from "electron"
 import { IShortcutsHelperDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
+import { createScopedLogger } from "./logger"
+
+const runtimeLogger = createScopedLogger("shortcuts")
 
 export class ShortcutsHelper {
   private deps: IShortcutsHelperDeps
@@ -15,7 +18,7 @@ export class ShortcutsHelper {
 
     let currentOpacity = mainWindow.getOpacity();
     let newOpacity = Math.max(0.1, Math.min(1.0, currentOpacity + delta));
-    console.log(`Adjusting opacity from ${currentOpacity} to ${newOpacity}`);
+    runtimeLogger.debug(`Adjusting opacity from ${currentOpacity} to ${newOpacity}`);
 
     mainWindow.setOpacity(newOpacity);
 
@@ -25,7 +28,7 @@ export class ShortcutsHelper {
       config.opacity = newOpacity;
       configHelper.saveConfig(config);
     } catch (error) {
-      console.error('Error saving opacity to config:', error);
+      runtimeLogger.error('Error saving opacity to config:', error);
     }
 
     // If we're making the window visible, also make sure it's shown and interaction is enabled
@@ -38,7 +41,7 @@ export class ShortcutsHelper {
     globalShortcut.register("CommandOrControl+H", async () => {
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
-        console.log("Taking screenshot...")
+        runtimeLogger.debug("Taking screenshot...")
         try {
           const screenshotPath = await this.deps.takeScreenshot()
           const preview = await this.deps.getImagePreview(screenshotPath)
@@ -47,7 +50,7 @@ export class ShortcutsHelper {
             preview
           })
         } catch (error) {
-          console.error("Error capturing screenshot:", error)
+          runtimeLogger.error("Error capturing screenshot:", error)
         }
       }
     })
@@ -57,7 +60,7 @@ export class ShortcutsHelper {
     })
 
     globalShortcut.register("CommandOrControl+R", () => {
-      console.log(
+      runtimeLogger.debug(
         "Command + R pressed. Canceling requests and resetting queues..."
       )
 
@@ -67,7 +70,7 @@ export class ShortcutsHelper {
       // Clear both screenshot queues
       this.deps.clearQueues()
 
-      console.log("Cleared queues.")
+      runtimeLogger.debug("Cleared queues.")
 
       // Update the view state to 'queue'
       this.deps.setView("queue")
@@ -82,43 +85,43 @@ export class ShortcutsHelper {
 
     // New shortcuts for moving the window
     globalShortcut.register("CommandOrControl+Left", () => {
-      console.log("Command/Ctrl + Left pressed. Moving window left.")
+      runtimeLogger.debug("Command/Ctrl + Left pressed. Moving window left.")
       this.deps.moveWindowLeft()
     })
 
     globalShortcut.register("CommandOrControl+Right", () => {
-      console.log("Command/Ctrl + Right pressed. Moving window right.")
+      runtimeLogger.debug("Command/Ctrl + Right pressed. Moving window right.")
       this.deps.moveWindowRight()
     })
 
     globalShortcut.register("CommandOrControl+Down", () => {
-      console.log("Command/Ctrl + down pressed. Moving window down.")
+      runtimeLogger.debug("Command/Ctrl + down pressed. Moving window down.")
       this.deps.moveWindowDown()
     })
 
     globalShortcut.register("CommandOrControl+Up", () => {
-      console.log("Command/Ctrl + Up pressed. Moving window Up.")
+      runtimeLogger.debug("Command/Ctrl + Up pressed. Moving window Up.")
       this.deps.moveWindowUp()
     })
 
     globalShortcut.register("CommandOrControl+B", () => {
-      console.log("Command/Ctrl + B pressed. Toggling window visibility.")
+      runtimeLogger.debug("Command/Ctrl + B pressed. Toggling window visibility.")
       this.deps.toggleMainWindow()
     })
 
     globalShortcut.register("CommandOrControl+Q", () => {
-      console.log("Command/Ctrl + Q pressed. Quitting application.")
+      runtimeLogger.debug("Command/Ctrl + Q pressed. Quitting application.")
       app.quit()
     })
 
     // Adjust opacity shortcuts
     globalShortcut.register("CommandOrControl+[", () => {
-      console.log("Command/Ctrl + [ pressed. Decreasing opacity.")
+      runtimeLogger.debug("Command/Ctrl + [ pressed. Decreasing opacity.")
       this.adjustOpacity(-0.1)
     })
 
     globalShortcut.register("CommandOrControl+]", () => {
-      console.log("Command/Ctrl + ] pressed. Increasing opacity.")
+      runtimeLogger.debug("Command/Ctrl + ] pressed. Increasing opacity.")
       this.adjustOpacity(0.1)
     })
 
@@ -129,7 +132,7 @@ export class ShortcutsHelper {
         const currentZoom = mainWindow.webContents.getZoomLevel()
         const newZoom = currentZoom - 0.5
         mainWindow.webContents.setZoomLevel(newZoom)
-        console.log(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
+        runtimeLogger.debug(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
       }
     })
 
@@ -137,7 +140,7 @@ export class ShortcutsHelper {
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         mainWindow.webContents.setZoomLevel(0)
-        console.log(`Zoom: 100%`)
+        runtimeLogger.debug(`Zoom: 100%`)
       }
     })
 
@@ -147,13 +150,13 @@ export class ShortcutsHelper {
         const currentZoom = mainWindow.webContents.getZoomLevel()
         const newZoom = currentZoom + 0.5
         mainWindow.webContents.setZoomLevel(newZoom)
-        console.log(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
+        runtimeLogger.debug(`Zoom: ${Math.round(Math.pow(1.2, newZoom) * 100)}%`)
       }
     })
 
     // Delete last screenshot shortcut
     globalShortcut.register("CommandOrControl+L", () => {
-      console.log("Command/Ctrl + L pressed. Deleting last screenshot.")
+      runtimeLogger.debug("Command/Ctrl + L pressed. Deleting last screenshot.")
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         // Send an event to the renderer to delete the last screenshot
@@ -163,7 +166,7 @@ export class ShortcutsHelper {
 
     // Toggle DevTools
     globalShortcut.register("F12", () => {
-      console.log("F12 pressed. Toggling DevTools.")
+      runtimeLogger.debug("F12 pressed. Toggling DevTools.")
       const mainWindow = this.deps.getMainWindow()
       if (mainWindow) {
         mainWindow.webContents.toggleDevTools()

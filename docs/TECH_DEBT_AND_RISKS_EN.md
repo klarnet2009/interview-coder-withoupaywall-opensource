@@ -34,10 +34,8 @@ Resolved:
 - Extended logger policy to IPC routing layer (`electron/ipcHandlers.ts`).
 - Quarantined unused parallel audio capture abstractions into `*.legacy.ts` modules and excluded them from active builds.
 - Added runtime IPC invoke self-check in `initializeIpcHandlers` (with explicit external-channel allowance).
-
-Still open:
-- `src/components/UnifiedPanel/UnifiedPanel.tsx` still owns runtime side-effects and can be further hook-extracted.
-- Logging policy rollout beyond processing path is still pending in several runtime modules.
+- `UnifiedPanel` runtime side-effects were hook-extracted (`useUnifiedPanelSubscriptions`, `useUnifiedPanelUiEffects`, `useAudioCapture`) to reduce controller risk in `src/components/UnifiedPanel/UnifiedPanel.tsx`.
+- Logging policy rollout was completed across active Electron runtime modules (`main`, `ConfigHelper`, `ScreenshotHelper`, `preload`, `shortcuts`, `autoUpdater`, `processing/ProcessingProviderOrchestrator`) with scoped logger usage.
 
 ## Current Findings
 
@@ -51,13 +49,9 @@ Still open:
 
 ### P2
 
-2. Runtime logging is still noisy in production paths
-- Logging policy is now centralized in processing and IPC paths, but broad `console.*` usage remains in other runtime modules.
-- Impact: noisy diagnostics and increased risk of leaking internal state.
-
-3. UnifiedPanel still has runtime side-effect ownership
-- `src/components/UnifiedPanel/UnifiedPanel.tsx` was reduced substantially but still coordinates multiple runtime concerns.
-- Impact: medium change risk in UI runtime control logic.
+2. Active P2 blockers are currently closed
+- No open high-impact cleanup items remain from this audit baseline.
+- Continue incremental cleanup only when touching adjacent runtime surfaces.
 
 ## Remediation Plan
 
@@ -76,7 +70,7 @@ Status: `completed`.
 - live state lane component
 - response rendering component
 - recovery/actions component
-Status: `partially completed` (lane/response/recovery/audio selector extracted; remaining runtime-effects/controller logic still in `UnifiedPanel.tsx`).
+Status: `completed` (runtime side-effects + audio capture extracted into dedicated hooks, with `UnifiedPanel` retained as composition/controller layer).
 
 4. Add integration tests:
 - IPC channel contract tests (`preload <-> main`) (completed)
@@ -90,7 +84,7 @@ Status: `partially completed` (lane/response/recovery/audio selector extracted; 
 1. Remove or quarantine legacy modules not in active path.
 Status: `partially completed` (audio capture legacy abstractions quarantined and excluded from build).
 2. Consolidate logging behind a leveled logger policy.
-Status: `in progress` (processing + IPC paths migrated; other runtime modules pending).
+Status: `completed` (active Electron runtime modules migrated to centralized scoped logger policy).
 3. Normalize shared runtime types across main/preload/renderer.
 Status: `completed` for active runtime contracts; continue incremental cleanup on newly touched surfaces.
 

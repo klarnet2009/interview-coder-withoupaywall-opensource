@@ -1,11 +1,14 @@
 import { AnthropicProcessingProvider } from "./providers/AnthropicProcessingProvider"
 import { GeminiProcessingProvider } from "./providers/GeminiProcessingProvider"
 import { OpenAIProcessingProvider } from "./providers/OpenAIProcessingProvider"
+import { createScopedLogger } from "../logger"
 import type {
   ApiProvider,
   ProcessingProviderStrategy,
   ProviderConfig
 } from "./types"
+
+const runtimeLogger = createScopedLogger("processingProvider")
 
 const toSignature = (config: ProviderConfig): string => {
   return JSON.stringify({
@@ -29,7 +32,7 @@ export class ProcessingProviderOrchestrator {
 
     this.provider = this.createProvider(config.apiProvider, config.apiKey)
     this.signature = nextSignature
-    console.log(`Processing provider initialized: ${config.apiProvider}`)
+    runtimeLogger.debug(`Processing provider initialized: ${config.apiProvider}`)
   }
 
   public getProvider(config: ProviderConfig): ProcessingProviderStrategy {

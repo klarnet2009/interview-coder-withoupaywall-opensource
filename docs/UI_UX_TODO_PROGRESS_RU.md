@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после ProcessingHelper controller split + timeout coverage + CI/bundle gates)  
+Дата обновления: 2026-02-08 (после UnifiedPanel hook extraction + runtime logging policy completion)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -186,6 +186,12 @@
 - [x] `TECH-024` Закрыт: logging policy phase-B для IPC слоя
   - `electron/ipcHandlers.ts` переведен с `console.*` на централизованный `logger`
   - Снижен шум runtime-логов в горячем IPC пути
+- [x] `TECH-025` Закрыт: logging policy phase-C для активных Electron runtime модулей
+  - `console.*` устранён в `electron/main.ts`, `electron/ConfigHelper.ts`, `electron/ScreenshotHelper.ts`, `electron/preload.ts`, `electron/shortcuts.ts`, `electron/autoUpdater.ts`, `electron/processing/ProcessingProviderOrchestrator.ts`
+  - Добавлен scoped logging helper `createScopedLogger` в `electron/logger.ts`
+- [x] `TECH-026` Закрыт: runtime side-effects в `UnifiedPanel` вынесены в отдельные hooks
+  - Добавлены `src/components/UnifiedPanel/useUnifiedPanelSubscriptions.ts`, `src/components/UnifiedPanel/useUnifiedPanelUiEffects.ts`, `src/components/UnifiedPanel/useAudioCapture.ts`
+  - `UnifiedPanel.tsx` упрощён до composition/controller слоя с меньшей зоной побочных эффектов
 
 ---
 
