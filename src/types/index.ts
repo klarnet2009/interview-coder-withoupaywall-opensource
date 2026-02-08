@@ -80,6 +80,33 @@ export const PROVIDERS: ProviderInfo[] = [
 export type CommunicationTone = 'formal' | 'professional' | 'casual';
 export type AnswerStyle = 'concise' | 'structured' | 'detailed' | 'star' | 'custom';
 
+export interface Education {
+  degree: string;
+  institution: string;
+  year?: number;
+}
+
+export interface WorkHistoryItem {
+  title: string;
+  company: string;
+  duration: string;
+  highlights: string[];
+}
+
+export interface ProjectItem {
+  name: string;
+  description: string;
+  tech: string[];
+}
+
+export interface StarStory {
+  title: string;
+  situation: string;
+  action: string;
+  result: string;
+  tags: string[];
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -91,6 +118,47 @@ export interface UserProfile {
   tone: CommunicationTone;
   emphasis?: string;
   avoid?: string;
+
+  // Structured CV data
+  education?: Education[];
+  workHistory?: WorkHistoryItem[];
+  projects?: ProjectItem[];
+  certifications?: string[];
+  languages?: { name: string; level: string }[];
+
+  // AI-extracted summary
+  aiSummary?: string;
+
+  // Uploaded file reference
+  cvFilePath?: string;
+  cvParsedAt?: number;
+
+  // STAR stories for behavioral interviews
+  stories?: StarStory[];
+
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ============================================================================
+// Company Context Types
+// ============================================================================
+
+export interface CompanyContext {
+  id: string;
+  companyName: string;
+  jobTitle?: string;
+  jobDescription?: string;
+  jobUrl?: string;
+  requiredSkills?: string[];
+  niceToHaveSkills?: string[];
+  responsibilities?: string[];
+  companyValues?: string[];
+  interviewFocus?: string;
+  companyInfo?: string;
+  techStack?: string[];
+  skillMatch?: { matched: string[]; gaps: string[] };
+  talkingPoints?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -185,6 +253,10 @@ export interface AppConfig {
 
   // Display
   displayConfig: DisplayConfig;
+
+  // Company contexts for interview personalization
+  companyContexts: CompanyContext[];
+  activeCompanyId?: string;
 }
 
 // Default configuration
@@ -230,7 +302,9 @@ export const DEFAULT_CONFIG: AppConfig = {
       compact: 'Ctrl+0',
       emergencyHide: 'Ctrl+B'
     }
-  }
+  },
+
+  companyContexts: []
 };
 
 // ============================================================================

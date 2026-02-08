@@ -12,6 +12,9 @@ interface UseUnifiedPanelUiEffectsParams {
   showAudioDropdown: boolean
   audioDropdownRef: RefObject<HTMLDivElement | null>
   setShowAudioDropdown: Dispatch<SetStateAction<boolean>>
+  showCaptureDropdown: boolean
+  captureDropdownRef: RefObject<HTMLDivElement | null>
+  setShowCaptureDropdown: Dispatch<SetStateAction<boolean>>
   responseRef: RefObject<HTMLDivElement | null>
   response: string
 }
@@ -23,6 +26,9 @@ export function useUnifiedPanelUiEffects({
   showAudioDropdown,
   audioDropdownRef,
   setShowAudioDropdown,
+  showCaptureDropdown,
+  captureDropdownRef,
+  setShowCaptureDropdown,
   responseRef,
   response
 }: UseUnifiedPanelUiEffectsParams): void {
@@ -42,16 +48,22 @@ export function useUnifiedPanelUiEffects({
       ) {
         setShowAudioDropdown(false)
       }
+      if (
+        captureDropdownRef.current &&
+        !captureDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowCaptureDropdown(false)
+      }
     }
 
-    if (showAudioDropdown) {
+    if (showAudioDropdown || showCaptureDropdown) {
       document.addEventListener("mousedown", handleClickOutside)
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
     }
-  }, [audioDropdownRef, setShowAudioDropdown, showAudioDropdown])
+  }, [audioDropdownRef, setShowAudioDropdown, showAudioDropdown, captureDropdownRef, setShowCaptureDropdown, showCaptureDropdown])
 
   useEffect(() => {
     if (responseRef.current) {

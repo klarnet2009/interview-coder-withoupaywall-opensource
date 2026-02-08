@@ -10,7 +10,9 @@ import {
   LogOut,
   ChevronDown as ChevronDownIcon,
   RefreshCw,
-  RotateCcw
+  RotateCcw,
+  Monitor,
+  Search
 } from "lucide-react";
 import ScreenshotQueue from "../Queue/ScreenshotQueue";
 import { useToast } from "../../contexts/toast";
@@ -79,8 +81,15 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     displayMode: "standard"
   });
 
+  // Capture dropdown state
+  const [showCaptureDropdown, setShowCaptureDropdown] = useState(false);
+  const [captureSources, setCaptureSources] = useState<{ id: string; name: string; thumbnail: string; appIcon: string | null }[]>([]);
+  const [isLoadingCaptureSources, setIsLoadingCaptureSources] = useState(false);
+  const [captureSearchQuery, setCaptureSearchQuery] = useState("");
+
   const tooltipRef = useRef<HTMLDivElement>(null);
   const audioDropdownRef = useRef<HTMLDivElement>(null);
+  const captureDropdownRef = useRef<HTMLDivElement>(null);
   const responseRef = useRef<HTMLDivElement>(null);
 
   const { localAudioLevel, startAudioCapture, stopAudioCapture } = useAudioCapture({
@@ -104,6 +113,9 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     showAudioDropdown,
     audioDropdownRef,
     setShowAudioDropdown,
+    showCaptureDropdown,
+    captureDropdownRef,
+    setShowCaptureDropdown,
     responseRef,
     response: status.response
   });
@@ -150,6 +162,18 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       console.error("Failed to fetch audio sources:", err);
     } finally {
       setIsLoadingApps(false);
+    }
+  }, []);
+
+  const fetchCaptureSources = useCallback(async () => {
+    setIsLoadingCaptureSources(true);
+    try {
+      const sources = await window.electronAPI.getCaptureSources();
+      setCaptureSources(sources);
+    } catch (err) {
+      console.error("Failed to fetch capture sources:", err);
+    } finally {
+      setIsLoadingCaptureSources(false);
     }
   }, []);
 
@@ -508,7 +532,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
         <div className="grid grid-cols-3 gap-2">
           {/* Column 1: Capture with dropdown for screen/window selection */}
-          <div className="relative">
+          <div className="relative" ref={captureDropdownRef}>
             <div className="flex items-stretch gap-0 h-11">
               <button
                 onClick={handleScreenshot}
@@ -522,19 +546,140 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
               </button>
               <button
                 onClick={() => {
-                  // TODO: Add screen/window picker dropdown
-                  handleScreenshot();
+                  const next = !showCaptureDropdown;
+                  setShowCaptureDropdown(next);
+                  if (next) fetchCaptureSources();
                 }}
-                className="w-8 rounded-r-lg border border-white/15 bg-white/5 hover:bg-white/10 text-white transition-colors flex items-center justify-center"
+                className={`w-8 rounded-r-lg border border-white/15 transition-colors flex items-center justify-center ${showCaptureDropdown
+                  ? "bg-white/15 text-white"
+                  : "bg-white/5 hover:bg-white/10 text-white/60"
+                  }`}
                 title="Choose what to capture"
               >
-                <ChevronDownIcon className="w-3.5 h-3.5 text-white/60" />
+                <ChevronDownIcon className="w-3.5 h-3.5" />
               </button>
             </div>
             {screenshotCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 bg-blue-500 text-[11px] min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-bold">
                 {screenshotCount}
               </span>
+            )}
+
+            {/* Capture source picker dropdown */}
+            {showCaptureDropdown && (
+              <div
+                className="absolute top-full left-0 mt-1 w-64 bg-black/95 backdrop-blur-md rounded-lg border border-white/15 shadow-xl overflow-hidden"
+                style={{ zIndex: 200 }}
+              >
+                {/* Full Screen option */}
+                <button
+                  onClick={async () => {
+                    setShowCaptureDropdown(false);
+                    await handleScreenshot();
+                  }}
+                  className="flex items-center gap-2.5 w-full px-3 py-2.5 hover:bg-white/10 transition-colors text-left"
+                >
+                  <Monitor className="w-4 h-4 text-white/70 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] text-white/90">Full Screen</div>
+                    <div className="text-[11px] text-white/40">Capture entire display</div>
+                  </div>
+                </button>
+
+                <div className="h-px bg-white/10" />
+
+                {/* Header + Refresh */}
+                <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                  <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">
+                    Windows
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fetchCaptureSources();
+                    }}
+                    className="p-1 text-white/30 hover:text-white/70 transition-colors"
+                    title="Refresh list"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isLoadingCaptureSources ? "animate-spin" : ""}`} />
+                  </button>
+                </div>
+
+                {/* Search (when > 5 sources) */}
+                {captureSources.length > 5 && (
+                  <div className="px-3 pb-1.5">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={captureSearchQuery}
+                        onChange={(e) => setCaptureSearchQuery(e.target.value)}
+                        placeholder="Search windows..."
+                        className="w-full pl-7 pr-2 py-1.5 bg-white/5 border border-white/10 rounded-md text-[12px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Window list */}
+                <div className="max-h-[240px] overflow-y-auto">
+                  {isLoadingCaptureSources ? (
+                    <div className="flex items-center justify-center py-4">
+                      <RefreshCw className="w-4 h-4 text-white/30 animate-spin" />
+                    </div>
+                  ) : captureSources.length === 0 ? (
+                    <div className="text-center py-3 text-[12px] text-white/35">
+                      No windows found
+                    </div>
+                  ) : (
+                    captureSources
+                      .filter(
+                        (src) =>
+                          !captureSearchQuery ||
+                          src.name.toLowerCase().includes(captureSearchQuery.toLowerCase())
+                      )
+                      .map((src) => (
+                        <button
+                          key={src.id}
+                          onClick={async () => {
+                            setShowCaptureDropdown(false);
+                            setCaptureSearchQuery("");
+                            try {
+                              const result = await window.electronAPI.triggerScreenshot(src.id);
+                              if (!result.success) {
+                                showToast("Error", "Failed to capture window", "error");
+                              } else {
+                                setActionNotice((prev) => (prev?.code === "no_screenshots" ? null : prev));
+                              }
+                            } catch (err) {
+                              console.error("Window capture failed:", err);
+                              showToast("Error", "Failed to capture window", "error");
+                            }
+                          }}
+                          className="flex items-center gap-2.5 w-full px-3 py-2 hover:bg-white/10 transition-colors text-left"
+                        >
+                          {src.thumbnail ? (
+                            <img
+                              src={src.thumbnail}
+                              alt=""
+                              className="w-10 h-7 rounded border border-white/10 object-cover shrink-0"
+                            />
+                          ) : src.appIcon ? (
+                            <img src={src.appIcon} alt="" className="w-5 h-5 rounded shrink-0" />
+                          ) : (
+                            <div className="w-10 h-7 rounded bg-white/10 flex items-center justify-center text-[10px] text-white/50 shrink-0">
+                              {src.name.charAt(0)}
+                            </div>
+                          )}
+                          <span className="text-[13px] text-white/80 truncate flex-1 min-w-0">
+                            {src.name}
+                          </span>
+                        </button>
+                      ))
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

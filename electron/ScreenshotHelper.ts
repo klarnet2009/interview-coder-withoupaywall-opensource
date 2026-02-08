@@ -2,7 +2,7 @@
 
 import path from "node:path";
 import fs from "node:fs";
-import { app } from "electron";
+import { app, desktopCapturer } from "electron";
 import { v4 as uuidv4 } from "uuid";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -155,9 +155,36 @@ export class ScreenshotHelper {
     this.extraScreenshotQueue = [];
   }
 
-  private async captureScreenshot(): Promise<Buffer> {
+  /**
+   * Capture a specific window/screen by desktopCapturer source ID.
+   * Returns the full-resolution thumbnail as a PNG buffer.
+   */
+  public async captureWindowById(sourceId: string): Promise<Buffer> {
+    runtimeLogger.debug(`Capturing window by sourceId: ${sourceId}`);
+    const sources = await desktopCapturer.getSources({
+      types: ["window", "screen"],
+      thumbnailSize: { width: 3840, height: 2160 },
+    });
+    const match = sources.find((s) => s.id === sourceId);
+    if (!match) {
+      throw new Error(`Capture source not found: ${sourceId}`);
+    }
+    const png = match.thumbnail.toPNG();
+    if (!png || png.length === 0) {
+      throw new Error("desktopCapturer returned empty thumbnail");
+    }
+    runtimeLogger.debug(`Window captured, size: ${png.length} bytes`);
+    return Buffer.from(png);
+  }
+
+  private async captureScreenshot(sourceId?: string): Promise<Buffer> {
     try {
       runtimeLogger.debug("Starting screenshot capture...");
+
+      // If a specific source was requested, use desktopCapturer
+      if (sourceId) {
+        return await this.captureWindowById(sourceId);
+      }
 
       // For Windows, try multiple methods
       if (process.platform === "win32") {
@@ -284,9 +311,10 @@ export class ScreenshotHelper {
 
   public async takeScreenshot(
     hideMainWindow: () => void,
-    showMainWindow: () => void
+    showMainWindow: () => void,
+    sourceId?: string
   ): Promise<string> {
-    runtimeLogger.debug("Taking screenshot in view:", this.view);
+    runtimeLogger.debug("Taking screenshot in view:", this.view, sourceId ? `sourceId: ${sourceId}` : "full screen");
     hideMainWindow();
 
     // Increased delay for window hiding on Windows
@@ -295,8 +323,8 @@ export class ScreenshotHelper {
 
     let screenshotPath = "";
     try {
-      // Get screenshot buffer using cross-platform method
-      const screenshotBuffer = await this.captureScreenshot();
+      // Get screenshot buffer — specific window if sourceId provided, else full screen
+      const screenshotBuffer = await this.captureScreenshot(sourceId);
 
       if (!screenshotBuffer || screenshotBuffer.length === 0) {
         throw new Error("Screenshot capture returned empty buffer");

@@ -6,7 +6,7 @@
 import { EventEmitter } from 'events';
 import log from 'electron-log';
 import { GeminiLiveService, TranscriptUpdate } from './GeminiLiveService';
-import { HintGenerationService, HintResponse } from './HintGenerationService';
+import { HintGenerationService, HintResponse, HintUserProfile, HintCompanyContext } from './HintGenerationService';
 
 export type ListeningState =
     | 'idle'
@@ -32,6 +32,8 @@ export interface LiveInterviewConfig {
     spokenLanguage?: string;
     interviewMode?: string;
     answerStyle?: string;
+    userProfile?: HintUserProfile | null;
+    companyContext?: HintCompanyContext | null;
 }
 
 export class LiveInterviewService extends EventEmitter {
@@ -105,7 +107,9 @@ export class LiveInterviewService extends EventEmitter {
                 undefined,
                 this.config.spokenLanguage,
                 this.config.interviewMode,
-                this.config.answerStyle
+                this.config.answerStyle,
+                this.config.userProfile,
+                this.config.companyContext
             );
             this.setupHintListeners();
 

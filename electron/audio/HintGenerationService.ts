@@ -38,6 +38,30 @@ export interface HintResponse {
     timestamp: number;
 }
 
+export interface HintUserProfile {
+    name?: string;
+    targetRole?: string;
+    yearsExperience?: number;
+    skills?: string[];
+    achievements?: string;
+    aiSummary?: string;
+    tone?: string;
+    emphasis?: string;
+    avoid?: string;
+    workHistory?: { title: string; company: string; duration: string; highlights: string[] }[];
+    stories?: { title: string; situation: string; action: string; result: string; tags: string[] }[];
+}
+
+export interface HintCompanyContext {
+    companyName?: string;
+    jobTitle?: string;
+    techStack?: string[];
+    companyValues?: string[];
+    talkingPoints?: string[];
+    interviewFocus?: string;
+    skillMatch?: { matched: string[]; gaps: string[] };
+}
+
 export class HintGenerationService extends EventEmitter {
     private apiKey: string;
     private model: string;
@@ -47,19 +71,23 @@ export class HintGenerationService extends EventEmitter {
     private spokenLanguage: string;
     private interviewMode: string;
     private answerStyle: string;
+    private userProfile: HintUserProfile | null = null;
+    private companyContext: HintCompanyContext | null = null;
 
     // Conversation context
     private conversationHistory: ConversationTurn[] = [];
     private cachedContentName: string | null = null;
     private cacheAttempted: boolean = false;
 
-    constructor(apiKey: string, model?: string, spokenLanguage?: string, interviewMode?: string, answerStyle?: string) {
+    constructor(apiKey: string, model?: string, spokenLanguage?: string, interviewMode?: string, answerStyle?: string, userProfile?: HintUserProfile | null, companyContext?: HintCompanyContext | null) {
         super();
         this.apiKey = apiKey;
         this.model = model || HINT_MODEL;
         this.spokenLanguage = spokenLanguage || 'en';
         this.interviewMode = interviewMode || 'coding';
         this.answerStyle = answerStyle || 'structured';
+        this.userProfile = userProfile || null;
+        this.companyContext = companyContext || null;
         this.systemInstruction = this.getDefaultSystemInstruction();
     }
 
@@ -112,7 +140,7 @@ export class HintGenerationService extends EventEmitter {
                 break;
         }
 
-        return `You are an AI interview assistant helping a candidate during a technical interview.
+        let basePrompt = `You are an AI interview assistant helping a candidate during a technical interview.
 
 ${modeInstruction}
 
@@ -127,6 +155,59 @@ Your role:
 - Reference previous questions if relevant to build a coherent picture
 
 Be helpful but don't give away complete solutions - guide the candidate.`;
+
+        // Inject user profile personalization
+        if (this.userProfile) {
+            const p = this.userProfile;
+            const profileParts: string[] = [];
+            if (p.name) profileParts.push(`Name: ${p.name}`);
+            if (p.targetRole) profileParts.push(`Target Role: ${p.targetRole}`);
+            if (p.yearsExperience) profileParts.push(`Experience: ${p.yearsExperience} years`);
+            if (p.skills && p.skills.length > 0) profileParts.push(`Key Skills: ${p.skills.join(', ')}`);
+            if (p.aiSummary) profileParts.push(`About: ${p.aiSummary}`);
+            if (p.achievements) profileParts.push(`Key Achievements: ${p.achievements}`);
+            if (p.tone === 'casual') profileParts.push('Use a relaxed, conversational tone.');
+            else if (p.tone === 'formal') profileParts.push('Use a formal, precise tone.');
+            else profileParts.push('Use a professional but approachable tone.');
+            if (p.emphasis) profileParts.push(`Emphasize: ${p.emphasis}`);
+            if (p.avoid) profileParts.push(`Avoid mentioning: ${p.avoid}`);
+            if (p.workHistory && p.workHistory.length > 0) {
+                const historyStr = p.workHistory.slice(0, 3).map(w =>
+                    `${w.title} at ${w.company} (${w.duration})`
+                ).join('; ');
+                profileParts.push(`Work History: ${historyStr}`);
+            }
+            if (p.stories && p.stories.length > 0 && (this.interviewMode === 'behavioral' || this.interviewMode === 'general')) {
+                const storiesStr = p.stories.slice(0, 3).map(s =>
+                    `"${s.title}": ${s.situation} -> ${s.action} -> ${s.result}`
+                ).join('\n');
+                profileParts.push(`\nPrepared Stories (use when relevant):\n${storiesStr}`);
+            }
+            if (profileParts.length > 0) {
+                basePrompt += `\n\n== CANDIDATE PROFILE ==\n${profileParts.join('\n')}\n\nWhen answering questions, draw from this experience naturally. Speak as if YOU are this person.`;
+            }
+        }
+
+        // Inject company context
+        if (this.companyContext) {
+            const c = this.companyContext;
+            const companyParts: string[] = [];
+            if (c.companyName) companyParts.push(`Company: ${c.companyName}`);
+            if (c.jobTitle) companyParts.push(`Position: ${c.jobTitle}`);
+            if (c.techStack && c.techStack.length > 0) companyParts.push(`Their Tech Stack: ${c.techStack.join(', ')}`);
+            if (c.companyValues && c.companyValues.length > 0) companyParts.push(`Company Values: ${c.companyValues.join(', ')}`);
+            if (c.interviewFocus) companyParts.push(`Interview Focus: ${c.interviewFocus}`);
+            if (c.talkingPoints && c.talkingPoints.length > 0) companyParts.push(`Key Talking Points: ${c.talkingPoints.join('; ')}`);
+            if (c.skillMatch) {
+                if (c.skillMatch.matched.length > 0) companyParts.push(`Matching Skills: ${c.skillMatch.matched.join(', ')}`);
+                if (c.skillMatch.gaps.length > 0) companyParts.push(`Skill Gaps (address proactively): ${c.skillMatch.gaps.join(', ')}`);
+            }
+            if (companyParts.length > 0) {
+                basePrompt += `\n\n== COMPANY CONTEXT ==\n${companyParts.join('\n')}\n\nTailor answers to show fit with this company specifically.`;
+            }
+        }
+
+        return basePrompt;
     }
 
     public setSystemInstruction(instruction: string): void {

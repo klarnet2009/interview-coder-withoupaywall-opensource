@@ -24,6 +24,34 @@ interface UserProfile {
   tone: 'formal' | 'professional' | 'casual';
   emphasis?: string;
   avoid?: string;
+  education?: { degree: string; institution: string; year?: number }[];
+  workHistory?: { title: string; company: string; duration: string; highlights: string[] }[];
+  projects?: { name: string; description: string; tech: string[] }[];
+  certifications?: string[];
+  languages?: { name: string; level: string }[];
+  aiSummary?: string;
+  cvFilePath?: string;
+  cvParsedAt?: number;
+  stories?: { title: string; situation: string; action: string; result: string; tags: string[] }[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface CompanyContext {
+  id: string;
+  companyName: string;
+  jobTitle?: string;
+  jobDescription?: string;
+  jobUrl?: string;
+  requiredSkills?: string[];
+  niceToHaveSkills?: string[];
+  responsibilities?: string[];
+  companyValues?: string[];
+  interviewFocus?: string;
+  companyInfo?: string;
+  techStack?: string[];
+  skillMatch?: { matched: string[]; gaps: string[] };
+  talkingPoints?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -86,6 +114,8 @@ interface Config {
   interviewPreferences: InterviewPreferences;
   audioConfig: AudioConfig;
   displayConfig: DisplayConfig;
+  companyContexts: CompanyContext[];
+  activeCompanyId?: string;
 }
 
 export class ConfigHelper extends EventEmitter {
@@ -136,7 +166,8 @@ export class ConfigHelper extends EventEmitter {
         compact: 'Ctrl+0',
         emergencyHide: 'Ctrl+B'
       }
-    }
+    },
+    companyContexts: []
   };
 
   constructor() {
@@ -237,6 +268,9 @@ export class ConfigHelper extends EventEmitter {
     }
     if (!config.profiles) {
       config.profiles = [];
+    }
+    if (!config.companyContexts) {
+      (config as Record<string, unknown>).companyContexts = [];
     }
 
     return config as Config;

@@ -72,7 +72,7 @@ export interface IProcessingHelperDeps {
   getScreenshotQueue: () => string[]
   getExtraScreenshotQueue: () => string[]
   clearQueues: () => void
-  takeScreenshot: () => Promise<string>
+  takeScreenshot: (sourceId?: string) => Promise<string>
   getImagePreview: (filepath: string) => Promise<string>
   deleteScreenshot: (
     path: string
@@ -84,7 +84,7 @@ export interface IProcessingHelperDeps {
 
 export interface IShortcutsHelperDeps {
   getMainWindow: () => BrowserWindow | null
-  takeScreenshot: () => Promise<string>
+  takeScreenshot: (sourceId?: string) => Promise<string>
   getImagePreview: (filepath: string) => Promise<string>
   processingHelper: ProcessingHelper | null
   clearQueues: () => void
@@ -109,7 +109,7 @@ export interface IIpcHandlerDeps {
   getImagePreview: (filepath: string) => Promise<string>
   processingHelper: ProcessingHelper | null
   PROCESSING_EVENTS: typeof state.PROCESSING_EVENTS
-  takeScreenshot: () => Promise<string>
+  takeScreenshot: (sourceId?: string) => Promise<string>
   getView: () => "queue" | "solutions" | "debug"
   toggleMainWindow: () => void
   clearQueues: () => void
@@ -664,12 +664,13 @@ function clearQueues(): void {
   setView("queue")
 }
 
-async function takeScreenshot(): Promise<string> {
+async function takeScreenshot(sourceId?: string): Promise<string> {
   if (!state.mainWindow) throw new Error("No main window available")
   return (
     state.screenshotHelper?.takeScreenshot(
       () => hideMainWindow(),
-      () => showMainWindow()
+      () => showMainWindow(),
+      sourceId
     ) || ""
   )
 }

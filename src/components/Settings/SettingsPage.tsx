@@ -132,6 +132,15 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     const [profileExperience, setProfileExperience] = useState("");
     const [profileSkills, setProfileSkills] = useState("");
 
+    // Personalization state
+    const [cvUploadStatus, setCvUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+    const [cvFileName, setCvFileName] = useState<string>('');
+    const [companyName, setCompanyName] = useState('');
+    const [jobTitle, setJobTitle] = useState('');
+    const [jobDescText, setJobDescText] = useState('');
+    const [companyStatus, setCompanyStatus] = useState<'idle' | 'parsing' | 'done' | 'error'>('idle');
+    const [profileSubTab, setProfileSubTab] = useState<'profile' | 'cv' | 'company'>('profile');
+
     // Response style state
     const [responseStyle, setResponseStyle] = useState("full");
     const [responseLength, setResponseLength] = useState("medium");
@@ -187,6 +196,31 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 if (config.profileName) setProfileName(config.profileName as string);
                 if (config.profileExperience) setProfileExperience(config.profileExperience as string);
                 if (config.profileSkills) setProfileSkills(config.profileSkills as string);
+
+                // Load personalization data
+                const profiles = config.profiles as { id?: string; name?: string; skills?: string[]; cvFilePath?: string }[] | undefined;
+                const activeProfileId = config.activeProfileId as string | undefined;
+                if (profiles && activeProfileId) {
+                    const activeProfile = profiles.find((p: { id?: string }) => p.id === activeProfileId);
+                    if (activeProfile) {
+                        if (activeProfile.name) setProfileName(activeProfile.name);
+                        if (activeProfile.skills) setProfileSkills(activeProfile.skills.join(', '));
+                        if (activeProfile.cvFilePath) {
+                            setCvFileName(activeProfile.cvFilePath.split(/[/\\]/).pop() || '');
+                            setCvUploadStatus('done');
+                        }
+                    }
+                }
+                const companies = config.companyContexts as { id?: string; companyName?: string; jobTitle?: string }[] | undefined;
+                const activeCompanyId = config.activeCompanyId as string | undefined;
+                if (companies && activeCompanyId) {
+                    const activeCompany = companies.find((c: { id?: string }) => c.id === activeCompanyId);
+                    if (activeCompany) {
+                        if (activeCompany.companyName) setCompanyName(activeCompany.companyName);
+                        if (activeCompany.jobTitle) setJobTitle(activeCompany.jobTitle);
+                        setCompanyStatus('done');
+                    }
+                }
                 if (style) setResponseStyle(style as string);
                 if (config.responseLength) setResponseLength(config.responseLength as string);
                 if (config.displayConfig) {
@@ -431,45 +465,233 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
         </div>
     );
 
+    const handleCvUploadSettings = async () => {
+        setCvUploadStatus('uploading');
+        try {
+            const result = await window.electronAPI.uploadCv();
+            if (result.canceled) { setCvUploadStatus('idle'); return; }
+            if (!result.success) { setCvUploadStatus('error'); return; }
+            const p = result.profile as { name?: string; skills?: string[]; achievements?: string } | undefined;
+            if (p) {
+                if (p.name) setProfileName(p.name);
+                if (p.skills) setProfileSkills(p.skills.join(', '));
+                if (p.achievements) setProfileExperience(p.achievements);
+            }
+            setCvFileName(result.fileName || '');
+            setCvUploadStatus('done');
+            showToast(t("common.success"), "CV processed successfully", "success");
+        } catch {
+            setCvUploadStatus('error');
+        }
+    };
+
+    const handleJobDescSettings = async () => {
+        if (!jobDescText.trim()) return;
+        setCompanyStatus('parsing');
+        try {
+            const result = await window.electronAPI.parseJobText(jobDescText);
+            if (!result.success) { setCompanyStatus('error'); return; }
+            const c = result.company as { companyName?: string; jobTitle?: string } | undefined;
+            if (c) {
+                if (c.companyName) setCompanyName(c.companyName);
+                if (c.jobTitle) setJobTitle(c.jobTitle);
+            }
+            setCompanyStatus('done');
+            showToast(t("common.success"), "Job description analyzed", "success");
+        } catch {
+            setCompanyStatus('error');
+        }
+    };
+
+    const handleJdUploadSettings = async () => {
+        setCompanyStatus('parsing');
+        try {
+            const result = await window.electronAPI.uploadJobDescription();
+            if (result.canceled) { setCompanyStatus('idle'); return; }
+            if (!result.success) { setCompanyStatus('error'); return; }
+            const c = result.company as { companyName?: string; jobTitle?: string } | undefined;
+            if (c) {
+                if (c.companyName) setCompanyName(c.companyName);
+                if (c.jobTitle) setJobTitle(c.jobTitle);
+            }
+            setCompanyStatus('done');
+            showToast(t("common.success"), "Job description analyzed", "success");
+        } catch {
+            setCompanyStatus('error');
+        }
+    };
+
     const renderProfile = () => (
         <div className="space-y-5">
-            <Field label={t("settings.profile.name")}>
-                <input
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    placeholder={t("settings.profile.namePlaceholder")}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                     placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                />
-            </Field>
-
-            <Field label={t("settings.profile.experience")}>
-                <textarea
-                    value={profileExperience}
-                    onChange={(e) => setProfileExperience(e.target.value)}
-                    placeholder={t("settings.profile.experiencePlaceholder")}
-                    rows={4}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none
-                     placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                />
-            </Field>
-
-            <Field label={t("settings.profile.skills")}>
-                <input
-                    value={profileSkills}
-                    onChange={(e) => setProfileSkills(e.target.value)}
-                    placeholder={t("settings.profile.skillsPlaceholder")}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                     placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                />
-                <p className="text-xs text-white/30 mt-1">{t("settings.profile.skillsHint")}</p>
-            </Field>
-
-            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <p className="text-xs text-blue-300">
-                    {t("settings.profile.profileHint")}
-                </p>
+            {/* Sub-tabs for profile section */}
+            <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
+                {([
+                    { id: 'profile' as const, label: '👤 Profile' },
+                    { id: 'cv' as const, label: '📄 CV Upload' },
+                    { id: 'company' as const, label: '🏢 Company' },
+                ]).map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setProfileSubTab(tab.id)}
+                        className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            profileSubTab === tab.id
+                                ? 'bg-white/10 text-white'
+                                : 'text-white/40 hover:text-white/60'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
+
+            {/* Profile sub-tab */}
+            {profileSubTab === 'profile' && (
+                <>
+                    <Field label={t("settings.profile.name")}>
+                        <input
+                            value={profileName}
+                            onChange={(e) => setProfileName(e.target.value)}
+                            placeholder={t("settings.profile.namePlaceholder")}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
+                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                    </Field>
+
+                    <Field label={t("settings.profile.experience")}>
+                        <textarea
+                            value={profileExperience}
+                            onChange={(e) => setProfileExperience(e.target.value)}
+                            placeholder={t("settings.profile.experiencePlaceholder")}
+                            rows={4}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none
+                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                    </Field>
+
+                    <Field label={t("settings.profile.skills")}>
+                        <input
+                            value={profileSkills}
+                            onChange={(e) => setProfileSkills(e.target.value)}
+                            placeholder={t("settings.profile.skillsPlaceholder")}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
+                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                        <p className="text-xs text-white/30 mt-1">{t("settings.profile.skillsHint")}</p>
+                    </Field>
+
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <p className="text-xs text-blue-300">
+                            {t("settings.profile.profileHint")}
+                        </p>
+                    </div>
+                </>
+            )}
+
+            {/* CV Upload sub-tab */}
+            {profileSubTab === 'cv' && (
+                <div className="space-y-4">
+                    <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center">
+                        {cvUploadStatus === 'idle' && (
+                            <>
+                                <p className="text-3xl mb-2">📄</p>
+                                <p className="text-sm text-white/60 mb-3">Upload your CV/Resume (PDF)</p>
+                                <button
+                                    onClick={handleCvUploadSettings}
+                                    className="px-4 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-sm text-white/80 transition-colors"
+                                >
+                                    Choose File
+                                </button>
+                            </>
+                        )}
+                        {cvUploadStatus === 'uploading' && (
+                            <div className="flex flex-col items-center gap-2">
+                                <p className="text-3xl animate-pulse">⏳</p>
+                                <p className="text-sm text-white/60">Processing CV with AI...</p>
+                            </div>
+                        )}
+                        {cvUploadStatus === 'done' && (
+                            <div className="flex flex-col items-center gap-2">
+                                <p className="text-3xl">✅</p>
+                                <p className="text-sm text-white/80 font-medium">{cvFileName}</p>
+                                <p className="text-xs text-white/50">Profile fields auto-populated from CV</p>
+                                <button
+                                    onClick={handleCvUploadSettings}
+                                    className="text-xs text-white/40 hover:text-white/60 underline mt-1"
+                                >
+                                    Upload different file
+                                </button>
+                            </div>
+                        )}
+                        {cvUploadStatus === 'error' && (
+                            <div className="flex flex-col items-center gap-2">
+                                <p className="text-3xl">❌</p>
+                                <p className="text-sm text-red-400/80">Upload failed</p>
+                                <button
+                                    onClick={() => setCvUploadStatus('idle')}
+                                    className="text-xs text-white/40 hover:text-white/60 underline"
+                                >
+                                    Try again
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <p className="text-xs text-blue-300">
+                            Your CV is parsed locally and sent to AI for skill extraction. Data stays on your device.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Company sub-tab */}
+            {profileSubTab === 'company' && (
+                <div className="space-y-4">
+                    {companyStatus === 'done' && companyName && (
+                        <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 flex items-start gap-2">
+                            <span className="text-sm">✅</span>
+                            <div>
+                                <p className="text-xs text-green-400 font-medium">{companyName}{jobTitle ? ` — ${jobTitle}` : ''}</p>
+                                <p className="text-xs text-white/50 mt-0.5">Company context active. AI will tailor answers.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <Field label="Upload Job Description (PDF)">
+                        <button
+                            onClick={handleJdUploadSettings}
+                            disabled={companyStatus === 'parsing'}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white/80 text-sm
+                             hover:bg-white/10 disabled:opacity-50 transition-colors"
+                        >
+                            {companyStatus === 'parsing' ? '⏳ Analyzing...' : '📄 Upload JD (PDF)'}
+                        </button>
+                    </Field>
+
+                    <Field label="Or paste job description text">
+                        <textarea
+                            value={jobDescText}
+                            onChange={(e) => setJobDescText(e.target.value)}
+                            placeholder="Paste the full job description here..."
+                            rows={4}
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none
+                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                        />
+                    </Field>
+                    <button
+                        onClick={handleJobDescSettings}
+                        disabled={!jobDescText.trim() || companyStatus === 'parsing'}
+                        className="w-full px-3 py-2 bg-white/10 hover:bg-white/15 disabled:opacity-50 rounded-lg text-sm text-white/80 transition-colors"
+                    >
+                        {companyStatus === 'parsing' ? '⏳ Analyzing...' : 'Analyze Job Description'}
+                    </button>
+
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <p className="text-xs text-blue-300">
+                            Adding company context helps the AI match your answers to the specific role and company culture.
+                        </p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

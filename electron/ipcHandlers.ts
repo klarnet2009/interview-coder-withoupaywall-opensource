@@ -87,7 +87,16 @@ const REQUIRED_PRELOAD_INVOKE_CHANNELS = [
   "is-dev",
   "toggle-stealth",
   "set-always-on-top",
-  "set-stealth-mode"
+  "set-stealth-mode",
+  "get-capture-sources",
+  "upload-cv",
+  "parse-text-profile",
+  "upload-job-description",
+  "parse-job-text",
+  "research-company",
+  "get-skill-match",
+  "get-active-profile",
+  "get-active-company"
 ] as const
 
 const EXTERNAL_INVOKE_CHANNELS = ["start-update", "install-update"] as const
@@ -429,11 +438,11 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Screenshot trigger handlers
-  registerHandle("trigger-screenshot", async () => {
+  registerHandle("trigger-screenshot", async (_event, sourceId?: string) => {
     const mainWindow = deps.getMainWindow()
     if (mainWindow) {
       try {
-        const screenshotPath = await deps.takeScreenshot()
+        const screenshotPath = await deps.takeScreenshot(sourceId)
         const preview = await deps.getImagePreview(screenshotPath)
         mainWindow.webContents.send("screenshot-taken", {
           path: screenshotPath,
@@ -446,6 +455,25 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       }
     }
     return { error: "No main window available" }
+  })
+
+  // Capture sources handler — lists windows/screens for the capture dropdown
+  registerHandle("get-capture-sources", async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ["window", "screen"],
+        thumbnailSize: { width: 160, height: 100 }
+      })
+      return sources.map(source => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+        appIcon: source.appIcon?.toDataURL() || null
+      }))
+    } catch (error) {
+      logger.error("Error getting capture sources:", error)
+      return []
+    }
   })
 
   registerHandle("take-screenshot", async () => {
@@ -737,7 +765,9 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       undefined,
       prefs?.language || 'en',
       prefs?.mode,
-      prefs?.answerStyle
+      prefs?.answerStyle,
+      savedConfig.profiles?.find((p: { id: string }) => p.id === savedConfig.activeProfileId) || null,
+      (savedConfig.companyContexts || []).find((c: { id: string }) => c.id === savedConfig.activeCompanyId) || null
     );
     // Access the built system instruction
     const hintPrompt = tempService.getSystemInstruction();
@@ -797,6 +827,10 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       // Dynamically import to avoid circular dependencies
       const { LiveInterviewService } = await import('./audio/LiveInterviewService');
 
+      // Load active profile and company for personalization
+      const activeProfile = savedConfig.profiles?.find((p: { id: string }) => p.id === savedConfig.activeProfileId) || null;
+      const activeCompany = (savedConfig.companyContexts || []).find((c: { id: string }) => c.id === savedConfig.activeCompanyId) || null;
+
       liveInterviewService = new LiveInterviewService({
         apiKey,
         model: config?.modelName,
@@ -804,6 +838,8 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
         spokenLanguage: config?.spokenLanguage || 'en',
         interviewMode: prefs?.mode,
         answerStyle: prefs?.answerStyle,
+        userProfile: activeProfile,
+        companyContext: activeCompany,
       }) as LiveInterviewServiceInstance;
 
       // Forward events to renderer
@@ -876,6 +912,230 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       return { success: true };
     }
     return { success: false };
+  });
+
+  // ========== Personalization Handlers ==========
+
+  registerHandle("upload-cv", async () => {
+    try {
+      const { openAndParsePdf } = await import('./services/PdfParserService');
+      const pdf = await openAndParsePdf();
+      if (!pdf) return { success: false, canceled: true };
+
+      const config = configHelper.loadConfig();
+      const apiKey = config.apiKey;
+      if (!apiKey) return { success: false, error: 'No API key configured' };
+
+      const { extractProfileFromText } = await import('./services/ProfileExtractorService');
+      const extracted = await extractProfileFromText(apiKey, pdf.text);
+
+      // Build or update profile
+      const now = Date.now();
+      const existingProfile = config.profiles.find(p => p.id === config.activeProfileId);
+      const profileId = existingProfile?.id || `profile-${now}`;
+
+      const updatedProfile = {
+        ...(existingProfile || { id: profileId, tone: 'professional' as const, skills: [], createdAt: now }),
+        ...extracted,
+        name: extracted.name || existingProfile?.name || 'Default Profile',
+        cvText: pdf.text,
+        cvFilePath: pdf.filePath,
+        cvParsedAt: now,
+        updatedAt: now
+      };
+
+      const profiles = config.profiles.filter(p => p.id !== profileId);
+      profiles.push(updatedProfile);
+      configHelper.updateConfig({ profiles, activeProfileId: profileId });
+
+      return { success: true, profile: updatedProfile, fileName: pdf.fileName };
+    } catch (error: unknown) {
+      logger.error('CV upload failed:', error);
+      return { success: false, error: getErrorMessage(error, 'CV upload failed') };
+    }
+  });
+
+  registerHandle("parse-text-profile", async (_event, text: string) => {
+    try {
+      const config = configHelper.loadConfig();
+      const apiKey = config.apiKey;
+      if (!apiKey) return { success: false, error: 'No API key configured' };
+
+      const { extractProfileFromText } = await import('./services/ProfileExtractorService');
+      const extracted = await extractProfileFromText(apiKey, text);
+
+      const now = Date.now();
+      const existingProfile = config.profiles.find(p => p.id === config.activeProfileId);
+      const profileId = existingProfile?.id || `profile-${now}`;
+
+      const updatedProfile = {
+        ...(existingProfile || { id: profileId, tone: 'professional' as const, skills: [], createdAt: now }),
+        ...extracted,
+        name: extracted.name || existingProfile?.name || 'Default Profile',
+        cvText: text,
+        cvParsedAt: now,
+        updatedAt: now
+      };
+
+      const profiles = config.profiles.filter(p => p.id !== profileId);
+      profiles.push(updatedProfile);
+      configHelper.updateConfig({ profiles, activeProfileId: profileId });
+
+      return { success: true, profile: updatedProfile };
+    } catch (error: unknown) {
+      logger.error('Text profile parse failed:', error);
+      return { success: false, error: getErrorMessage(error, 'Text profile parse failed') };
+    }
+  });
+
+  registerHandle("upload-job-description", async () => {
+    try {
+      const { openAndParsePdf } = await import('./services/PdfParserService');
+      const pdf = await openAndParsePdf();
+      if (!pdf) return { success: false, canceled: true };
+
+      const config = configHelper.loadConfig();
+      const apiKey = config.apiKey;
+      if (!apiKey) return { success: false, error: 'No API key configured' };
+
+      const { extractCompanyFromText, computeSkillMatch } = await import('./services/ProfileExtractorService');
+      const extracted = await extractCompanyFromText(apiKey, pdf.text);
+
+      // Compute skill match if we have a profile
+      const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
+      let skillMatch = undefined;
+      if (activeProfile && extracted.requiredSkills) {
+        skillMatch = computeSkillMatch(
+          activeProfile.skills || [],
+          extracted.requiredSkills,
+          extracted.niceToHaveSkills
+        );
+      }
+
+      const now = Date.now();
+      const company = {
+        id: `company-${now}`,
+        ...extracted,
+        jobDescription: pdf.text,
+        skillMatch,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const contexts = [...(config.companyContexts || []), company];
+      configHelper.updateConfig({ companyContexts: contexts, activeCompanyId: company.id });
+
+      return { success: true, company, fileName: pdf.fileName };
+    } catch (error: unknown) {
+      logger.error('Job description upload failed:', error);
+      return { success: false, error: getErrorMessage(error, 'Job description upload failed') };
+    }
+  });
+
+  registerHandle("parse-job-text", async (_event, text: string) => {
+    try {
+      const config = configHelper.loadConfig();
+      const apiKey = config.apiKey;
+      if (!apiKey) return { success: false, error: 'No API key configured' };
+
+      const { extractCompanyFromText, computeSkillMatch } = await import('./services/ProfileExtractorService');
+      const extracted = await extractCompanyFromText(apiKey, text);
+
+      const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
+      let skillMatch = undefined;
+      if (activeProfile && extracted.requiredSkills) {
+        skillMatch = computeSkillMatch(
+          activeProfile.skills || [],
+          extracted.requiredSkills,
+          extracted.niceToHaveSkills
+        );
+      }
+
+      const now = Date.now();
+      const company = {
+        id: `company-${now}`,
+        ...extracted,
+        jobDescription: text,
+        skillMatch,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      const contexts = [...(config.companyContexts || []), company];
+      configHelper.updateConfig({ companyContexts: contexts, activeCompanyId: company.id });
+
+      return { success: true, company };
+    } catch (error: unknown) {
+      logger.error('Job text parse failed:', error);
+      return { success: false, error: getErrorMessage(error, 'Job text parse failed') };
+    }
+  });
+
+  registerHandle("research-company", async (_event, companyName: string, jobTitle?: string) => {
+    try {
+      const config = configHelper.loadConfig();
+      const apiKey = config.apiKey;
+      if (!apiKey) return { success: false, error: 'No API key configured' };
+
+      const { researchCompany } = await import('./services/ProfileExtractorService');
+      const research = await researchCompany(apiKey, companyName, jobTitle);
+
+      // Update active company context with research (immutable update)
+      const updatedContexts = (config.companyContexts || []).map(c =>
+        c.id === config.activeCompanyId
+          ? {
+            ...c,
+            companyInfo: research.companyInfo,
+            techStack: research.techStack || c.techStack,
+            companyValues: research.companyValues || c.companyValues,
+            talkingPoints: research.talkingPoints,
+            updatedAt: Date.now()
+          }
+          : c
+      );
+      configHelper.updateConfig({ companyContexts: updatedContexts });
+
+      return { success: true, research };
+    } catch (error: unknown) {
+      logger.error('Company research failed:', error);
+      return { success: false, error: getErrorMessage(error, 'Company research failed') };
+    }
+  });
+
+  registerHandle("get-skill-match", async () => {
+    try {
+      const config = configHelper.loadConfig();
+      const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
+      const activeCompany = (config.companyContexts || []).find(c => c.id === config.activeCompanyId);
+
+      if (!activeProfile || !activeCompany || !activeCompany.requiredSkills) {
+        return { success: false, error: 'No active profile or company with required skills' };
+      }
+
+      const { computeSkillMatch } = await import('./services/ProfileExtractorService');
+      const match = computeSkillMatch(
+        activeProfile.skills || [],
+        activeCompany.requiredSkills,
+        activeCompany.niceToHaveSkills
+      );
+
+      return { success: true, skillMatch: match };
+    } catch (error: unknown) {
+      logger.error('Skill match failed:', error);
+      return { success: false, error: getErrorMessage(error, 'Skill match failed') };
+    }
+  });
+
+  registerHandle("get-active-profile", async () => {
+    const config = configHelper.loadConfig();
+    const profile = config.profiles.find(p => p.id === config.activeProfileId);
+    return { profile: profile || null };
+  });
+
+  registerHandle("get-active-company", async () => {
+    const config = configHelper.loadConfig();
+    const company = (config.companyContexts || []).find(c => c.id === config.activeCompanyId);
+    return { company: company || null };
   });
 
   const missingInvokeChannels = REQUIRED_PRELOAD_INVOKE_CHANNELS.filter(

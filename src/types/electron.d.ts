@@ -91,7 +91,8 @@ export interface ElectronAPI {
   isWizardCompleted: () => Promise<boolean>;
 
   // Screenshots
-  triggerScreenshot: () => Promise<{ success: boolean; error?: string }>;
+  triggerScreenshot: (sourceId?: string) => Promise<{ success: boolean; error?: string }>;
+  getCaptureSources: () => Promise<{ id: string; name: string; thumbnail: string; appIcon: string | null }[]>;
   getScreenshots: () => Promise<{ path: string; preview: string }[]>;
   deleteScreenshot: (path: string) => Promise<{ success: boolean; error?: string }>;
   deleteLastScreenshot: () => Promise<void>;
@@ -185,6 +186,16 @@ export interface ElectronAPI {
   // Window behavior settings
   setAlwaysOnTop: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   setStealthMode: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+
+  // Personalization APIs
+  uploadCv: () => Promise<{ success: boolean; canceled?: boolean; profile?: unknown; fileName?: string; error?: string }>;
+  parseTextProfile: (text: string) => Promise<{ success: boolean; profile?: unknown; error?: string }>;
+  uploadJobDescription: () => Promise<{ success: boolean; canceled?: boolean; company?: unknown; fileName?: string; error?: string }>;
+  parseJobText: (text: string) => Promise<{ success: boolean; company?: unknown; error?: string }>;
+  researchCompany: (companyName: string, jobTitle?: string) => Promise<{ success: boolean; research?: unknown; error?: string }>;
+  getSkillMatch: () => Promise<{ success: boolean; skillMatch?: { matched: string[]; gaps: string[] }; error?: string }>;
+  getActiveProfile: () => Promise<{ profile: unknown | null }>;
+  getActiveCompany: () => Promise<{ company: unknown | null }>;
 }
 
 declare global {

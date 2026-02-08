@@ -164,7 +164,8 @@ const electronAPI = {
   },
   // External URL handler
   openLink: (url: string) => ipcRenderer.invoke("openLink", url),
-  triggerScreenshot: () => ipcRenderer.invoke("trigger-screenshot"),
+  triggerScreenshot: (sourceId?: string) => ipcRenderer.invoke("trigger-screenshot", sourceId),
+  getCaptureSources: () => ipcRenderer.invoke("get-capture-sources"),
   triggerProcessScreenshots: () =>
     ipcRenderer.invoke("trigger-process-screenshots"),
   triggerReset: () => ipcRenderer.invoke("trigger-reset"),
@@ -317,6 +318,16 @@ const electronAPI = {
   // Window behavior settings
   setAlwaysOnTop: (enabled: boolean) => ipcRenderer.invoke("set-always-on-top", enabled) as Promise<{ success: boolean; error?: string }>,
   setStealthMode: (enabled: boolean) => ipcRenderer.invoke("set-stealth-mode", enabled) as Promise<{ success: boolean; error?: string }>,
+
+  // ========== Personalization APIs ==========
+  uploadCv: () => ipcRenderer.invoke("upload-cv"),
+  parseTextProfile: (text: string) => ipcRenderer.invoke("parse-text-profile", text),
+  uploadJobDescription: () => ipcRenderer.invoke("upload-job-description"),
+  parseJobText: (text: string) => ipcRenderer.invoke("parse-job-text", text),
+  researchCompany: (companyName: string, jobTitle?: string) => ipcRenderer.invoke("research-company", companyName, jobTitle),
+  getSkillMatch: () => ipcRenderer.invoke("get-skill-match"),
+  getActiveProfile: () => ipcRenderer.invoke("get-active-profile"),
+  getActiveCompany: () => ipcRenderer.invoke("get-active-company"),
 }
 
 // Before exposing the API
