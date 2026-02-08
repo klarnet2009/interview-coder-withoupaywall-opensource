@@ -422,7 +422,7 @@ export const DebugView: React.FC<DebugViewProps> = ({
                           </div>
                           <p className="text-sm text-white/70 mt-1">{log.message}</p>
                           
-                          {log.data && (
+                          {!!log.data && (
                             <div className="mt-2">
                               <button
                                 onClick={() => toggleLogExpand(index)}

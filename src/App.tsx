@@ -225,7 +225,7 @@ function App() {
         const config = await window.electronAPI.getConfig()
 
         // Load language preference
-        if (config && config.language) {
+        if (config && typeof config.language === "string" && config.language.length > 0) {
           updateLanguage(config.language)
         } else {
           updateLanguage("python")

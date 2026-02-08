@@ -457,10 +457,14 @@ const Solutions: React.FC<SolutionsProps> = ({
         }
         console.log({ data })
         const solutionData = {
-          code: data.code,
-          thoughts: data.thoughts,
-          time_complexity: data.time_complexity,
-          space_complexity: data.space_complexity
+          code: typeof data.code === "string" ? data.code : "",
+          thoughts: Array.isArray(data.thoughts)
+            ? data.thoughts.filter((item): item is string => typeof item === "string")
+            : [],
+          time_complexity:
+            typeof data.time_complexity === "string" ? data.time_complexity : "",
+          space_complexity:
+            typeof data.space_complexity === "string" ? data.space_complexity : ""
         }
 
         queryClient.setQueryData(["solution"], solutionData)
@@ -474,7 +478,7 @@ const Solutions: React.FC<SolutionsProps> = ({
           try {
             const existing = await window.electronAPI.getScreenshots()
             const screenshots =
-              existing.previews?.map((p: { path: string; preview: string }) => ({
+              (Array.isArray(existing) ? existing : []).map((p: { path: string; preview: string }) => ({
                 id: p.path,
                 path: p.path,
                 preview: p.preview,

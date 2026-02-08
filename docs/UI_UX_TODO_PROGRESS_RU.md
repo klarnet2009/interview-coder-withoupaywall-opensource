@@ -1,6 +1,6 @@
 # UI/UX TODO Progress Tracker
 
-Дата обновления: 2026-02-08 (после TECH-009 lint hardening)  
+Дата обновления: 2026-02-08 (после TS baseline cleanup)  
 Источник: `docs/UI_UX_SPRINT_PLAN_EN.md`, `docs/UI_UX_IMPLEMENTATION_BACKLOG_RU.md`
 
 ## Общий прогресс
@@ -76,7 +76,7 @@
 - [x] `eslint` по legacy Electron strict-файлам (`electron/preload.ts`, `electron/ipcHandlers.ts`, `electron/ProcessingHelper.ts`)
 - [x] `git fsck --full`
 - [x] `git diff --name-only` / `git log --oneline -n 12`
-- [x] `tsc --noEmit` — все ошибки pre-existing, не связаны с i18n/settings
+- [x] `tsc --noEmit` — проходит без ошибок (после фиксов `SolutionCommands` / `Solutions` / `DebugView` и API typings)
 - [x] `npm run lint` — `0` ошибок (после закрытия `TECH-009`)
 
 ---
@@ -84,7 +84,7 @@
 ## Известные блокеры / риски
 
 - [x] Активные блокеры отсутствуют.
-- Pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx` (не связаны с i18n).
+- Значимых активных технических блокеров нет; остаются только плановые улучшения архитектуры и QA-покрытия.
 
 ---
 
@@ -118,7 +118,7 @@
 
 ## Next (пошагово)
 
-1. Исправить pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`.
+1. [x] Исправить pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`.
 2. Провести UX smoke по history restore flows (solution/debug snippets).
 3. Подготовить релизный changelog по Sprint 1-5 + tech hardening.
 4. Собрать финальный PR с кратким change summary.

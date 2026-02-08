@@ -63,6 +63,11 @@ export interface SessionHistoryItem {
   snippets: SessionSnippet[];
 }
 
+export interface InvokeResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface ElectronAPI {
   // Config
   getConfig: () => Promise<Record<string, unknown>>;
@@ -95,7 +100,7 @@ export interface ElectronAPI {
 
   // Processing
   triggerProcessScreenshots: () => Promise<{ success: boolean; error?: string }>;
-  triggerReset: () => Promise<void>;
+  triggerReset: () => Promise<InvokeResult>;
   onSolutionSuccess: (callback: (data: SolutionData) => void) => () => void;
   onSolutionError: (callback: (error: string) => void) => () => void;
   onSolutionStart: (callback: () => void) => () => void;
@@ -110,11 +115,11 @@ export interface ElectronAPI {
   onResetView: (callback: () => void) => () => void;
 
   // Window management
-  toggleMainWindow: () => Promise<void>;
-  triggerMoveLeft: () => Promise<void>;
-  triggerMoveRight: () => Promise<void>;
-  triggerMoveUp: () => Promise<void>;
-  triggerMoveDown: () => Promise<void>;
+  toggleMainWindow: () => Promise<InvokeResult>;
+  triggerMoveLeft: () => Promise<InvokeResult>;
+  triggerMoveRight: () => Promise<InvokeResult>;
+  triggerMoveUp: () => Promise<InvokeResult>;
+  triggerMoveDown: () => Promise<InvokeResult>;
   updateContentDimensions: (dimensions: { width: number; height: number }) => Promise<void>;
   setSetupWindowSize: (dimensions: { width: number; height: number }) => Promise<void>;
   setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
@@ -128,7 +133,7 @@ export interface ElectronAPI {
   openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
 
   // Updates
-  startUpdate: () => Promise<void>;
+  startUpdate: () => Promise<InvokeResult>;
   installUpdate: () => Promise<void>;
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void;
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => () => void;
@@ -172,7 +177,6 @@ export interface ElectronAPI {
   // Window management extras
   quitApp: () => Promise<void>;
   resetWindowSize: () => Promise<void>;
-  setWindowOpacity: (opacity: number) => Promise<{ success: boolean; opacity?: number; error?: string }>;
 
   // Dev mode utilities
   isDev: () => Promise<boolean>;

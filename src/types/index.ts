@@ -372,7 +372,7 @@ export interface StepProps {
   onNext: () => void;
   onBack?: () => void;
   isActive: boolean;
-  setCanProceed?: (can: boolean) => void;
+  setCanProceed: (can: boolean) => void;
   onSwitchMode?: (mode: 'quick' | 'advanced') => void;
   currentMode?: 'quick' | 'advanced';
 }
