@@ -124,8 +124,8 @@ export interface ElectronAPI {
   onShowSettings: (callback: () => void) => () => void;
 
   // External links
-  openLink: (url: string) => void;
-  openExternal: (url: string) => Promise<void>;
+  openLink: (url: string) => Promise<{ success: boolean; error?: string }>;
+  openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
 
   // Updates
   startUpdate: () => Promise<void>;

@@ -25,10 +25,13 @@ export class SecureStorage {
 
     /**
      * Check if encryption is available on this system
-     * DISABLED: Always returns false for now to avoid encryption issues
      */
     public isEncryptionAvailable(): boolean {
-        return false; // Temporarily disabled
+        try {
+            return safeStorage.isEncryptionAvailable();
+        } catch {
+            return false;
+        }
     }
 
     /**

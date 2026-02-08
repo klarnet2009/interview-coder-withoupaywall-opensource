@@ -95,6 +95,25 @@
 
 ---
 
+## Tech Hardening (2026-02-08)
+
+- [x] `TECH-004` Закрыт: восстановлен IPC parity для session history каналов
+  - Добавлены хендлеры: `get-session-history`, `get-session-history-item`, `delete-session-history-item`, `clear-session-history`
+- [x] `TECH-005` Закрыт: устранён mismatch `openExternal` канала
+  - `preload` переведён на `open-external-url`, добавлен backward-compatible alias `openExternal` в main IPC
+- [x] `TECH-006` Закрыт: API key вынесен из `config.json` в secure storage path
+  - Включён `safeStorage.isEncryptionAvailable()` в `SecureStorage`
+  - `ConfigHelper` мигрирует plaintext ключ из `config.json` в secure storage и больше не сохраняет ключ в файл
+- [x] `TECH-007` Закрыт: усилена стабильность live phrase finalization
+  - Добавлен forced hint fallback таймер
+  - Добавлен explicit `endTurn` после устойчивой тишины для снятия зависаний при пропущенном `turnComplete`
+- [ ] `TECH-008` В работе: привести ESLint scope к исходникам (исключить `dist*/`, корректно настроить markdown/json/css парсинг)
+  - Сейчас `npm run lint` репортает тысячи pre-existing ошибок вне текущего scope изменений
+- [ ] `TECH-009` В работе: довести strict-линтинг Electron/Renderer слоёв до стабильного CI baseline
+  - Сохраняются pre-existing ошибки (`no-explicit-any`, legacy `require`, `no-unused-vars`)
+
+---
+
 ## Next (пошагово)
 
 1. Исправить pre-existing TS ошибки в `SolutionCommands.tsx`, `Solutions.tsx`, `DebugView.tsx`.

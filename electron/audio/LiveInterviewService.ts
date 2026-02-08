@@ -48,9 +48,13 @@ export class LiveInterviewService extends EventEmitter {
     private transcribeHoldTimeout: ReturnType<typeof setTimeout> | null = null;
     private transcriptClearTimeout: ReturnType<typeof setTimeout> | null = null;
     private hintTriggerTimeout: ReturnType<typeof setTimeout> | null = null;
+    private forceHintTimeout: ReturnType<typeof setTimeout> | null = null;
+    private endTurnDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
     private lastTranscriptTime: number = 0;
     private lastHintTranscript: string = '';
     private pendingHint: boolean = false;
+    private lastNonSilentAudioAt: number = 0;
+    private lastEndTurnAt: number = 0;
 
     // Minimum time to stay in 'transcribing' before allowing transition back
     private static readonly TRANSCRIBE_HOLD_MS = 2000;
@@ -61,6 +65,12 @@ export class LiveInterviewService extends EventEmitter {
     private static readonly MIN_MEANINGFUL_NEW_CHARS_FOR_HINT = 2;
     // Silence duration after last transcript token to auto-trigger hint
     private static readonly HINT_TRIGGER_SILENCE_MS = 1500;
+    // Hard fallback if turnComplete/silence trigger missed
+    private static readonly FORCE_HINT_FALLBACK_MS = 3200;
+    // Audio thresholds for explicit turn finalization
+    private static readonly AUDIO_SILENCE_LEVEL = 0.01;
+    private static readonly END_TURN_SILENCE_MS = 900;
+    private static readonly END_TURN_MIN_INTERVAL_MS = 1200;
 
     constructor(config: LiveInterviewConfig) {
         super();
@@ -101,6 +111,7 @@ export class LiveInterviewService extends EventEmitter {
             this.setupGeminiListeners();
             await this.geminiService.connect();
 
+            this.lastNonSilentAudioAt = Date.now();
             this.setState('listening');
             log.info('LiveInterviewService: Session started (Gemini connected, HintService ready)');
 
@@ -157,9 +168,23 @@ export class LiveInterviewService extends EventEmitter {
                 this.hintTriggerTimeout = null;
                 if (this.hasMeaningfulDeltaForHint()) {
                     log.info('LiveInterviewService: Auto-triggering hint after silence');
-                    this.triggerHintGeneration();
+                    this.triggerHintGeneration('silence-fallback');
                 }
             }, LiveInterviewService.HINT_TRIGGER_SILENCE_MS);
+
+            if (this.forceHintTimeout) {
+                clearTimeout(this.forceHintTimeout);
+            }
+            this.forceHintTimeout = setTimeout(() => {
+                this.forceHintTimeout = null;
+                if (
+                    this.state !== 'generating' &&
+                    this.currentTranscript.trim().length > 0
+                ) {
+                    log.info('LiveInterviewService: Forced hint trigger fallback');
+                    this.triggerHintGeneration('forced-fallback', true);
+                }
+            }, LiveInterviewService.FORCE_HINT_FALLBACK_MS);
 
             this.emitStatus();
         });
@@ -182,7 +207,7 @@ export class LiveInterviewService extends EventEmitter {
 
             // Trigger hint generation if we have meaningful new transcript
             if (this.currentTranscript && this.hasMeaningfulDeltaForHint()) {
-                this.triggerHintGeneration();
+                this.triggerHintGeneration('turn-complete');
             }
 
             // Let debounce timer handle state transition
@@ -232,7 +257,7 @@ export class LiveInterviewService extends EventEmitter {
                     this.pendingHint = false;
                     if (this.hasMeaningfulDeltaForHint()) {
                         log.info('LiveInterviewService: Firing pending hint generation');
-                        this.triggerHintGeneration();
+                        this.triggerHintGeneration('pending-drain');
                     }
                 }
             }
@@ -249,9 +274,12 @@ export class LiveInterviewService extends EventEmitter {
     /**
      * Trigger hint generation from accumulated transcript
      */
-    private triggerHintGeneration(): void {
+    private triggerHintGeneration(
+        reason: 'turn-complete' | 'silence-fallback' | 'forced-fallback' | 'pending-drain',
+        force: boolean = false
+    ): void {
         if (!this.hintService || !this.currentTranscript) return;
-        if (!this.hasMeaningfulDeltaForHint()) return;
+        if (!force && !this.hasMeaningfulDeltaForHint()) return;
 
         // Don't interrupt an in-flight hint — queue it for after completion
         if (this.hintService.isActive()) {
@@ -260,12 +288,61 @@ export class LiveInterviewService extends EventEmitter {
             return;
         }
 
-        log.info(`LiveInterviewService: Triggering hint generation (${this.currentTranscript.length} chars)`);
+        this.clearHintTimers();
+
+        log.info(`LiveInterviewService: Triggering hint generation (${this.currentTranscript.length} chars, reason=${reason})`);
         this.lastHintTranscript = this.currentTranscript;
         this.setState('generating');
         this.emitStatus();
 
         this.hintService.generateHint(this.currentTranscript);
+    }
+
+    private clearHintTimers(): void {
+        if (this.hintTriggerTimeout) {
+            clearTimeout(this.hintTriggerTimeout);
+            this.hintTriggerTimeout = null;
+        }
+        if (this.forceHintTimeout) {
+            clearTimeout(this.forceHintTimeout);
+            this.forceHintTimeout = null;
+        }
+    }
+
+    private scheduleEndTurnIfSilent(isSilent: boolean): void {
+        if (!this.geminiService?.isActive()) {
+            return;
+        }
+
+        if (!isSilent) {
+            this.lastNonSilentAudioAt = Date.now();
+            if (this.endTurnDebounceTimeout) {
+                clearTimeout(this.endTurnDebounceTimeout);
+                this.endTurnDebounceTimeout = null;
+            }
+            return;
+        }
+
+        if (this.endTurnDebounceTimeout) {
+            return;
+        }
+
+        this.endTurnDebounceTimeout = setTimeout(() => {
+            this.endTurnDebounceTimeout = null;
+            const now = Date.now();
+            const sinceSpeech = now - this.lastNonSilentAudioAt;
+            const sinceLastEndTurn = now - this.lastEndTurnAt;
+
+            if (
+                (this.state === 'listening' || this.state === 'transcribing') &&
+                sinceSpeech >= LiveInterviewService.END_TURN_SILENCE_MS &&
+                sinceLastEndTurn >= LiveInterviewService.END_TURN_MIN_INTERVAL_MS
+            ) {
+                this.lastEndTurnAt = now;
+                log.info('LiveInterviewService: Forcing endTurn after local silence');
+                this.geminiService?.endTurn();
+            }
+        }, LiveInterviewService.END_TURN_SILENCE_MS);
     }
 
     /**
@@ -296,7 +373,10 @@ export class LiveInterviewService extends EventEmitter {
         this.audioLevel = level;
 
         // Handle silence detection
-        const isSilent = level < 0.01;
+        const isSilent = level < LiveInterviewService.AUDIO_SILENCE_LEVEL;
+
+        // Force turn finalization when speech ended but remote turnComplete lags
+        this.scheduleEndTurnIfSilent(isSilent);
 
         if (isSilent) {
             if (this.state === 'listening' && !this.silenceTimeout) {
@@ -345,6 +425,16 @@ export class LiveInterviewService extends EventEmitter {
             this.hintTriggerTimeout = null;
         }
 
+        if (this.forceHintTimeout) {
+            clearTimeout(this.forceHintTimeout);
+            this.forceHintTimeout = null;
+        }
+
+        if (this.endTurnDebounceTimeout) {
+            clearTimeout(this.endTurnDebounceTimeout);
+            this.endTurnDebounceTimeout = null;
+        }
+
         if (this.transcriptClearTimeout) {
             clearTimeout(this.transcriptClearTimeout);
             this.transcriptClearTimeout = null;
@@ -369,6 +459,8 @@ export class LiveInterviewService extends EventEmitter {
         this.lastHintTranscript = '';
         this.pendingHint = false;
         this.lastTranscriptTime = 0;
+        this.lastNonSilentAudioAt = 0;
+        this.lastEndTurnAt = 0;
         this.audioLevel = 0;
         this.setState('idle');
     }

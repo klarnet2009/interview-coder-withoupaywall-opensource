@@ -217,6 +217,17 @@ The packaged applications will be available in the `release` directory.
 - Radix UI Components
 - OpenAI API
 
+## Engineering Documentation
+
+- Codebase index: `docs/CODEBASE_DOCS_INDEX_EN.md`
+- Architecture: `docs/ARCHITECTURE_OVERVIEW_EN.md`
+- Module map: `docs/MODULE_MAP_EN.md`
+- IPC contract: `docs/IPC_CONTRACT_EN.md`
+- Live audio flow: `docs/LIVE_AUDIO_FLOW_EN.md`
+- Config and persistence: `docs/CONFIG_AND_PERSISTENCE_EN.md`
+- Development workflow: `docs/DEV_WORKFLOW_EN.md`
+- Technical debt and risks: `docs/TECH_DEBT_AND_RISKS_EN.md`
+
 ## How It Works
 
 1. **Initial Setup**

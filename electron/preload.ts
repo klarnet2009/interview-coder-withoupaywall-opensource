@@ -1,5 +1,5 @@
 console.log("Preload script starting...")
-import { contextBridge, ipcRenderer, shell, type IpcRendererEvent } from "electron"
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron"
 
 type UnknownPayload = Record<string, unknown>
 type UpdateEventInfo = {
@@ -157,7 +157,7 @@ const electronAPI = {
     }
   },
   // External URL handler
-  openLink: (url: string) => shell.openExternal(url),
+  openLink: (url: string) => ipcRenderer.invoke("openLink", url),
   triggerScreenshot: () => ipcRenderer.invoke("trigger-screenshot"),
   triggerProcessScreenshots: () =>
     ipcRenderer.invoke("trigger-process-screenshots"),
@@ -215,7 +215,7 @@ const electronAPI = {
   validateApiKey: (apiKey: string) =>
     ipcRenderer.invoke("validate-api-key", apiKey),
   openExternal: (url: string) =>
-    ipcRenderer.invoke("openExternal", url),
+    ipcRenderer.invoke("open-external-url", url),
   onApiKeyInvalid: (callback: () => void) => {
     const subscription = () => callback()
     ipcRenderer.on(PROCESSING_EVENTS.API_KEY_INVALID, subscription)

@@ -4,8 +4,7 @@ import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
 import { OpenAI } from "openai"
-// SecureStorage removed — using raw JSON config for now
-// Server-side config management will be added later
+import { secureStorage } from "./SecureStorage"
 
 // Extended Config interface for UX Redesign 2025
 interface UserProfile {
@@ -85,6 +84,7 @@ interface Config {
 
 export class ConfigHelper extends EventEmitter {
   private configPath: string;
+  private readonly secureApiKeyField = "apiKey";
 
   private defaultConfig: Config = {
     // Existing defaults
@@ -147,6 +147,23 @@ export class ConfigHelper extends EventEmitter {
 
     // Ensure the initial config file exists
     this.ensureConfigExists();
+  }
+
+  private getStoredApiKey(): string {
+    const value = secureStorage.get(this.secureApiKeyField);
+    if (typeof value !== "string") {
+      return "";
+    }
+    return value.trim();
+  }
+
+  private setStoredApiKey(apiKey: string): void {
+    const normalized = apiKey.trim();
+    if (normalized.length > 0) {
+      secureStorage.set(this.secureApiKeyField, normalized);
+    } else {
+      secureStorage.delete(this.secureApiKeyField);
+    }
   }
 
   /**
@@ -258,95 +275,104 @@ export class ConfigHelper extends EventEmitter {
 
   public loadConfig(): Config {
     try {
-      console.log('=== LOAD CONFIG DEBUG ===');
-      console.log('Config path:', this.configPath);
-      console.log('Config file exists:', fs.existsSync(this.configPath));
+      let rawConfig: unknown = { ...this.defaultConfig };
+      const backupPath = this.configPath + '.backup';
 
       if (fs.existsSync(this.configPath)) {
         const configData = fs.readFileSync(this.configPath, 'utf8');
-        let config: any;
-
         try {
-          config = JSON.parse(configData);
+          rawConfig = JSON.parse(configData);
         } catch (parseErr) {
-          // Config file is corrupted — try restoring from backup
           console.error('Config file is corrupted:', parseErr);
-          const backupPath = this.configPath + '.backup';
           if (fs.existsSync(backupPath)) {
             try {
               const backupData = fs.readFileSync(backupPath, 'utf8');
-              config = JSON.parse(backupData);
+              rawConfig = JSON.parse(backupData);
               console.log('Restored config from backup file');
-              // Re-save the restored config as the main file
-              this.saveConfig({ ...this.defaultConfig, ...config });
-              return { ...this.defaultConfig, ...config };
             } catch (backupErr) {
               console.error('Backup also corrupted, resetting to defaults:', backupErr);
+              rawConfig = { ...this.defaultConfig };
             }
-          }
-          // No backup or backup also corrupted — reset to defaults
-          console.log('No valid backup found, resetting to defaults');
-          this.saveConfig(this.defaultConfig);
-          return { ...this.defaultConfig };
-        }
-
-        console.log('Loaded config - apiKey exists:', !!config.apiKey && config.apiKey.length > 0 && config.apiKey !== '[ENCRYPTED]');
-        console.log('Loaded config - apiProvider:', config.apiProvider);
-
-        // Migrate if needed
-        config = this.migrateConfig(config);
-
-        // One-time migration: pull API key from old secure-data.json if present
-        if ((!config.apiKey || config.apiKey === '' || config.apiKey === '[ENCRYPTED]')) {
-          const migratedKey = this.migrateFromSecureStorage();
-          if (migratedKey) {
-            config.apiKey = migratedKey;
-            console.log('Migrated API key from secure-data.json to raw config');
+          } else {
+            rawConfig = { ...this.defaultConfig };
           }
         }
-
-        // Clear legacy placeholder
-        if (config.apiKey === '[ENCRYPTED]') {
-          config.apiKey = '';
-        }
-        console.log('=========================');
-
-        // Ensure apiProvider is a valid value
-        if (config.apiProvider !== "openai" && config.apiProvider !== "gemini" && config.apiProvider !== "anthropic") {
-          config.apiProvider = "gemini";
-        }
-
-        // Sanitize model selections
-        if (config.extractionModel) {
-          config.extractionModel = this.sanitizeModelSelection(config.extractionModel, config.apiProvider);
-        }
-        if (config.solutionModel) {
-          config.solutionModel = this.sanitizeModelSelection(config.solutionModel, config.apiProvider);
-        }
-        if (config.debuggingModel) {
-          config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
-        }
-
-        return {
-          ...this.defaultConfig,
-          ...config
-        };
+      } else {
+        this.saveConfig(this.defaultConfig);
       }
 
-      // If no config exists, create a default one
-      this.saveConfig(this.defaultConfig);
-      return { ...this.defaultConfig };
+      let config = this.migrateConfig(rawConfig);
+      let shouldPersistSanitizedConfig = false;
+
+      // One-time migration path from legacy secure-data.json into secure storage
+      if (!this.getStoredApiKey()) {
+        const migratedKey = this.migrateFromSecureStorage();
+        if (migratedKey) {
+          this.setStoredApiKey(migratedKey);
+        }
+      }
+
+      // Migrate plaintext keys from config.json into secure storage and strip from file payload
+      if (
+        typeof config.apiKey === "string" &&
+        config.apiKey.trim().length > 0 &&
+        config.apiKey !== "[ENCRYPTED]"
+      ) {
+        if (!this.getStoredApiKey()) {
+          this.setStoredApiKey(config.apiKey);
+        }
+        config.apiKey = "";
+        shouldPersistSanitizedConfig = true;
+        console.log("Migrated API key from config.json to secure storage");
+      }
+
+      // Clear legacy placeholder in config file
+      if (config.apiKey === "[ENCRYPTED]") {
+        config.apiKey = "";
+        shouldPersistSanitizedConfig = true;
+      }
+
+      // Ensure apiProvider is a valid value
+      if (config.apiProvider !== "openai" && config.apiProvider !== "gemini" && config.apiProvider !== "anthropic") {
+        config.apiProvider = "gemini";
+      }
+
+      // Sanitize model selections
+      if (config.extractionModel) {
+        config.extractionModel = this.sanitizeModelSelection(config.extractionModel, config.apiProvider);
+      }
+      if (config.solutionModel) {
+        config.solutionModel = this.sanitizeModelSelection(config.solutionModel, config.apiProvider);
+      }
+      if (config.debuggingModel) {
+        config.debuggingModel = this.sanitizeModelSelection(config.debuggingModel, config.apiProvider);
+      }
+
+      const persistedConfig: Config = {
+        ...this.defaultConfig,
+        ...config,
+        apiKey: ""
+      };
+
+      if (shouldPersistSanitizedConfig) {
+        this.saveConfig(persistedConfig);
+      }
+
+      return {
+        ...persistedConfig,
+        apiKey: this.getStoredApiKey()
+      };
     } catch (err) {
       console.error("Error loading config:", err);
       // Critical failure — reset file on disk so next start is clean
-      try { this.saveConfig(this.defaultConfig); } catch (_) { /* ignore */ }
-      return { ...this.defaultConfig };
+      try { this.saveConfig({ ...this.defaultConfig, apiKey: "" }); } catch (_) { /* ignore */ }
+      return { ...this.defaultConfig, apiKey: this.getStoredApiKey() };
     }
   }
 
   /**
    * Save configuration to disk
-   * Raw JSON — API key stored directly (server-side config coming later)
+   * API key is intentionally stripped from file payload and stored in secure storage.
    */
   public saveConfig(config: Config): void {
     try {
@@ -355,7 +381,11 @@ export class ConfigHelper extends EventEmitter {
         fs.mkdirSync(configDir, { recursive: true });
       }
 
-      const jsonData = JSON.stringify(config, null, 2);
+      const persistedConfig: Config = {
+        ...config,
+        apiKey: ""
+      };
+      const jsonData = JSON.stringify(persistedConfig, null, 2);
       const tmpPath = this.configPath + '.tmp';
       const backupPath = this.configPath + '.backup';
 
@@ -384,12 +414,16 @@ export class ConfigHelper extends EventEmitter {
   public updateConfig(updates: Partial<Config>): Config {
     try {
       const currentConfig = this.loadConfig();
-      let provider = updates.apiProvider || currentConfig.apiProvider;
+      const nextUpdates: Partial<Config> = { ...updates };
+      const incomingApiKey = typeof nextUpdates.apiKey === "string"
+        ? nextUpdates.apiKey
+        : undefined;
+      let provider = nextUpdates.apiProvider || currentConfig.apiProvider;
 
       // Auto-detect provider based on API key format
-      if (updates.apiKey && !updates.apiProvider) {
-        if (updates.apiKey.trim().startsWith('sk-')) {
-          if (updates.apiKey.trim().startsWith('sk-ant-')) {
+      if (incomingApiKey && !nextUpdates.apiProvider) {
+        if (incomingApiKey.trim().startsWith('sk-')) {
+          if (incomingApiKey.trim().startsWith('sk-ant-')) {
             provider = "anthropic";
             console.log("Auto-detected Anthropic API key format");
           } else {
@@ -400,38 +434,44 @@ export class ConfigHelper extends EventEmitter {
           provider = "gemini";
           console.log("Using Gemini API key format (default)");
         }
-        updates.apiProvider = provider;
+        nextUpdates.apiProvider = provider;
+      }
+
+      // Persist API key in secure storage and strip it from persisted config payload
+      if (incomingApiKey !== undefined) {
+        this.setStoredApiKey(incomingApiKey);
+        delete nextUpdates.apiKey;
       }
 
       // If provider is changing, reset models
-      if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
-        if (updates.apiProvider === "openai") {
-          updates.extractionModel = "gpt-4o";
-          updates.solutionModel = "gpt-4o";
-          updates.debuggingModel = "gpt-4o";
-        } else if (updates.apiProvider === "anthropic") {
-          updates.extractionModel = "claude-3-7-sonnet-20250219";
-          updates.solutionModel = "claude-3-7-sonnet-20250219";
-          updates.debuggingModel = "claude-3-7-sonnet-20250219";
+      if (nextUpdates.apiProvider && nextUpdates.apiProvider !== currentConfig.apiProvider) {
+        if (nextUpdates.apiProvider === "openai") {
+          nextUpdates.extractionModel = "gpt-4o";
+          nextUpdates.solutionModel = "gpt-4o";
+          nextUpdates.debuggingModel = "gpt-4o";
+        } else if (nextUpdates.apiProvider === "anthropic") {
+          nextUpdates.extractionModel = "claude-3-7-sonnet-20250219";
+          nextUpdates.solutionModel = "claude-3-7-sonnet-20250219";
+          nextUpdates.debuggingModel = "claude-3-7-sonnet-20250219";
         } else {
-          updates.extractionModel = "gemini-3-flash-preview";
-          updates.solutionModel = "gemini-3-flash-preview";
-          updates.debuggingModel = "gemini-3-flash-preview";
+          nextUpdates.extractionModel = "gemini-3-flash-preview";
+          nextUpdates.solutionModel = "gemini-3-flash-preview";
+          nextUpdates.debuggingModel = "gemini-3-flash-preview";
         }
       }
 
       // Sanitize model selections
-      if (updates.extractionModel) {
-        updates.extractionModel = this.sanitizeModelSelection(updates.extractionModel, provider);
+      if (nextUpdates.extractionModel) {
+        nextUpdates.extractionModel = this.sanitizeModelSelection(nextUpdates.extractionModel, provider);
       }
-      if (updates.solutionModel) {
-        updates.solutionModel = this.sanitizeModelSelection(updates.solutionModel, provider);
+      if (nextUpdates.solutionModel) {
+        nextUpdates.solutionModel = this.sanitizeModelSelection(nextUpdates.solutionModel, provider);
       }
-      if (updates.debuggingModel) {
-        updates.debuggingModel = this.sanitizeModelSelection(updates.debuggingModel, provider);
+      if (nextUpdates.debuggingModel) {
+        nextUpdates.debuggingModel = this.sanitizeModelSelection(nextUpdates.debuggingModel, provider);
       }
       // Map flat settings fields into nested interviewPreferences
-      const anyUpdates = updates as Record<string, unknown>;
+      const anyUpdates = nextUpdates as Record<string, unknown>;
       if (anyUpdates.interviewMode || anyUpdates.responseStyle || anyUpdates.responseLength ||
         anyUpdates.programmingLanguage || anyUpdates.interviewLevel || anyUpdates.interviewFocus ||
         anyUpdates.customTopic || anyUpdates.recognitionLanguage || anyUpdates.interfaceLanguage) {
@@ -439,7 +479,7 @@ export class ConfigHelper extends EventEmitter {
         if (anyUpdates.interviewMode) prefs.mode = anyUpdates.interviewMode as InterviewPreferences['mode'];
         if (anyUpdates.responseStyle) prefs.answerStyle = anyUpdates.responseStyle as InterviewPreferences['answerStyle'];
         if (anyUpdates.recognitionLanguage) prefs.language = anyUpdates.recognitionLanguage as string;
-        updates.interviewPreferences = prefs as InterviewPreferences;
+        nextUpdates.interviewPreferences = prefs as InterviewPreferences;
 
         // Clean up flat fields so they don't pollute the config
         delete anyUpdates.interviewMode;
@@ -455,7 +495,7 @@ export class ConfigHelper extends EventEmitter {
 
       // Map audioConfig if provided as a nested object
       if (anyUpdates.audioConfig && typeof anyUpdates.audioConfig === 'object') {
-        updates.audioConfig = {
+        nextUpdates.audioConfig = {
           ...(currentConfig.audioConfig || {}),
           ...anyUpdates.audioConfig
         } as AudioConfig;
@@ -466,21 +506,29 @@ export class ConfigHelper extends EventEmitter {
       delete anyUpdates.profileExperience;
       delete anyUpdates.profileSkills;
 
-      const newConfig = { ...currentConfig, ...updates };
+      const newConfig: Config = {
+        ...currentConfig,
+        ...nextUpdates,
+        apiKey: ""
+      };
       this.saveConfig(newConfig);
+      const runtimeConfig: Config = {
+        ...newConfig,
+        apiKey: this.getStoredApiKey()
+      };
 
       // Emit update event for non-opacity changes
-      if (updates.apiKey !== undefined || updates.apiProvider !== undefined ||
-        updates.extractionModel !== undefined || updates.solutionModel !== undefined ||
-        updates.debuggingModel !== undefined || updates.language !== undefined ||
-        updates.wizardCompleted !== undefined || updates.profiles !== undefined) {
-        this.emit('config-updated', newConfig);
+      if (incomingApiKey !== undefined || nextUpdates.apiProvider !== undefined ||
+        nextUpdates.extractionModel !== undefined || nextUpdates.solutionModel !== undefined ||
+        nextUpdates.debuggingModel !== undefined || nextUpdates.language !== undefined ||
+        nextUpdates.wizardCompleted !== undefined || nextUpdates.profiles !== undefined) {
+        this.emit('config-updated', runtimeConfig);
       }
 
-      return newConfig;
+      return runtimeConfig;
     } catch (error) {
       console.error('Error updating config:', error);
-      return this.defaultConfig;
+      return { ...this.defaultConfig, apiKey: this.getStoredApiKey() };
     }
   }
 
@@ -506,8 +554,7 @@ export class ConfigHelper extends EventEmitter {
    * Check if the API key is configured
    */
   public hasApiKey(): boolean {
-    const config = this.loadConfig();
-    return !!config.apiKey && config.apiKey.trim().length > 0;
+    return this.getStoredApiKey().length > 0;
   }
 
   /**

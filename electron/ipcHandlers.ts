@@ -5,6 +5,12 @@ import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
 import { validateConfigUpdate, validateString, validateEnum } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
+import {
+  clearSessionHistory,
+  deleteSessionHistoryItem,
+  getSessionHistory,
+  getSessionHistoryItem
+} from "./store"
 
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -35,6 +41,17 @@ interface LiveInterviewServiceInstance {
 
 export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   console.log("Initializing IPC handlers")
+
+  const openExternalUrl = (url: string) => {
+    try {
+      console.log(`Opening external URL: ${url}`)
+      shell.openExternal(url)
+      return { success: true }
+    } catch (error) {
+      console.error(`Error opening URL ${url}:`, error)
+      return { success: false, error: `Failed to open URL: ${error}` }
+    }
+  }
 
   // Configuration handlers
   ipcMain.handle("get-config", () => {
@@ -355,19 +372,17 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   // Auth-related handlers removed
 
   ipcMain.handle("open-external-url", (event, url: string) => {
-    shell.openExternal(url)
+    return openExternalUrl(url)
   })
 
   // Open external URL handler
   ipcMain.handle("openLink", (event, url: string) => {
-    try {
-      console.log(`Opening external URL: ${url}`);
-      shell.openExternal(url);
-      return { success: true };
-    } catch (error) {
-      console.error(`Error opening URL ${url}:`, error);
-      return { success: false, error: `Failed to open URL: ${error}` };
-    }
+    return openExternalUrl(url)
+  })
+
+  // Keep backward compatibility for preload/runtime code that still invokes "openExternal"
+  ipcMain.handle("openExternal", (_event, url: string) => {
+    return openExternalUrl(url)
   })
 
   // Settings portal handler
@@ -570,6 +585,53 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     } catch (error) {
       console.error("Error deleting last screenshot:", error)
       return { success: false, error: "Failed to delete last screenshot" }
+    }
+  })
+
+  // ========== Session History ==========
+  ipcMain.handle("get-session-history", () => {
+    try {
+      return getSessionHistory()
+    } catch (error) {
+      console.error("Error getting session history:", error)
+      return []
+    }
+  })
+
+  ipcMain.handle("get-session-history-item", (_event, sessionId: string) => {
+    try {
+      const id = typeof sessionId === "string" ? sessionId : ""
+      if (!id) {
+        return null
+      }
+      return getSessionHistoryItem(id)
+    } catch (error) {
+      console.error("Error getting session history item:", error)
+      return null
+    }
+  })
+
+  ipcMain.handle("delete-session-history-item", (_event, sessionId: string) => {
+    try {
+      const id = typeof sessionId === "string" ? sessionId : ""
+      if (!id) {
+        return { success: false, error: "Invalid sessionId" }
+      }
+      const success = deleteSessionHistoryItem(id)
+      return { success }
+    } catch (error) {
+      console.error("Error deleting session history item:", error)
+      return { success: false, error: "Failed to delete session history item" }
+    }
+  })
+
+  ipcMain.handle("clear-session-history", () => {
+    try {
+      clearSessionHistory()
+      return { success: true }
+    } catch (error) {
+      console.error("Error clearing session history:", error)
+      return { success: false, error: "Failed to clear session history" }
     }
   })
 
