@@ -16,6 +16,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+  // AI provider API keys — optional, stored server-side only, never exposed to clients
+  OPENAI_API_KEY: z.string().optional().default(''),
+  GEMINI_API_KEY: z.string().optional().default(''),
+  ANTHROPIC_API_KEY: z.string().optional().default(''),
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -36,6 +40,10 @@ export interface Config {
   NODE_ENV: 'development' | 'production' | 'test'
   JWT_ACCESS_EXPIRES_IN: string
   JWT_REFRESH_EXPIRES_IN: string
+  // AI provider API keys — optional, stored server-side only, never exposed to clients
+  OPENAI_API_KEY: string
+  GEMINI_API_KEY: string
+  ANTHROPIC_API_KEY: string
 }
 
 export const config: Config = parsed.data
