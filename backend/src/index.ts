@@ -6,12 +6,17 @@ import { prisma, connectDatabase, disconnectDatabase } from './database'
 import { authRouter } from './auth/auth.routes'
 import { processingRouter } from './processing/processing.routes'
 import { creditsRouter } from './credits/credit.routes'
+import { checkoutRouter, stripeWebhookRouter } from './stripe/stripe.routes'
 
 const app = express()
 
 // Middleware
 app.use(helmet())
 app.use(cors())
+
+// Stripe webhook needs raw body — mount before express.json() middleware
+app.use('/stripe', express.raw({ type: 'application/json' }), stripeWebhookRouter)
+
 app.use(express.json())
 
 // Health check - liveness probe (per BKND-01)
@@ -34,6 +39,9 @@ app.use('/auth', authRouter)
 
 // Credits routes (authenticated)
 app.use('/credits', creditsRouter)
+
+// Credits checkout and packages routes
+app.use('/credits', checkoutRouter)
 
 // Processing routes (authenticated + rate-limited)
 app.use('/processing', processingRouter)
