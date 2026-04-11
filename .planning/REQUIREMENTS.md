@@ -15,7 +15,7 @@
 - [x] **BKND-01**: Backend API service is deployable with health-check endpoints
 - [x] **BKND-02**: API keys (OpenAI, Gemini, Anthropic) are stored securely on the server using environment variables — never exposed to clients
 - [x] **BKND-03**: AI API calls are proxied through the backend (client sends request to backend, backend calls AI provider)
-- [ ] **BKND-04**: API requests are rate-limited per authenticated user
+- [x] **BKND-04**: API requests are rate-limited per authenticated user
 - [x] **BKND-05**: Database stores users, sessions, and credit transactions with ACID guarantees
 
 ### Credits & Billing (CRED)
@@ -75,7 +75,7 @@
 | BKND-01 | Phase 1 | Complete |
 | BKND-02 | Phase 2 | Complete |
 | BKND-03 | Phase 2 | Complete |
-| BKND-04 | Phase 2 | Pending |
+| BKND-04 | Phase 2 | Complete |
 | BKND-05 | Phase 1 | Complete |
 | CRED-01 | Phase 3 | Pending |
 | CRED-02 | Phase 3 | Pending |

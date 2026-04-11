@@ -45,7 +45,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Backend returns appropriate error codes for unauthenticated or rate-limited requests
 **Plans**: 2 plans
 - [x] 02-01-PLAN.md — AI provider service, processing types, and provider implementations (OpenAI, Gemini, Anthropic)
-- [ ] 02-02-PLAN.md — Rate limiting middleware, processing proxy routes, and integration tests
+- [x] 02-02-PLAN.md — Rate limiting middleware, processing proxy routes, and integration tests
 
 ### Phase 3: Credits & Billing
 **Goal**: Users can buy credits and every AI operation draws from their balance
