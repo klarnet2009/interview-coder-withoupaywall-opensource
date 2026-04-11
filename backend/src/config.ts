@@ -20,6 +20,9 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional().default(''),
   GEMINI_API_KEY: z.string().optional().default(''),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
+  // Rate limiting configuration
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),    // 1 minute window
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(20),      // 20 requests per window
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -44,6 +47,9 @@ export interface Config {
   OPENAI_API_KEY: string
   GEMINI_API_KEY: string
   ANTHROPIC_API_KEY: string
+  // Rate limiting configuration
+  RATE_LIMIT_WINDOW_MS: number
+  RATE_LIMIT_MAX_REQUESTS: number
 }
 
 export const config: Config = parsed.data
