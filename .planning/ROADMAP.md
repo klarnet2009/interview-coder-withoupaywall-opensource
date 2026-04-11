@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can make authenticated API requests using the access token
   5. User session persists when the access token is refreshed via the refresh token
 **Plans**: 2 plans
-- [ ] 01-01-PLAN.md — Backend project setup, Prisma schema, health-check endpoints
+- [x] 01-01-PLAN.md — Backend project setup, Prisma schema, health-check endpoints
 - [ ] 01-02-PLAN.md — Auth endpoints (register, login, logout, refresh), JWT middleware
 
 ### Phase 2: AI Proxy Service
