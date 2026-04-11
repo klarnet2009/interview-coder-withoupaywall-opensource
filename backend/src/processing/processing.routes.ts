@@ -3,7 +3,10 @@ import { z } from 'zod'
 import { authenticate } from '../middleware/auth.middleware'
 import type { AuthRequest } from '../middleware/auth.middleware'
 import { rateLimiter } from '../middleware/rateLimit'
+import { creditCheck } from '../middleware/creditCheck'
 import { processingService } from './processing.service'
+import { creditService } from '../credits/credit.service'
+import { config } from '../config'
 import type { ApiProvider } from './types'
 
 export const processingRouter = Router()
@@ -34,7 +37,7 @@ const debugSchema = z.object({
 })
 
 // POST /processing/extract — Extract problem from screenshots
-processingRouter.post('/extract', async (req: AuthRequest, res: Response) => {
+processingRouter.post('/extract', creditCheck(config.CREDITS_COST_EXTRACT), async (req: AuthRequest, res: Response) => {
   const validation = extractSchema.safeParse(req.body)
   if (!validation.success) {
     res.status(400).json({ error: validation.error.issues[0]?.message || 'Validation failed' })
@@ -43,6 +46,8 @@ processingRouter.post('/extract', async (req: AuthRequest, res: Response) => {
   const { provider, ...requestData } = validation.data
   const result = await processingService.extractProblem(provider as ApiProvider, requestData)
   if (result.success) {
+    // Deduct credits after successful processing
+    await creditService.deductCredits(req.user!.userId, config.CREDITS_COST_EXTRACT, 'extract')
     res.status(200).json(result.data)
   } else {
     res.status(result.statusCode || 500).json({ error: result.error })
@@ -50,7 +55,7 @@ processingRouter.post('/extract', async (req: AuthRequest, res: Response) => {
 })
 
 // POST /processing/solution — Generate solution for a problem
-processingRouter.post('/solution', async (req: AuthRequest, res: Response) => {
+processingRouter.post('/solution', creditCheck(config.CREDITS_COST_SOLUTION), async (req: AuthRequest, res: Response) => {
   const validation = solutionSchema.safeParse(req.body)
   if (!validation.success) {
     res.status(400).json({ error: validation.error.issues[0]?.message || 'Validation failed' })
@@ -59,6 +64,8 @@ processingRouter.post('/solution', async (req: AuthRequest, res: Response) => {
   const { provider, ...requestData } = validation.data
   const result = await processingService.generateSolution(provider as ApiProvider, requestData)
   if (result.success) {
+    // Deduct credits after successful processing
+    await creditService.deductCredits(req.user!.userId, config.CREDITS_COST_SOLUTION, 'solution')
     res.status(200).json(result.data)
   } else {
     res.status(result.statusCode || 500).json({ error: result.error })
@@ -66,7 +73,7 @@ processingRouter.post('/solution', async (req: AuthRequest, res: Response) => {
 })
 
 // POST /processing/debug — Generate debug analysis
-processingRouter.post('/debug', async (req: AuthRequest, res: Response) => {
+processingRouter.post('/debug', creditCheck(config.CREDITS_COST_DEBUG), async (req: AuthRequest, res: Response) => {
   const validation = debugSchema.safeParse(req.body)
   if (!validation.success) {
     res.status(400).json({ error: validation.error.issues[0]?.message || 'Validation failed' })
@@ -75,6 +82,8 @@ processingRouter.post('/debug', async (req: AuthRequest, res: Response) => {
   const { provider, ...requestData } = validation.data
   const result = await processingService.generateDebug(provider as ApiProvider, requestData)
   if (result.success) {
+    // Deduct credits after successful processing
+    await creditService.deductCredits(req.user!.userId, config.CREDITS_COST_DEBUG, 'debug')
     res.status(200).json(result.data)
   } else {
     res.status(result.statusCode || 500).json({ error: result.error })

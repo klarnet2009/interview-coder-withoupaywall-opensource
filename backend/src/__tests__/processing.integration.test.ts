@@ -8,12 +8,17 @@ vi.mock('../database', () => ({
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     refreshToken: {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
+    creditTransaction: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(),
     $queryRaw: vi.fn(),
     $connect: vi.fn(),
     $disconnect: vi.fn(),
@@ -36,6 +41,10 @@ vi.mock('../config', () => ({
     ANTHROPIC_API_KEY: '',
     RATE_LIMIT_WINDOW_MS: 60000,
     RATE_LIMIT_MAX_REQUESTS: 100,
+    CREDITS_FREE_ON_SIGNUP: 10,
+    CREDITS_COST_EXTRACT: 1,
+    CREDITS_COST_SOLUTION: 2,
+    CREDITS_COST_DEBUG: 3,
   },
 }))
 
@@ -45,6 +54,21 @@ vi.mock('../processing/processing.service', () => ({
     extractProblem: vi.fn(),
     generateSolution: vi.fn(),
     generateDebug: vi.fn(),
+  },
+}))
+
+// Mock creditService for credit check middleware
+vi.mock('../credits/credit.service', () => ({
+  creditService: {
+    getBalance: vi.fn().mockResolvedValue(10),
+    deductCredits: vi.fn().mockResolvedValue({
+      success: true,
+      data: { balance: 9, transaction: { id: 'txn-1', userId: 'proc-test-user', amount: -1, balance: 9, operation: 'extract', description: null, createdAt: new Date() } },
+    }),
+    addFreeCredits: vi.fn().mockResolvedValue({
+      success: true,
+      data: { balance: 10, transaction: { id: 'txn-free', userId: 'proc-test-user', amount: 10, balance: 10, operation: 'signup_bonus', description: 'Free credits on signup', createdAt: new Date() } },
+    }),
   },
 }))
 

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 import { prisma } from '../database'
 import { config } from '../config'
+import { creditService } from '../credits/credit.service'
 
 // ========== Validation Schemas ==========
 
@@ -126,6 +127,9 @@ export const authService = {
         expiresAt: calculateExpiryDate(),
       },
     })
+
+    // Award free signup credits to new user (CRED-01)
+    await creditService.addFreeCredits(user.id)
 
     return {
       success: true,

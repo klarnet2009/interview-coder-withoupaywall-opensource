@@ -31,6 +31,21 @@ vi.mock('../config', () => ({
     NODE_ENV: 'test',
     JWT_ACCESS_EXPIRES_IN: '15m',
     JWT_REFRESH_EXPIRES_IN: '7d',
+    OPENAI_API_KEY: '',
+    GEMINI_API_KEY: '',
+    ANTHROPIC_API_KEY: '',
+    RATE_LIMIT_WINDOW_MS: 60000,
+    RATE_LIMIT_MAX_REQUESTS: 100,
+    CREDITS_FREE_ON_SIGNUP: 10,
+    CREDITS_COST_EXTRACT: 1,
+    CREDITS_COST_SOLUTION: 2,
+    CREDITS_COST_DEBUG: 3,
+  },
+}))
+
+vi.mock('../credits/credit.service', () => ({
+  creditService: {
+    getBalance: vi.fn().mockResolvedValue(10),
   },
 }))
 

@@ -5,6 +5,7 @@ import { config } from './config'
 import { prisma, connectDatabase, disconnectDatabase } from './database'
 import { authRouter } from './auth/auth.routes'
 import { processingRouter } from './processing/processing.routes'
+import { creditsRouter } from './credits/credit.routes'
 
 const app = express()
 
@@ -30,6 +31,9 @@ app.get('/ready', async (_req, res) => {
 
 // Auth routes
 app.use('/auth', authRouter)
+
+// Credits routes (authenticated)
+app.use('/credits', creditsRouter)
 
 // Processing routes (authenticated + rate-limited)
 app.use('/processing', processingRouter)
