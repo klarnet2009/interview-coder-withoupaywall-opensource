@@ -44,7 +44,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Backend rate-limits requests per user within configurable time windows
   4. Backend returns appropriate error codes for unauthenticated or rate-limited requests
 **Plans**: 2 plans
-- [ ] 02-01-PLAN.md — AI provider service, processing types, and provider implementations (OpenAI, Gemini, Anthropic)
+- [x] 02-01-PLAN.md — AI provider service, processing types, and provider implementations (OpenAI, Gemini, Anthropic)
 - [ ] 02-02-PLAN.md — Rate limiting middleware, processing proxy routes, and integration tests
 
 ### Phase 3: Credits & Billing
