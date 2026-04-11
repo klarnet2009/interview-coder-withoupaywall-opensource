@@ -43,8 +43,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Authenticated user can submit an AI processing request to the backend and receive a response proxied from the AI provider
   3. Backend rate-limits requests per user within configurable time windows
   4. Backend returns appropriate error codes for unauthenticated or rate-limited requests
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+- [ ] 02-01-PLAN.md — AI provider service, processing types, and provider implementations (OpenAI, Gemini, Anthropic)
+- [ ] 02-02-PLAN.md — Rate limiting middleware, processing proxy routes, and integration tests
 
 ### Phase 3: Credits & Billing
 **Goal**: Users can buy credits and every AI operation draws from their balance
@@ -93,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Backend Foundation & Auth | 2/2 | Complete | 2026-04-11 |
-| 2. AI Proxy Service | 0/? | Not started | - |
+| 2. AI Proxy Service | 0/2 | Not started | - |
 | 3. Credits & Billing | 0/? | Not started | - |
 | 4. Client Integration | 0/? | Not started | - |
 | 5. Polish & Completeness | 0/? | Not started | - |
