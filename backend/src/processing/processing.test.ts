@@ -12,7 +12,12 @@ vi.mock('../config', () => ({
     JWT_REFRESH_EXPIRES_IN: '7d',
     OPENAI_API_KEY: '',
     GEMINI_API_KEY: '',
-    ANTHROPIC_API_KEY: ''
+    ANTHROPIC_API_KEY: '',
+    STRIPE_SECRET_KEY: 'sk_test_fake_key',
+    STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
+    STRIPE_SUCCESS_URL: 'https://interviewcoder.app/credits/success',
+    STRIPE_CANCEL_URL: 'https://interviewcoder.app/credits/cancel',
+    CREDIT_PACKAGES: '50:500,150:1200,500:4000',
   }
 }))
 

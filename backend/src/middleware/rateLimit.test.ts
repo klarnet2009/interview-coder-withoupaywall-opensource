@@ -15,6 +15,11 @@ vi.mock('../config', () => ({
     ANTHROPIC_API_KEY: '',
     RATE_LIMIT_WINDOW_MS: 100, // Short window for fast tests
     RATE_LIMIT_MAX_REQUESTS: 3, // Low limit for fast tests
+    STRIPE_SECRET_KEY: 'sk_test_fake_key',
+    STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
+    STRIPE_SUCCESS_URL: 'https://interviewcoder.app/credits/success',
+    STRIPE_CANCEL_URL: 'https://interviewcoder.app/credits/cancel',
+    CREDIT_PACKAGES: '50:500,150:1200,500:4000',
   },
 }))
 

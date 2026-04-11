@@ -31,6 +31,11 @@ vi.mock('../config', () => ({
     NODE_ENV: 'test',
     JWT_ACCESS_EXPIRES_IN: '15m',
     JWT_REFRESH_EXPIRES_IN: '7d',
+    STRIPE_SECRET_KEY: 'sk_test_fake_key',
+    STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
+    STRIPE_SUCCESS_URL: 'https://interviewcoder.app/credits/success',
+    STRIPE_CANCEL_URL: 'https://interviewcoder.app/credits/cancel',
+    CREDIT_PACKAGES: '50:500,150:1200,500:4000',
   },
 }))
 

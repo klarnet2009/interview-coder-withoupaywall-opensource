@@ -34,6 +34,11 @@ vi.mock('../config', () => ({
     CREDITS_COST_EXTRACT: 1,
     CREDITS_COST_SOLUTION: 2,
     CREDITS_COST_DEBUG: 3,
+    STRIPE_SECRET_KEY: 'sk_test_fake_key',
+    STRIPE_WEBHOOK_SECRET: 'whsec_test_secret',
+    STRIPE_SUCCESS_URL: 'https://interviewcoder.app/credits/success',
+    STRIPE_CANCEL_URL: 'https://interviewcoder.app/credits/cancel',
+    CREDIT_PACKAGES: '50:500,150:1200,500:4000',
   },
 }))
 

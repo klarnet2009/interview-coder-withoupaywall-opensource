@@ -28,6 +28,12 @@ const envSchema = z.object({
   CREDITS_COST_EXTRACT: z.coerce.number().default(1),         // Cost per extract operation (CRED-03)
   CREDITS_COST_SOLUTION: z.coerce.number().default(2),        // Cost per solution operation (CRED-03)
   CREDITS_COST_DEBUG: z.coerce.number().default(3),           // Cost per debug operation (CRED-03)
+  // Stripe configuration (CRED-02, PAY-01, PAY-02)
+  STRIPE_SECRET_KEY: z.string().min(1, 'STRIPE_SECRET_KEY is required'),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1, 'STRIPE_WEBHOOK_SECRET is required'),
+  STRIPE_SUCCESS_URL: z.string().default('https://interviewcoder.app/credits/success'),
+  STRIPE_CANCEL_URL: z.string().default('https://interviewcoder.app/credits/cancel'),
+  CREDIT_PACKAGES: z.string().default('50:500,150:1200,500:4000'),  // format: "credits:price_in_cents"
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -60,6 +66,12 @@ export interface Config {
   CREDITS_COST_EXTRACT: number
   CREDITS_COST_SOLUTION: number
   CREDITS_COST_DEBUG: number
+  // Stripe configuration
+  STRIPE_SECRET_KEY: string
+  STRIPE_WEBHOOK_SECRET: string
+  STRIPE_SUCCESS_URL: string
+  STRIPE_CANCEL_URL: string
+  CREDIT_PACKAGES: string
 }
 
 export const config: Config = parsed.data
