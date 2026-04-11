@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User can query their current credit balance via the API
   5. User with zero credits receives a clear error when attempting an AI operation
 **Plans**: 2 plans
-- [ ] 03-01-PLAN.md — Credit system foundation: Prisma schema, CreditService, balance API, credit check middleware
+- [x] 03-01-PLAN.md — Credit system foundation: Prisma schema, CreditService, balance API, credit check middleware
 - [ ] 03-02-PLAN.md — Stripe Checkout integration: checkout sessions, webhook handler, payment confirmation
 **UI hint**: yes
 

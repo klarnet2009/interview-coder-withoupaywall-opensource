@@ -20,11 +20,11 @@
 
 ### Credits & Billing (CRED)
 
-- [ ] **CRED-01**: Users start with a set of free credits on signup (configurable amount)
+- [x] **CRED-01**: Users start with a set of free credits on signup (configurable amount)
 - [ ] **CRED-02**: Users can purchase credit packages via Stripe Checkout (one-time payment)
-- [ ] **CRED-03**: Each AI operation (extraction, solution, debug) deducts credits from the user's balance based on operation type
-- [ ] **CRED-04**: Users can view their current credit balance in the app
-- [ ] **CRED-05**: Users are blocked from AI operations when their credit balance reaches zero (with clear error message)
+- [x] **CRED-03**: Each AI operation (extraction, solution, debug) deducts credits from the user's balance based on operation type
+- [x] **CRED-04**: Users can view their current credit balance in the app
+- [x] **CRED-05**: Users are blocked from AI operations when their credit balance reaches zero (with clear error message)
 - [ ] **CRED-06**: Admin can configure credit costs per operation type via environment variables
 
 ### Payment (PAY)
@@ -77,11 +77,11 @@
 | BKND-03 | Phase 2 | Complete |
 | BKND-04 | Phase 2 | Complete |
 | BKND-05 | Phase 1 | Complete |
-| CRED-01 | Phase 3 | Pending |
+| CRED-01 | Phase 3 | Complete |
 | CRED-02 | Phase 3 | Pending |
-| CRED-03 | Phase 3 | Pending |
-| CRED-04 | Phase 3 | Pending |
-| CRED-05 | Phase 3 | Pending |
+| CRED-03 | Phase 3 | Complete |
+| CRED-04 | Phase 3 | Complete |
+| CRED-05 | Phase 3 | Complete |
 | CRED-06 | Phase 5 | Pending |
 | PAY-01 | Phase 3 | Pending |
 | PAY-02 | Phase 3 | Pending |
