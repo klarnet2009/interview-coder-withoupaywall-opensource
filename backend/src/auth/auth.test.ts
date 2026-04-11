@@ -6,12 +6,17 @@ vi.mock('../database', () => ({
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     refreshToken: {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
+    creditTransaction: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
   connectDatabase: vi.fn(),
   disconnectDatabase: vi.fn(),
@@ -46,6 +51,7 @@ describe('Auth Service', () => {
         id: 'user-uuid-1',
         email: 'test@example.com',
         passwordHash: 'hashed-password',
+        credits: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -87,6 +93,7 @@ describe('Auth Service', () => {
         id: 'existing-user-id',
         email: 'existing@example.com',
         passwordHash: 'hash',
+        credits: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -132,6 +139,7 @@ describe('Auth Service', () => {
         id: 'user-uuid-2',
         email: 'hash@example.com',
         passwordHash: 'hashed-password',
+        credits: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -164,6 +172,7 @@ describe('Auth Service', () => {
         id: 'user-uuid-1',
         email: 'login@example.com',
         passwordHash: await bcrypt.hash('password123', 12),
+        credits: 10,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -210,6 +219,7 @@ describe('Auth Service', () => {
         id: 'user-uuid-1',
         email: 'login@example.com',
         passwordHash: await bcrypt.hash('password123', 12),
+        credits: 10,
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -245,7 +255,7 @@ describe('Auth Service', () => {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
         revokedAt: null,
-        user: { id: userId, email: 'test@example.com', passwordHash: 'hash', createdAt: new Date(), updatedAt: new Date() },
+        user: { id: userId, email: 'test@example.com', passwordHash: 'hash', credits: 0, createdAt: new Date(), updatedAt: new Date() },
       }
 
       vi.mocked(prisma.refreshToken.findUnique).mockResolvedValueOnce(mockStoredToken)
@@ -301,7 +311,7 @@ describe('Auth Service', () => {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         createdAt: new Date(),
         revokedAt: new Date(), // Already revoked
-        user: { id: userId, email: 'test@example.com', passwordHash: 'hash', createdAt: new Date(), updatedAt: new Date() },
+        user: { id: userId, email: 'test@example.com', passwordHash: 'hash', credits: 0, createdAt: new Date(), updatedAt: new Date() },
       }
 
       vi.mocked(prisma.refreshToken.findUnique).mockResolvedValueOnce(mockStoredToken)

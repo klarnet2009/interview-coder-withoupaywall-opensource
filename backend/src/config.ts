@@ -23,6 +23,11 @@ const envSchema = z.object({
   // Rate limiting configuration
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60000),    // 1 minute window
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(20),      // 20 requests per window
+  // Credits configuration
+  CREDITS_FREE_ON_SIGNUP: z.coerce.number().default(10),      // Free credits given on signup (CRED-01)
+  CREDITS_COST_EXTRACT: z.coerce.number().default(1),         // Cost per extract operation (CRED-03)
+  CREDITS_COST_SOLUTION: z.coerce.number().default(2),        // Cost per solution operation (CRED-03)
+  CREDITS_COST_DEBUG: z.coerce.number().default(3),           // Cost per debug operation (CRED-03)
 })
 
 const parsed = envSchema.safeParse(process.env)
@@ -50,6 +55,11 @@ export interface Config {
   // Rate limiting configuration
   RATE_LIMIT_WINDOW_MS: number
   RATE_LIMIT_MAX_REQUESTS: number
+  // Credits configuration
+  CREDITS_FREE_ON_SIGNUP: number
+  CREDITS_COST_EXTRACT: number
+  CREDITS_COST_SOLUTION: number
+  CREDITS_COST_DEBUG: number
 }
 
 export const config: Config = parsed.data

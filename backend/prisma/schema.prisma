@@ -11,10 +11,27 @@ model User {
   id           String   @id @default(uuid())
   email        String   @unique
   passwordHash String
+  credits      Float    @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  refreshTokens RefreshToken[]
+  refreshTokens    RefreshToken[]
+  creditTransactions CreditTransaction[]
+}
+
+model CreditTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Float    // positive = credit, negative = debit
+  balance     Float    // balance after transaction
+  operation   String?  // "signup_bonus", "extract", "solution", "debug", "purchase"
+  description String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model RefreshToken {

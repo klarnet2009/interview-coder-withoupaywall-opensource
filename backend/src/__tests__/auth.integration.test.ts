@@ -8,15 +8,20 @@ vi.mock('../database', () => ({
     user: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     refreshToken: {
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
+    creditTransaction: {
+      create: vi.fn(),
+    },
     $queryRaw: vi.fn(),
     $connect: vi.fn(),
     $disconnect: vi.fn(),
+    $transaction: vi.fn(),
   },
   connectDatabase: vi.fn(),
   disconnectDatabase: vi.fn(),
@@ -49,6 +54,7 @@ describe('Auth Integration Tests', () => {
         id: 'integration-user-1',
         email: 'integration@example.com',
         passwordHash: 'hashed-password',
+        credits: 0,
         createdAt: new Date('2026-01-01'),
         updatedAt: new Date('2026-01-01'),
       }
@@ -115,6 +121,7 @@ describe('Auth Integration Tests', () => {
         id: 'integration-user-2',
         email: 'login-test@example.com',
         passwordHash: '$2a$12$mockhashvalue',
+        credits: 0,
         createdAt: new Date('2026-01-01'),
         updatedAt: new Date('2026-01-01'),
       }
