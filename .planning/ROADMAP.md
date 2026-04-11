@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. User session persists when the access token is refreshed via the refresh token
 **Plans**: 2 plans
 - [x] 01-01-PLAN.md — Backend project setup, Prisma schema, health-check endpoints
-- [ ] 01-02-PLAN.md — Auth endpoints (register, login, logout, refresh), JWT middleware
+- [x] 01-02-PLAN.md — Auth endpoints (register, login, logout, refresh), JWT middleware
 
 ### Phase 2: AI Proxy Service
 **Goal**: All AI processing goes through the backend with API keys secured server-side
@@ -92,7 +92,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Foundation & Auth | 0/? | Not started | - |
+| 1. Backend Foundation & Auth | 2/2 | Complete | 2026-04-11 |
 | 2. AI Proxy Service | 0/? | Not started | - |
 | 3. Credits & Billing | 0/? | Not started | - |
 | 4. Client Integration | 0/? | Not started | - |

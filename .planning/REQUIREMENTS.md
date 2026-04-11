@@ -4,10 +4,10 @@
 
 ### Authentication (AUTH)
 
-- [ ] **AUTH-01**: User can create an account with email and password
-- [ ] **AUTH-02**: User can log in with email and password
-- [ ] **AUTH-03**: User can log out from the app
-- [ ] **AUTH-04**: User session persists across app restarts with automatic token refresh
+- [x] **AUTH-01**: User can create an account with email and password
+- [x] **AUTH-02**: User can log in with email and password
+- [x] **AUTH-03**: User can log out from the app
+- [x] **AUTH-04**: User session persists across app restarts with automatic token refresh
 - [ ] **AUTH-05**: User can reset their password via email link
 
 ### Backend Infrastructure (BKND)
@@ -67,10 +67,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 5 | Pending |
 | BKND-01 | Phase 1 | Complete |
 | BKND-02 | Phase 2 | Pending |
