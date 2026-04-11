@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-04-11T16:21:22.930Z"
+status: Ready to execute
+stopped_at: Planned 04-01, 04-02
+last_updated: "2026-04-11T20:21:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
+  total_plans: 8
   completed_plans: 6
 ---
 
@@ -19,31 +19,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** Users can access AI-powered interview assistance through a simple credits-based system without managing their own API keys.
-**Current focus:** Phase 03 — credits-billing
+**Current focus:** Phase 04 — client-integration
 
 ## Current Position
 
 Phase: 4
-Plan: Not started
+Plan: 04-01 (ready to execute)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 6
+- Average duration: ~16min
+- Total execution time: ~96min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| — | — | — | — |
+| 01 | 2 | 33min | 16.5min |
+| 02 | 2 | 28min | 14min |
+| 03 | 2 | 35min | 17.5min |
 
 **Recent Trend:**
 
-- Last 5 plans: —
-- Trend: —
+- Last 6 plans: steady at 12-20min per plan
+- Trend: Consistent
 
 *Updated after each plan completion*
 | Phase 01 P01 | 16min | 3 tasks | 11 files |
@@ -83,20 +85,24 @@ Recent decisions affecting current work:
 - [Phase 03]: StripeResult uses discriminated union matching CreditResult pattern
 - [Phase 03]: Webhook route mounted before express.json() with express.raw() for signature verification
 - [Phase 03]: CreditsRouter auth moved from global to per-route to allow public /credits/packages endpoint
+- [Phase 04 Planning]: BackendClient uses axios for HTTP requests (consistent with existing codebase)
+- [Phase 04 Planning]: Tokens stored in auth.json separate from config.json (separation of concerns)
+- [Phase 04 Planning]: BackendProcessingProvider implements ProcessingProviderStrategy interface for seamless swap with direct providers
+- [Phase 04 Planning]: Auth replaces API key flow entirely — no dual mode
 
 ### Pending Todos
 
-- Plan 01-01: Initialize backend project (Express, Prisma, health check)
-- Plan 01-02: Implement auth endpoints and JWT middleware
+- Plan 04-01: Create BackendClient, AuthService, auth IPC, auth UI, update App.tsx flow
+- Plan 04-02: Create BackendProcessingProvider, credit UI, purchase flow, update processing pipeline
 
 ### Blockers/Concerns
 
-- Existing Electron app has no backend integration — all auth, API calls, and billing are new code paths
-- API keys are currently stored locally in plain text (acknowledged tech debt) — migration path needed for existing users
-- ProcessingProviderOrchestrator needs a new backend-provider that replaces direct API calls
+- Existing Electron app has no backend integration — all auth, API calls, and billing are new code paths (being addressed in Phase 04)
+- API keys are currently stored locally in plain text (acknowledged tech debt) — Phase 04 replaces this with backend auth
+- ProcessingProviderOrchestrator needs a new backend-provider that replaces direct API calls (being addressed in Plan 04-02)
 
 ## Session Continuity
 
-Last session: 2026-04-11T16:01:17.427Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-04-11T20:21:00Z
+Stopped at: Phase 04 plans created, ready to execute 04-01
 Resume file: None
