@@ -25,10 +25,10 @@ Users can access AI-powered interview assistance through a simple credits-based 
 - [ ] User session persists across app restarts with automatic token refresh
 - [x] AI API keys are stored securely on the server (never sent to client) — Validated in Phase 02: AI Proxy Service
 - [x] AI processing requests are proxied through the backend — Validated in Phase 02: AI Proxy Service
-- [ ] Each AI operation deducts credits from the user's balance
-- [ ] Users can view their current credit balance in the app
-- [ ] Users can purchase credit packages via Stripe Checkout
-- [ ] Users are blocked from AI operations when credits reach zero
+- [x] Each AI operation deducts credits from the user's balance — Validated in Phase 03: Credits & Billing
+- [x] Users can view their current credit balance in the app — Validated in Phase 03: Credits & Billing
+- [x] Users can purchase credit packages via Stripe Checkout — Validated in Phase 03: Credits & Billing
+- [x] Users are blocked from AI operations when credits reach zero — Validated in Phase 03: Credits & Billing
 - [ ] Electron app integrates with backend auth (login/signup UI)
 - [ ] Electron app routes all AI calls through the backend instead of direct API calls
 - [ ] Users can view payment history and receipts
