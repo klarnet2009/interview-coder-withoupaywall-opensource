@@ -21,7 +21,7 @@ Users can access AI-powered interview assistance through a simple credits-based 
 
 ### Active
 
-- [ ] User can create account and log in via the backend service
+- [x] User can create account and log in via the backend service — Validated in Phase 01: Backend Foundation & Auth
 - [ ] User session persists across app restarts with automatic token refresh
 - [ ] AI API keys are stored securely on the server (never sent to client)
 - [ ] AI processing requests are proxied through the backend
