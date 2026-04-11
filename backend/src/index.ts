@@ -30,30 +30,34 @@ app.get('/ready', async (_req, res) => {
 // Auth routes
 app.use('/auth', authRouter)
 
-// Start server
-const server = app.listen(config.PORT, async () => {
-  console.log(`Server running on port ${config.PORT}`)
-  try {
-    await connectDatabase()
-    console.log('Database connected')
-  } catch (error) {
-    console.error('Database connection failed:', error)
-  }
-})
+// Start server (only if not in test environment)
+let server: ReturnType<typeof app.listen> | null = null
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down...')
-  server.close()
-  await disconnectDatabase()
-  process.exit(0)
-})
+if (config.NODE_ENV !== 'test') {
+  server = app.listen(config.PORT, async () => {
+    console.log(`Server running on port ${config.PORT}`)
+    try {
+      await connectDatabase()
+      console.log('Database connected')
+    } catch (error) {
+      console.error('Database connection failed:', error)
+    }
+  })
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down...')
-  server.close()
-  await disconnectDatabase()
-  process.exit(0)
-})
+  // Graceful shutdown
+  process.on('SIGTERM', async () => {
+    console.log('SIGTERM received, shutting down...')
+    server?.close()
+    await disconnectDatabase()
+    process.exit(0)
+  })
+
+  process.on('SIGINT', async () => {
+    console.log('SIGINT received, shutting down...')
+    server?.close()
+    await disconnectDatabase()
+    process.exit(0)
+  })
+}
 
 export { app, server }
