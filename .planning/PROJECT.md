@@ -23,8 +23,8 @@ Users can access AI-powered interview assistance through a simple credits-based 
 
 - [x] User can create account and log in via the backend service — Validated in Phase 01: Backend Foundation & Auth
 - [ ] User session persists across app restarts with automatic token refresh
-- [ ] AI API keys are stored securely on the server (never sent to client)
-- [ ] AI processing requests are proxied through the backend
+- [x] AI API keys are stored securely on the server (never sent to client) — Validated in Phase 02: AI Proxy Service
+- [x] AI processing requests are proxied through the backend — Validated in Phase 02: AI Proxy Service
 - [ ] Each AI operation deducts credits from the user's balance
 - [ ] Users can view their current credit balance in the app
 - [ ] Users can purchase credit packages via Stripe Checkout
