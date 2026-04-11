@@ -4,6 +4,7 @@ import helmet from 'helmet'
 import { config } from './config'
 import { prisma, connectDatabase, disconnectDatabase } from './database'
 import { authRouter } from './auth/auth.routes'
+import { processingRouter } from './processing/processing.routes'
 
 const app = express()
 
@@ -29,6 +30,9 @@ app.get('/ready', async (_req, res) => {
 
 // Auth routes
 app.use('/auth', authRouter)
+
+// Processing routes (authenticated + rate-limited)
+app.use('/processing', processingRouter)
 
 // Start server (only if not in test environment)
 let server: ReturnType<typeof app.listen> | null = null
