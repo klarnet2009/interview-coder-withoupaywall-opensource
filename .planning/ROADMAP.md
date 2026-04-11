@@ -73,7 +73,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. User sees a warning when credits are low and a blocking message when credits are depleted
   5. User can navigate to purchase more credits from within the app
   6. Token refresh happens automatically without losing the user's current work state
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 04-01-PLAN.md — Auth service, backend client, and login/signup UI in Electron app
+- [ ] 04-02-PLAN.md — Backend processing provider, credit balance UI, warnings, and purchase flow
 **UI hint**: yes
 
 ### Phase 5: Polish & Completeness
@@ -98,5 +100,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Backend Foundation & Auth | 2/2 | Complete | 2026-04-11 |
 | 2. AI Proxy Service | 0/2 | Not started | - |
 | 3. Credits & Billing | 0/2 | Not started | - |
-| 4. Client Integration | 0/? | Not started | - |
+| 4. Client Integration | 0/2 | In progress | - |
 | 5. Polish & Completeness | 0/? | Not started | - |
