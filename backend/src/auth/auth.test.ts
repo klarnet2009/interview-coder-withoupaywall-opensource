@@ -34,6 +34,15 @@ vi.mock('../config', () => ({
   },
 }))
 
+vi.mock('../credits/credit.service', () => ({
+  creditService: {
+    addFreeCredits: vi.fn().mockResolvedValue({
+      success: true,
+      data: { balance: 10, transaction: { id: 'txn-free', userId: 'user-uuid-1', amount: 10, balance: 10, operation: 'signup_bonus', description: 'Free credits on signup', createdAt: new Date() } },
+    }),
+  },
+}))
+
 import { authService } from './auth.service'
 import { prisma } from '../database'
 import bcrypt from 'bcryptjs'
