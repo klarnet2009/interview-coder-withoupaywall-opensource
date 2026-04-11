@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import { config } from './config'
 import { prisma, connectDatabase, disconnectDatabase } from './database'
+import { authRouter } from './auth/auth.routes'
 
 const app = express()
 
@@ -25,6 +26,9 @@ app.get('/ready', async (_req, res) => {
     res.status(503).json({ status: 'not ready', database: 'disconnected' })
   }
 })
+
+// Auth routes
+app.use('/auth', authRouter)
 
 // Start server
 const server = app.listen(config.PORT, async () => {
