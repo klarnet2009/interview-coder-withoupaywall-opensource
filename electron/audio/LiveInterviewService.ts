@@ -51,12 +51,9 @@ export class LiveInterviewService extends EventEmitter {
     private transcribeHoldTimeout: ReturnType<typeof setTimeout> | null = null;
     private hintTriggerTimeout: ReturnType<typeof setTimeout> | null = null;
     private forceHintTimeout: ReturnType<typeof setTimeout> | null = null;
-    private endTurnDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
     private lastTranscriptTime: number = 0;
     private lastHintTranscript: string = '';
     private pendingHint: boolean = false;
-    private lastNonSilentAudioAt: number = 0;
-    private lastEndTurnAt: number = 0;
 
     // Minimum time to stay in 'transcribing' before allowing transition back
     private static readonly TRANSCRIBE_HOLD_MS = 2000;
@@ -69,10 +66,9 @@ export class LiveInterviewService extends EventEmitter {
     private static readonly HINT_TRIGGER_SILENCE_MS = 1500;
     // Hard fallback if turnComplete/silence trigger missed
     private static readonly FORCE_HINT_FALLBACK_MS = 3200;
-    // Audio thresholds for explicit turn finalization
+    // RMS level below which an incoming audio frame counts as silence.
+    // Feeds the no_signal indicator (see SILENCE_NO_SIGNAL_MS above).
     private static readonly AUDIO_SILENCE_LEVEL = 0.01;
-    private static readonly END_TURN_SILENCE_MS = 900;
-    private static readonly END_TURN_MIN_INTERVAL_MS = 1200;
 
     constructor(config: LiveInterviewConfig) {
         super();
@@ -115,7 +111,6 @@ export class LiveInterviewService extends EventEmitter {
             this.setupGeminiListeners();
             await this.geminiService.connect();
 
-            this.lastNonSilentAudioAt = Date.now();
             this.setState('listening');
             log.info('LiveInterviewService: Session started (Gemini connected, HintService ready)');
 
@@ -325,42 +320,6 @@ export class LiveInterviewService extends EventEmitter {
         }
     }
 
-    private scheduleEndTurnIfSilent(isSilent: boolean): void {
-        if (!this.geminiService?.isActive()) {
-            return;
-        }
-
-        if (!isSilent) {
-            this.lastNonSilentAudioAt = Date.now();
-            if (this.endTurnDebounceTimeout) {
-                clearTimeout(this.endTurnDebounceTimeout);
-                this.endTurnDebounceTimeout = null;
-            }
-            return;
-        }
-
-        if (this.endTurnDebounceTimeout) {
-            return;
-        }
-
-        this.endTurnDebounceTimeout = setTimeout(() => {
-            this.endTurnDebounceTimeout = null;
-            const now = Date.now();
-            const sinceSpeech = now - this.lastNonSilentAudioAt;
-            const sinceLastEndTurn = now - this.lastEndTurnAt;
-
-            if (
-                (this.state === 'listening' || this.state === 'transcribing') &&
-                sinceSpeech >= LiveInterviewService.END_TURN_SILENCE_MS &&
-                sinceLastEndTurn >= LiveInterviewService.END_TURN_MIN_INTERVAL_MS
-            ) {
-                this.lastEndTurnAt = now;
-                log.info('LiveInterviewService: Forcing endTurn after local silence');
-                this.geminiService?.endTurn();
-            }
-        }, LiveInterviewService.END_TURN_SILENCE_MS);
-    }
-
     // Debug: log audio levels periodically
     private lastAudioLevelLogAt = 0;
 
@@ -381,9 +340,6 @@ export class LiveInterviewService extends EventEmitter {
 
         // Handle silence detection
         const isSilent = level < LiveInterviewService.AUDIO_SILENCE_LEVEL;
-
-        // Force turn finalization when speech ended but remote turnComplete lags
-        this.scheduleEndTurnIfSilent(isSilent);
 
         if (isSilent) {
             if (this.state === 'listening' && !this.silenceTimeout) {
@@ -441,11 +397,6 @@ export class LiveInterviewService extends EventEmitter {
             this.forceHintTimeout = null;
         }
 
-        if (this.endTurnDebounceTimeout) {
-            clearTimeout(this.endTurnDebounceTimeout);
-            this.endTurnDebounceTimeout = null;
-        }
-
         if (this.geminiService) {
             this.geminiService.disconnect();
             this.geminiService = null;
@@ -465,8 +416,6 @@ export class LiveInterviewService extends EventEmitter {
         this.lastHintTranscript = '';
         this.pendingHint = false;
         this.lastTranscriptTime = 0;
-        this.lastNonSilentAudioAt = 0;
-        this.lastEndTurnAt = 0;
         this.audioLevel = 0;
         this.setState('idle');
     }

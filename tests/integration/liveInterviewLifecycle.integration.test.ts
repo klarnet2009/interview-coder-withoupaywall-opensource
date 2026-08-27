@@ -32,7 +32,6 @@ describe("LiveInterviewService lifecycle integration", () => {
 
     vi.spyOn(GeminiLiveService.prototype, "isActive").mockReturnValue(true)
     vi.spyOn(GeminiLiveService.prototype, "sendAudio").mockImplementation(() => {})
-    vi.spyOn(GeminiLiveService.prototype, "endTurn").mockImplementation(() => {})
     vi.spyOn(GeminiLiveService.prototype, "clearTranscript").mockImplementation(
       () => {}
     )
@@ -89,18 +88,32 @@ describe("LiveInterviewService lifecycle integration", () => {
     expect(service.getStatus().state).toBe("listening")
   })
 
-  it("forces endTurn after local silence to avoid stuck turns", async () => {
+  it("never ends the turn locally - the Live API owns turn boundaries", async () => {
+    const endTurnSpy = vi.spyOn(GeminiLiveService.prototype, "endTurn")
+
     const service = new LiveInterviewService({ apiKey: "test-key" })
     await service.start()
-
-    const endTurnSpy = vi.spyOn(service.geminiService!, "endTurn")
 
     const chunk = Buffer.from("pcm").toString("base64")
     service.receiveAudio(chunk, 0.2)
     service.receiveAudio(chunk, 0.0)
 
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(5000)
 
-    expect(endTurnSpy).toHaveBeenCalled()
+    expect(endTurnSpy).not.toHaveBeenCalled()
+  })
+
+  it("still reports no_signal after prolonged silence and recovers on speech", async () => {
+    const service = new LiveInterviewService({ apiKey: "test-key" })
+    await service.start()
+
+    const chunk = Buffer.from("pcm").toString("base64")
+    service.receiveAudio(chunk, 0.0)
+    vi.advanceTimersByTime(4000)
+
+    expect(service.getStatus().state).toBe("no_signal")
+
+    service.receiveAudio(chunk, 0.2)
+    expect(service.getStatus().state).toBe("listening")
   })
 })
