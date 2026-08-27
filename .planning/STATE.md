@@ -106,9 +106,10 @@ Recent decisions affecting current work:
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
 | 260827-rzp | Update Gemini model IDs to current generation and centralize them into a single constants module | 2026-08-27 | 2f461f1 | Needs Review | [260827-rzp-update-gemini-model-ids-to-current-gener](./quick/260827-rzp-update-gemini-model-ids-to-current-gener/) |
+| 260827-tlv | Fix audio phrase clipping: tune Live API VAD thresholds, remove dead local endTurn machinery, buffer PCM chunks, add anti-aliasing low-pass | 2026-08-27 | 7c8124c | Needs Review | [260827-tlv-fix-audio-phrase-clipping-tune-live-api-](./quick/260827-tlv-fix-audio-phrase-clipping-tune-live-api-/) |
 
 ## Session Continuity
 
-Last session: 2026-08-27T17:35:00Z
-Stopped at: Quick task 260827-rzp complete (Gemini model ids modernized); Phase 04 plans still pending execution
+Last session: 2026-08-27T18:55:00Z
+Stopped at: Quick tasks 260827-rzp and 260827-tlv complete (Gemini model ids; audio phrase clipping); Phase 04 plans still pending execution
 Resume file: None
