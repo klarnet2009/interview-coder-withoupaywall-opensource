@@ -5,6 +5,10 @@ import {
   useState,
   type MutableRefObject
 } from "react"
+import {
+  createAudioLevelThrottle,
+  type AudioLevelThrottle
+} from "./audioLevelThrottle"
 import type { AudioSourceType } from "./types"
 
 interface UseAudioCaptureParams {
@@ -27,6 +31,7 @@ export function useAudioCapture({
   const audioContextRef = useRef<AudioContext | null>(null)
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const processorRef = useRef<AudioWorkletNode | null>(null)
+  const levelThrottleRef = useRef<AudioLevelThrottle | null>(null)
 
   const stopAudioCapture = useCallback(async () => {
     if (processorRef.current) {
@@ -41,11 +46,17 @@ export function useAudioCapture({
       mediaStreamRef.current.getTracks().forEach((track) => track.stop())
       mediaStreamRef.current = null
     }
+    levelThrottleRef.current = null
+    // Unthrottled on purpose: the meter must always reset to zero on stop.
     setLocalAudioLevel(0)
   }, [])
 
   const startAudioCapture = useCallback(
     async (source: AudioSourceType, appSourceId?: string) => {
+      // Fresh throttle per session, so a new capture never inherits a stale
+      // timestamp from the previous one.
+      levelThrottleRef.current = createAudioLevelThrottle()
+
       try {
         let stream: MediaStream
 
@@ -109,7 +120,13 @@ export function useAudioCapture({
 
         processor.port.onmessage = (event) => {
           const { pcmBuffer, level } = event.data
-          setLocalAudioLevel(level)
+
+          // Governs React rendering only. Every message still falls through to
+          // the encode and the send below.
+          const throttle = levelThrottleRef.current
+          if (!throttle || throttle(level, performance.now())) {
+            setLocalAudioLevel(level)
+          }
 
           if (!isActiveRef.current) {
             return
