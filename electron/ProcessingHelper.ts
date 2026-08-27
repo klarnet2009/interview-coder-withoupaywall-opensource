@@ -41,11 +41,16 @@ export class ProcessingHelper {
     return {
       apiProvider: config.apiProvider,
       apiKey: config.apiKey,
+      baseUrl: config.customBaseUrl,
       extractionModel: config.extractionModel,
       solutionModel: config.solutionModel,
-      debuggingModel: config.debuggingModel
+      debuggingModel: config.debuggingModel,
+      temperature: config.temperature,
+      reasoningEffort: config.reasoningEffort,
+      maxTokens: config.maxTokens
     }
   }
+
 
   private initializeProvider(): void {
     try {

@@ -14,9 +14,13 @@ const toSignature = (config: ProviderConfig): string => {
   return JSON.stringify({
     apiProvider: config.apiProvider,
     apiKey: config.apiKey || "",
+    baseUrl: config.baseUrl || "",
     extractionModel: config.extractionModel || "",
     solutionModel: config.solutionModel || "",
-    debuggingModel: config.debuggingModel || ""
+    debuggingModel: config.debuggingModel || "",
+    temperature: config.temperature,
+    reasoningEffort: config.reasoningEffort,
+    maxTokens: config.maxTokens
   })
 }
 
@@ -30,7 +34,7 @@ export class ProcessingProviderOrchestrator {
       return
     }
 
-    this.provider = this.createProvider(config.apiProvider, config.apiKey)
+    this.provider = this.createProvider(config.apiProvider, config.apiKey, config.baseUrl)
     this.signature = nextSignature
     runtimeLogger.debug(`Processing provider initialized: ${config.apiProvider}`)
   }
@@ -49,10 +53,14 @@ export class ProcessingProviderOrchestrator {
 
   private createProvider(
     provider: ApiProvider,
-    apiKey?: string
+    apiKey?: string,
+    baseUrl?: string
   ): ProcessingProviderStrategy {
     if (provider === "openai") {
       return new OpenAIProcessingProvider(apiKey)
+    }
+    if (provider === "custom") {
+      return new OpenAIProcessingProvider(apiKey, baseUrl || "https://openrouter.ai/api/v1", true)
     }
     if (provider === "anthropic") {
       return new AnthropicProcessingProvider(apiKey)
@@ -60,3 +68,4 @@ export class ProcessingProviderOrchestrator {
     return new GeminiProcessingProvider(apiKey)
   }
 }
+

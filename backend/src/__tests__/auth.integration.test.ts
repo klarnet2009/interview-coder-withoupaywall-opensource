@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
-import jwt from 'jsonwebtoken'
 
 // Mock the database module before importing the app
 vi.mock('../database', () => ({
@@ -55,7 +54,6 @@ vi.mock('../credits/credit.service', () => ({
 
 import { app } from '../index'
 import { prisma } from '../database'
-import { config } from '../config'
 
 describe('Auth Integration Tests', () => {
   beforeEach(() => {
@@ -76,11 +74,11 @@ describe('Auth Integration Tests', () => {
       // Mock register flow
       vi.mocked(prisma.user.findUnique)
         .mockResolvedValueOnce(null) // register: no existing user
-        .mockResolvedValueOnce({     // /auth/me: find user by id
+        .mockResolvedValueOnce({
           id: mockUser.id,
           email: mockUser.email,
           createdAt: mockUser.createdAt,
-        } as any)
+        } as never) // /auth/me: find user by id with select
       vi.mocked(prisma.user.create).mockResolvedValueOnce(mockUser)
       vi.mocked(prisma.refreshToken.create).mockResolvedValueOnce({
         id: 'rt-int-1',

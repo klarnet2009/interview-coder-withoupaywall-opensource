@@ -32,7 +32,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
     [t('settings.shortcuts.takeScreenshot'), 'Ctrl+H'],
     [t('settings.shortcuts.deleteLastScreenshot'), 'Ctrl+L'],
     [t('settings.shortcuts.processScreenshots'), 'Ctrl+Enter'],
-    [t('settings.shortcuts.resetView'), 'Ctrl+R'],
+    [t('settings.shortcuts.resetView'), 'Ctrl+Alt+R'],
     [t('settings.shortcuts.quit'), 'Ctrl+Q'],
   ];
 

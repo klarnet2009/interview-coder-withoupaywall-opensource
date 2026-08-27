@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   type Dispatch,
   type RefObject,
   type SetStateAction
@@ -32,6 +33,8 @@ export function useUnifiedPanelUiEffects({
   responseRef,
   response
 }: UseUnifiedPanelUiEffectsParams): void {
+  const prevResponseRef = useRef<string>("")
+
   useEffect(() => {
     let tooltipHeight = 0
     if (tooltipRef.current && isTooltipVisible) {
@@ -66,8 +69,11 @@ export function useUnifiedPanelUiEffects({
   }, [audioDropdownRef, setShowAudioDropdown, showAudioDropdown, captureDropdownRef, setShowCaptureDropdown, showCaptureDropdown])
 
   useEffect(() => {
-    if (responseRef.current) {
+    const prevResponse = prevResponseRef.current
+    if (!prevResponse && response && responseRef.current) {
       responseRef.current.scrollTop = 0
     }
+    prevResponseRef.current = response
   }, [response, responseRef])
 }
+

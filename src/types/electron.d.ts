@@ -83,7 +83,13 @@ export interface ElectronAPI {
   clearSessionHistory: () => Promise<{ success: boolean }>;
   checkApiKey: () => Promise<boolean>;
   validateApiKey: (apiKey: string) => Promise<{ valid: boolean; error?: string }>;
-  testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic") => Promise<{ valid: boolean; error?: string }>;
+  testApiKey: (
+    apiKey: string,
+    provider?: "openai" | "gemini" | "anthropic" | "custom",
+    model?: string,
+    baseUrl?: string
+  ) => Promise<{ valid: boolean; error?: string; latency?: number }>;
+
 
   // Wizard
   completeWizard: (mode: 'quick' | 'advanced') => Promise<void>;

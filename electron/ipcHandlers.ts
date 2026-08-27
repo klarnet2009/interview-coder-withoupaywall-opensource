@@ -177,29 +177,32 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   })
 
   // Test API key with specific provider
-  registerHandle("test-api-key", async (_event, apiKey: string, provider?: "openai" | "gemini" | "anthropic") => {
+  registerHandle("test-api-key", async (_event, apiKey: string, provider?: "openai" | "gemini" | "anthropic" | "custom", model?: string, baseUrl?: string) => {
     try {
-      // Validate API key input
-      const keyValidation = validateString(apiKey, 'apiKey', { minLength: 10, maxLength: 200 });
-      if (!keyValidation.success) {
-        return { valid: false, error: keyValidation.error };
+      // Validate API key input (allow empty or short for custom provider / local LLM)
+      if (provider !== "custom") {
+        const keyValidation = validateString(apiKey, 'apiKey', { minLength: 10, maxLength: 200 });
+        if (!keyValidation.success) {
+          return { valid: false, error: keyValidation.error };
+        }
       }
 
       // Validate provider if provided
       if (provider !== undefined) {
-        const providerValidation = validateEnum(provider, 'provider', ['openai', 'gemini', 'anthropic'] as const);
+        const providerValidation = validateEnum(provider, 'provider', ['openai', 'gemini', 'anthropic', 'custom'] as const);
         if (!providerValidation.success) {
           return { valid: false, error: providerValidation.error };
         }
       }
 
-      const result = await configHelper.testApiKey(apiKey, provider);
+      const result = await configHelper.testApiKey(apiKey, provider, model, baseUrl);
       return result;
     } catch (error) {
       logger.error("Error testing API key:", error);
       return { valid: false, error: "Failed to test API key" };
     }
   })
+
 
   // Wizard handlers
   registerHandle("wizard-complete", (_event, mode: 'quick' | 'advanced') => {

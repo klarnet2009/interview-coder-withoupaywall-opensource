@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Check, X, Loader2, ExternalLink, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Check, X, Loader2, ExternalLink, AlertCircle, Clipboard } from 'lucide-react';
 import { StepProps, APIProvider, PROVIDERS } from '../../../types';
 
 interface StepApiKeyProps extends StepProps {
@@ -25,29 +25,28 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
   const provider = data.apiProvider || 'gemini';
   const providerInfo = PROVIDERS.find(p => p.id === provider);
 
+  const validateKeyFormat = (key: string, prov: APIProvider): boolean => {
+    const trimmed = (key || '').trim();
+    if (!trimmed || trimmed.length === 0) return false;
+    
+    if (prov === 'openai' || prov === 'anthropic') {
+      return /^sk-[a-zA-Z0-9_-]{20,}$/.test(trimmed);
+    } else {
+      // Gemini - at least 10 chars
+      return trimmed.length >= 10;
+    }
+  };
+
   // Check if we can proceed (have valid key or testing passed)
   useEffect(() => {
     const isValidFormat = validateKeyFormat(apiKey, provider);
     setCanProceed(isValidFormat && (testStatus === 'success' || testStatus === 'idle'));
   }, [apiKey, provider, testStatus, setCanProceed]);
 
-  const validateKeyFormat = (key: string, prov: APIProvider): boolean => {
-    if (!key || key.trim().length === 0) return false;
-    
-    if (prov === 'openai') {
-      return /^sk-[a-zA-Z0-9]{32,}$/.test(key.trim());
-    } else if (prov === 'anthropic') {
-      return /^sk-ant-[a-zA-Z0-9]{32,}$/.test(key.trim());
-    } else {
-      // Gemini - at least 10 chars
-      return key.trim().length >= 10;
-    }
-  };
-
   const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newKey = e.target.value;
     setApiKey(newKey);
-    onUpdate({ apiKey: newKey });
+    onUpdate({ apiKey: newKey.trim() });
     // Reset test status when key changes
     if (testStatus !== 'idle') {
       setTestStatus('idle');
@@ -55,8 +54,26 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
     }
   };
 
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const trimmed = text.trim();
+        setApiKey(trimmed);
+        onUpdate({ apiKey: trimmed });
+        if (testStatus !== 'idle') {
+          setTestStatus('idle');
+          setTestError('');
+        }
+      }
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+    }
+  };
+
   const testConnection = useCallback(async () => {
-    if (!validateKeyFormat(apiKey, provider)) return;
+    const trimmedKey = apiKey.trim();
+    if (!validateKeyFormat(trimmedKey, provider)) return;
 
     setTestStatus('testing');
     setTestError('');
@@ -66,7 +83,7 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
 
     try {
       // Use electron API to test the key
-      const result = await window.electronAPI?.testApiKey?.(apiKey, provider);
+      const result = await window.electronAPI?.testApiKey?.(trimmedKey, provider);
       
       const responseTime = Date.now() - startTime;
 
@@ -143,11 +160,20 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
             value={apiKey}
             onChange={handleKeyChange}
             placeholder={getKeyPlaceholder()}
-            className="w-full px-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors pr-24"
+            className="w-full px-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors pr-20"
           />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handlePaste}
+              className="p-1.5 text-white/40 hover:text-white/70 transition-colors"
+              title="Paste from clipboard"
+            >
+              <Clipboard className="w-4 h-4" />
+            </button>
             {apiKey && (
               <button
+                type="button"
                 onClick={() => setShowKey(!showKey)}
                 className="p-1.5 text-white/40 hover:text-white/70 transition-colors"
                 title={showKey ? 'Hide key' : 'Show key'}

@@ -200,8 +200,12 @@ Rules:
             debugPrompt,
             imageDataList,
             model: config.debuggingModel,
+            temperature: config.temperature,
+            reasoningEffort: config.reasoningEffort,
+            maxTokens: config.maxTokens,
             signal
           }),
+
         {
           signal,
           stage: "generating debug analysis",

@@ -169,7 +169,7 @@ describe('StripeService', () => {
             metadata: { userId: 'user-1', packageId: 'credits_50' },
           },
         },
-      } as any)
+      } as never)
 
       const result = await stripeService.handleWebhookEvent(
         '{"type":"checkout.session.completed"}',
@@ -194,7 +194,7 @@ describe('StripeService', () => {
         object: 'event',
         type: 'invoice.paid',
         data: { object: {} },
-      } as any)
+      } as never)
 
       const result = await stripeService.handleWebhookEvent(
         '{"type":"invoice.paid"}',

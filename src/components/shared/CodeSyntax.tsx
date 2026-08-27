@@ -42,6 +42,7 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   golang: "go",
   js: "javascript",
   ts: "typescript",
+  rs: "rust",
   py: "python",
   "c++": "cpp",
   "c#": "csharp",
@@ -61,17 +62,31 @@ export const CodeSyntax: React.FC<CodeSyntaxProps> = ({
   code,
   language,
   showLineNumbers = false,
-  wrapLongLines = true,
+  wrapLongLines = false,
   customStyle
 }) => {
-  const normalizedLanguage = LANGUAGE_ALIASES[language.toLowerCase()] || language
+  const normalizedLanguage =
+    LANGUAGE_ALIASES[language?.toLowerCase()] || language || "typescript"
 
   return (
     <SyntaxHighlighter
       showLineNumbers={showLineNumbers}
       language={normalizedLanguage}
       style={dracula}
-      customStyle={customStyle}
+      customStyle={{
+        margin: 0,
+        padding: "1rem",
+        borderRadius: "0.5rem",
+        backgroundColor: "rgba(22, 27, 34, 0.6)",
+        fontFamily:
+          "'JetBrains Mono', 'Fira Code', 'Menlo', 'Consolas', monospace",
+        fontSize: "13px",
+        lineHeight: "1.5",
+        wordBreak: "normal",
+        whiteSpace: "pre",
+        overflowX: "auto",
+        ...customStyle
+      }}
       wrapLongLines={wrapLongLines}
     >
       {code}

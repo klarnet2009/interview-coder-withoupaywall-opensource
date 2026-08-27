@@ -23,12 +23,13 @@ interface QueueFlowResult {
 const isProviderConfigError = (message: string): boolean => {
   const normalized = message.toLowerCase()
   return (
+    normalized.includes("401") ||
+    normalized.includes("403") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("forbidden") ||
     normalized.includes("api key") ||
     normalized.includes("not configured") ||
-    normalized.includes("invalid") ||
-    normalized.includes("openai") ||
-    normalized.includes("gemini") ||
-    normalized.includes("anthropic")
+    normalized.includes("invalid api key")
   )
 }
 
@@ -173,8 +174,12 @@ export class QueueProcessingController {
             imageDataList,
             language,
             model: config.extractionModel,
+            temperature: config.temperature,
+            reasoningEffort: config.reasoningEffort,
+            maxTokens: config.maxTokens,
             signal
           }),
+
         {
           signal,
           stage: "extracting the problem",
@@ -333,8 +338,12 @@ Your solution should be efficient, well-commented, and handle edge cases.
           provider.generateSolution({
             promptText,
             model: config.solutionModel,
+            temperature: config.temperature,
+            reasoningEffort: config.reasoningEffort,
+            maxTokens: config.maxTokens,
             signal
           }),
+
         {
           signal,
           stage: "generating the solution",

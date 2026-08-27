@@ -252,7 +252,7 @@ describe('ProcessingService', () => {
   })
 
   it('getProvider throws for unknown provider type', () => {
-    expect(() => service.getProvider('invalid' as any)).toThrow('Unknown provider: invalid')
+    expect(() => service.getProvider('invalid' as never)).toThrow('Unknown provider: invalid')
   })
 
   it('getProvider throws for unconfigured openai provider', () => {

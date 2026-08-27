@@ -277,10 +277,11 @@ export function SettingsForm({ onClose }: SettingsFormProps) {
                             ["Take Screenshot", "Ctrl+H"],
                             ["Process Screenshots", "Ctrl+Enter"],
                             ["Delete Last Screenshot", "Ctrl+L"],
-                            ["Reset View", "Ctrl+R"],
+                            ["Reset View", "Ctrl+Alt+R"],
                             ["Quit", "Ctrl+Q"],
-                            ["Move Window", "Ctrl+Arrows"],
-                            ["Opacity −/+", "Ctrl+[ / ]"],
+                            ["Move Window", "Ctrl+Alt+Arrows"],
+                            ["Center Window", "Ctrl+Alt+C"],
+                            ["Opacity −/+", "Ctrl+Alt+[ / ]"],
                             ["Zoom −/0/+", "Ctrl+- / 0 / ="],
                         ].map(([label, key]) => (
                             <div key={label} className="contents">

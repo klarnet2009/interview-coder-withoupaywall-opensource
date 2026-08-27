@@ -2,6 +2,7 @@
  * IPC Input Validation Utilities
  * Provides type-safe validation for IPC handler inputs
  */
+import path from "node:path";
 
 export interface ValidationResult<T> {
     success: boolean;
@@ -87,7 +88,12 @@ export function validateEnum<T extends string>(
  */
 export interface ConfigUpdateInput {
     apiKey?: string;
-    apiProvider?: 'openai' | 'gemini' | 'anthropic';
+    apiProvider?: 'openai' | 'gemini' | 'anthropic' | 'custom';
+    customBaseUrl?: string;
+    customModel?: string;
+    temperature?: number;
+    reasoningEffort?: 'low' | 'medium' | 'high';
+    maxTokens?: number;
     extractionModel?: string;
     solutionModel?: string;
     debuggingModel?: string;
@@ -131,11 +137,42 @@ export function validateConfigUpdate(input: unknown): ValidationResult<ConfigUpd
 
     // Validate apiProvider if present
     if (obj.apiProvider !== undefined) {
-        const providers = ['openai', 'gemini', 'anthropic'] as const;
+        const providers = ['openai', 'gemini', 'anthropic', 'custom'] as const;
         const validation = validateEnum(obj.apiProvider, 'apiProvider', providers);
         if (!validation.success) return { success: false, error: validation.error };
         result.apiProvider = validation.data;
     }
+
+    // Validate customBaseUrl if present
+    if (obj.customBaseUrl !== undefined) {
+        if (typeof obj.customBaseUrl !== 'string') {
+            return { success: false, error: 'customBaseUrl must be a string' };
+        }
+        result.customBaseUrl = obj.customBaseUrl;
+    }
+
+    // Validate temperature if present
+    if (obj.temperature !== undefined) {
+        const validation = validateNumber(obj.temperature, 'temperature', { min: 0, max: 2 });
+        if (!validation.success) return { success: false, error: validation.error };
+        result.temperature = validation.data;
+    }
+
+    // Validate maxTokens if present
+    if (obj.maxTokens !== undefined) {
+        const validation = validateNumber(obj.maxTokens, 'maxTokens', { min: 100, max: 64000 });
+        if (!validation.success) return { success: false, error: validation.error };
+        result.maxTokens = validation.data;
+    }
+
+    // Validate reasoningEffort if present
+    if (obj.reasoningEffort !== undefined) {
+        const efforts = ['low', 'medium', 'high'] as const;
+        const validation = validateEnum(obj.reasoningEffort, 'reasoningEffort', efforts);
+        if (!validation.success) return { success: false, error: validation.error };
+        result.reasoningEffort = validation.data;
+    }
+
 
     // Validate model strings if present
     for (const modelKey of ['extractionModel', 'solutionModel', 'debuggingModel'] as const) {
@@ -200,21 +237,12 @@ export function validateFilePath(value: unknown, fieldName: string): ValidationR
         return { success: false, error: `${fieldName} must be a string` };
     }
 
-    // Reject null bytes
-    if (value.includes('\0')) {
+    // Reject null bytes and path traversal
+    if (value.includes('\0') || value.includes('..')) {
         return { success: false, error: `${fieldName} contains invalid characters` };
     }
 
-    // Normalize and resolve to catch traversal via encoding tricks
-    const path = require('path');
-    const resolved = path.resolve(value);
-
-    // Check that resolved path doesn't differ in a suspicious way (traversal attempt)
-    if (resolved.includes('..')) {
-        return { success: false, error: `${fieldName} contains path traversal` };
-    }
-
-    return { success: true, data: resolved };
+    return { success: true, data: value };
 }
 
 /**
@@ -230,7 +258,6 @@ export function validateFilePathContained(
         return pathResult;
     }
 
-    const path = require('path');
     const normalizedAllowed = path.resolve(allowedDir);
     const normalizedPath = pathResult.data!;
 

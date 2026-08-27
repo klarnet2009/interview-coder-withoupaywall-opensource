@@ -49,7 +49,6 @@ export class LiveInterviewService extends EventEmitter {
     private silenceTimeout: ReturnType<typeof setTimeout> | null = null;
 
     private transcribeHoldTimeout: ReturnType<typeof setTimeout> | null = null;
-    private transcriptClearTimeout: ReturnType<typeof setTimeout> | null = null;
     private hintTriggerTimeout: ReturnType<typeof setTimeout> | null = null;
     private forceHintTimeout: ReturnType<typeof setTimeout> | null = null;
     private endTurnDebounceTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -61,8 +60,8 @@ export class LiveInterviewService extends EventEmitter {
 
     // Minimum time to stay in 'transcribing' before allowing transition back
     private static readonly TRANSCRIBE_HOLD_MS = 2000;
-    // Time after last response to clear accumulated transcript
-    private static readonly TRANSCRIPT_CLEAR_MS = 5000;
+    // Silence threshold before warning of no signal
+    private static readonly SILENCE_NO_SIGNAL_MS = 4000;
     // Minimum count of meaningful chars (letters/digits) in new transcript delta
     // to trigger hint generation. Kept low to avoid dropping short questions.
     private static readonly MIN_MEANINGFUL_NEW_CHARS_FOR_HINT = 2;
@@ -145,17 +144,15 @@ export class LiveInterviewService extends EventEmitter {
 
         this.geminiService.on('connected', () => {
             log.info('LiveInterviewService: Gemini connected');
+            if (this.state === 'error' || this.state === 'connecting') {
+                this.setState('listening');
+                this.emitStatus();
+            }
         });
 
         this.geminiService.on('transcript', (update: TranscriptUpdate) => {
             this.currentTranscript = update.text;
             this.lastTranscriptTime = Date.now();
-
-            // Cancel any pending clear
-            if (this.transcriptClearTimeout) {
-                clearTimeout(this.transcriptClearTimeout);
-                this.transcriptClearTimeout = null;
-            }
 
             // Move to transcribing if we're in listening/no_signal
             if (this.state === 'listening' || this.state === 'no_signal') {
@@ -269,7 +266,6 @@ export class LiveInterviewService extends EventEmitter {
                         0, Math.floor(LiveInterviewService.MAX_RESPONSE_HISTORY_LENGTH / 2)
                     );
                 }
-                this.scheduleTranscriptClear();
                 this.setState('listening');
 
                 // If a hint was requested while this one was streaming, fire it now
@@ -365,25 +361,6 @@ export class LiveInterviewService extends EventEmitter {
         }, LiveInterviewService.END_TURN_SILENCE_MS);
     }
 
-    /**
-     * Schedule transcript clear after a period of silence post-response
-     */
-    private scheduleTranscriptClear(): void {
-        if (this.transcriptClearTimeout) {
-            clearTimeout(this.transcriptClearTimeout);
-        }
-        this.transcriptClearTimeout = setTimeout(() => {
-            this.transcriptClearTimeout = null;
-            log.info('LiveInterviewService: Clearing accumulated transcript after silence');
-            this.currentTranscript = '';
-            this.lastHintTranscript = '';
-            this.pendingHint = false;
-            this.geminiService?.clearTranscript();
-            this.emitStatus();
-        }, LiveInterviewService.TRANSCRIPT_CLEAR_MS);
-    }
-
-
     // Debug: log audio levels periodically
     private lastAudioLevelLogAt = 0;
 
@@ -413,7 +390,7 @@ export class LiveInterviewService extends EventEmitter {
                 this.silenceTimeout = setTimeout(() => {
                     this.setState('no_signal');
                     this.emitStatus();
-                }, 5000);
+                }, LiveInterviewService.SILENCE_NO_SIGNAL_MS);
             }
         } else {
             if (this.silenceTimeout) {
@@ -467,11 +444,6 @@ export class LiveInterviewService extends EventEmitter {
         if (this.endTurnDebounceTimeout) {
             clearTimeout(this.endTurnDebounceTimeout);
             this.endTurnDebounceTimeout = null;
-        }
-
-        if (this.transcriptClearTimeout) {
-            clearTimeout(this.transcriptClearTimeout);
-            this.transcriptClearTimeout = null;
         }
 
         if (this.geminiService) {

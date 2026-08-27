@@ -1,11 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import * as Diff from "diff"
+import { Copy, Check, GitCompare } from "lucide-react"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
 import { ComplexitySection } from "./Solutions"
 import { CodeSyntax } from "../components/shared/CodeSyntax"
+import { UnifiedInput } from "../components/Input/UnifiedInput"
 
 interface DebugProps {
   isProcessing: boolean
@@ -169,41 +172,191 @@ const StructuredListCard = ({
   </div>
 )
 
+const DiffViewer = ({
+  originalCode,
+  newCode
+}: {
+  originalCode: string
+  newCode: string
+}) => {
+  const diff = React.useMemo(() => {
+    return Diff.diffLines(originalCode, newCode)
+  }, [originalCode, newCode])
+
+  return (
+    <div className="font-mono text-[12px] leading-relaxed bg-[#0d1117]/95 rounded-md p-3 overflow-x-auto border border-white/10 max-h-[500px]">
+      <div className="text-[11px] text-white/40 pb-2 border-b border-white/10 mb-2 flex items-center justify-between">
+        <span>Line changes comparison</span>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1 text-emerald-400">
+            <span className="font-bold">+</span> Added
+          </span>
+          <span className="flex items-center gap-1 text-rose-400">
+            <span className="font-bold">-</span> Removed
+          </span>
+        </div>
+      </div>
+      {diff.map((part, partIndex) => {
+        const rawValue = part.value.endsWith("\n")
+          ? part.value.slice(0, -1)
+          : part.value
+        const lines = rawValue.split("\n")
+        const isAdded = part.added
+        const isRemoved = part.removed
+
+        return lines.map((line, lineIndex) => {
+          let rowClass = "text-gray-300 py-0.5 px-2 hover:bg-white/[0.02]"
+          let prefix = " "
+          let prefixClass = "text-white/20 select-none mr-2 font-mono"
+
+          if (isAdded) {
+            rowClass =
+              "bg-emerald-950/40 text-emerald-200 border-l-2 border-emerald-500 py-0.5 px-2 font-medium"
+            prefix = "+"
+            prefixClass = "text-emerald-400 select-none mr-2 font-mono font-bold"
+          } else if (isRemoved) {
+            rowClass =
+              "bg-rose-950/40 text-rose-300 border-l-2 border-rose-500 py-0.5 px-2 opacity-75 line-through"
+            prefix = "-"
+            prefixClass = "text-rose-400 select-none mr-2 font-mono font-bold"
+          }
+
+          return (
+            <div
+              key={`${partIndex}-${lineIndex}`}
+              className={`flex items-start ${rowClass}`}
+            >
+              <span className={prefixClass}>{prefix}</span>
+              <span className="whitespace-pre font-mono">{line || " "}</span>
+            </div>
+          )
+        })
+      })}
+    </div>
+  )
+}
+
 const CodeSection = ({
   code,
+  originalCode,
   isLoading,
   currentLanguage
 }: {
   code: string | null
+  originalCode: string | null
   isLoading: boolean
   currentLanguage: string
-}) => (
-  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
-    <h2 className="text-[13px] font-medium text-white tracking-wide">Code</h2>
-    {isLoading ? (
-      <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
-        Generating updated code...
-      </p>
-    ) : (
-      <div className="w-full overflow-hidden rounded-md">
-        <CodeSyntax
-          code={code || "// Debug mode - see analysis below"}
-          showLineNumbers
-          language={currentLanguage}
-          customStyle={{
-            maxWidth: "100%",
-            margin: 0,
-            padding: "1rem",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-all",
-            backgroundColor: "rgba(22, 27, 34, 0.5)"
-          }}
-          wrapLongLines
-        />
+}) => {
+  const [copied, setCopied] = useState(false)
+  const [viewMode, setViewMode] = useState<"code" | "diff">("code")
+
+  const copyToClipboard = () => {
+    if (code) {
+      navigator.clipboard.writeText(code).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+    }
+  }
+
+  const hasDiff = Boolean(
+    originalCode &&
+      code &&
+      originalCode.trim() !== code.trim() &&
+      !originalCode.includes("Debug mode - see analysis below")
+  )
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-white/5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-[13px] font-medium text-white tracking-wide">
+            Fixed Solution
+          </h2>
+          <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase">
+            {currentLanguage}
+          </span>
+          {hasDiff && (
+            <div className="flex items-center rounded-md bg-black/40 border border-white/10 p-0.5">
+              <button
+                onClick={() => setViewMode("code")}
+                className={`px-2 py-0.5 text-[11px] rounded transition cursor-pointer ${
+                  viewMode === "code"
+                    ? "bg-white/15 text-white font-medium shadow-xs"
+                    : "text-white/50 hover:text-white/80"
+                }`}
+              >
+                Code
+              </button>
+              <button
+                onClick={() => setViewMode("diff")}
+                className={`px-2 py-0.5 text-[11px] rounded transition cursor-pointer flex items-center gap-1 ${
+                  viewMode === "diff"
+                    ? "bg-blue-500/25 text-blue-200 border border-blue-400/30 font-medium shadow-xs"
+                    : "text-white/50 hover:text-white/80"
+                }`}
+              >
+                <GitCompare className="w-3 h-3" />
+                <span>Diff Changes</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={copyToClipboard}
+          disabled={!code || isLoading}
+          className={`flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded transition-all font-medium border cursor-pointer disabled:opacity-40 ${
+            copied
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-sm"
+              : "bg-white/10 text-white/90 border-white/10 hover:bg-white/20 hover:text-white"
+          }`}
+          title="Copy fixed code"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5 text-white/70" />
+              <span>Copy Code</span>
+            </>
+          )}
+        </button>
       </div>
-    )}
-  </div>
-)
+
+      {isLoading ? (
+        <p className="py-3 text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+          Generating updated code...
+        </p>
+      ) : viewMode === "diff" && hasDiff && originalCode ? (
+        <DiffViewer originalCode={originalCode} newCode={code || ""} />
+      ) : (
+        <div className="w-full overflow-hidden rounded-md">
+          <CodeSyntax
+            code={code || "// Debug mode - see analysis below"}
+            showLineNumbers
+            language={currentLanguage}
+            customStyle={{
+              maxWidth: "100%",
+              margin: 0,
+              padding: "0.85rem",
+              whiteSpace: "pre",
+              wordBreak: "normal",
+              overflowX: "auto",
+              fontFamily:
+                "'JetBrains Mono', 'Fira Code', 'Menlo', 'Consolas', monospace",
+              backgroundColor: "rgba(13, 17, 23, 0.75)"
+            }}
+            wrapLongLines={false}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
 
 async function fetchScreenshots(): Promise<Screenshot[]> {
   try {
@@ -373,6 +526,37 @@ const Debug: React.FC<DebugProps> = ({
     await window.electronAPI.triggerReset()
   }
 
+  const cachedSolution = queryClient.getQueryData(["solution"]) as
+    | { code?: string }
+    | string
+    | null
+  const originalCode =
+    typeof cachedSolution === "string"
+      ? cachedSolution
+      : cachedSolution?.code || null
+
+  const handleFollowupSend = async (followupText: string) => {
+    try {
+      if (window.electronAPI.liveInterviewSendText) {
+        const res = await window.electronAPI.liveInterviewSendText(followupText)
+        if (res && res.success) {
+          showToast("Follow-up Sent", followupText, "success")
+          return
+        }
+      }
+
+      if (screenshots.length > 0) {
+        showToast("Processing Follow-up", followupText, "neutral")
+        await window.electronAPI.triggerProcessScreenshots()
+      } else {
+        showToast("Follow-up Prompt", followupText, "neutral")
+      }
+    } catch (err) {
+      console.error("Follow-up error:", err)
+      showToast("Error", "Failed to send follow-up", "error")
+    }
+  }
+
   const verifySteps =
     debugSections.verify.length > 0
       ? debugSections.verify
@@ -442,6 +626,7 @@ const Debug: React.FC<DebugProps> = ({
 
               <CodeSection
                 code={newCode}
+                originalCode={originalCode}
                 isLoading={!newCode}
                 currentLanguage={currentLanguage}
               />
@@ -465,19 +650,19 @@ const Debug: React.FC<DebugProps> = ({
                 <div className="pt-1 flex flex-wrap items-center gap-2">
                   <button
                     onClick={handleCapture}
-                    className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/90 hover:bg-white/10 transition-colors"
+                    className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/90 hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     Capture More Context
                   </button>
                   <button
                     onClick={handleDebugAgain}
-                    className="h-8 px-3 rounded-md border border-blue-400/35 bg-blue-500/15 text-[12px] text-blue-200 hover:bg-blue-500/25 transition-colors"
+                    className="h-8 px-3 rounded-md border border-blue-400/35 bg-blue-500/15 text-[12px] text-blue-200 hover:bg-blue-500/25 transition-colors cursor-pointer"
                   >
                     Run Debug Again
                   </button>
                   <button
                     onClick={handleReset}
-                    className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                    className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
                   >
                     Reset Session
                   </button>
@@ -494,6 +679,15 @@ const Debug: React.FC<DebugProps> = ({
                   </div>
                 </details>
               )}
+
+              <UnifiedInput
+                screenshots={screenshots}
+                onTakeScreenshot={handleCapture}
+                onDeleteScreenshot={handleDeleteExtraScreenshot}
+                onSendText={handleFollowupSend}
+                isProcessing={isProcessing}
+                placeholder="Ask a follow-up, test against new edge cases, or paste error log..."
+              />
             </div>
           </div>
         </div>

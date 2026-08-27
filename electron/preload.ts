@@ -243,8 +243,9 @@ const electronAPI = {
   deleteLastScreenshot: () => ipcRenderer.invoke("delete-last-screenshot"),
 
   // Wizard and API key testing (UX Redesign 2025)
-  testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic") =>
-    ipcRenderer.invoke("test-api-key", apiKey, provider),
+  testApiKey: (apiKey: string, provider?: "openai" | "gemini" | "anthropic" | "custom", model?: string, baseUrl?: string) =>
+    ipcRenderer.invoke("test-api-key", apiKey, provider, model, baseUrl),
+
   completeWizard: (mode: 'quick' | 'advanced') =>
     ipcRenderer.invoke("wizard-complete", mode),
   resetWizard: () =>

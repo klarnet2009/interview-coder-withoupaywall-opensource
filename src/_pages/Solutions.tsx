@@ -1,9 +1,10 @@
-// Solutions.tsx
 import React, { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { Copy, Check, ChevronDown } from "lucide-react"
 
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import { CodeSyntax } from "../components/shared/CodeSyntax"
+import { UnifiedInput } from "../components/Input/UnifiedInput"
 
 import { ProblemStatementData } from "../types/solutions"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
@@ -23,13 +24,13 @@ export const ContentSection = ({
   content: React.ReactNode
   isLoading: boolean
 }) => (
-  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+  <div className="space-y-2 rounded-lg border border-white/10 bg-white/3 p-3">
     <h2 className="text-[13px] font-medium text-white tracking-wide">
       {title}
     </h2>
     {isLoading ? (
       <div className="mt-4 flex">
-        <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+        <p className="text-[13px] bg-linear-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
           Extracting problem statement...
         </p>
       </div>
@@ -40,16 +41,79 @@ export const ContentSection = ({
     )}
   </div>
 )
+export const KeyPointsAccordion = ({
+  thoughts,
+  isLoading
+}: {
+  thoughts: string[] | null
+  isLoading: boolean
+}) => {
+  const [isOpen, setIsOpen] = useState(true)
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/3 overflow-hidden transition">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-3 text-left hover:bg-white/[0.02] transition cursor-pointer"
+      >
+        <div className="flex items-center gap-2">
+          <h2 className="text-[13px] font-medium text-white tracking-wide">
+            Key Points
+          </h2>
+          {thoughts && thoughts.length > 0 && (
+            <span className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-white/10 text-white/70">
+              {thoughts.length}
+            </span>
+          )}
+          <span className="text-[11px] text-white/40 hidden sm:inline">
+            ({COMMAND_KEY} + Arrow keys to scroll)
+          </span>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-white/60 transition-transform duration-200 ${
+            isOpen ? "transform rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="px-3 pb-3 pt-0 text-[13px] leading-[1.45] text-gray-100 border-t border-white/5">
+          {isLoading ? (
+            <p className="pt-2 text-[13px] bg-linear-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+              Extracting key points...
+            </p>
+          ) : thoughts && thoughts.length > 0 ? (
+            <div className="space-y-1.5 pt-2">
+              {thoughts.map((thought, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />
+                  <div className="text-gray-200">{thought}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="pt-2 text-white/40">No key points available.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const SolutionSection = ({
-  title,
+  title = "Code",
   content,
   isLoading,
-  currentLanguage
+  currentLanguage,
+  timeComplexity,
+  spaceComplexity
 }: {
-  title: string
+  title?: string
   content: React.ReactNode
   isLoading: boolean
   currentLanguage: string
+  timeComplexity?: string | null
+  spaceComplexity?: string | null
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -62,27 +126,73 @@ const SolutionSection = ({
     }
   }
 
+  const formatComplexity = (complexity: string | null | undefined): string => {
+    if (!complexity || complexity.trim() === "") {
+      return "N/A"
+    }
+    const bigORegex = /O\([^)]+\)/i
+    if (bigORegex.test(complexity)) {
+      return complexity
+    }
+    return `O(${complexity})`
+  }
+
+  const formattedTime = timeComplexity ? formatComplexity(timeComplexity) : null
+  const formattedSpace = spaceComplexity ? formatComplexity(spaceComplexity) : null
+
   return (
-    <div className="space-y-2 relative rounded-lg border border-white/10 bg-white/[0.03] p-3">
-      <h2 className="text-[13px] font-medium text-white tracking-wide">
-        {title}
-      </h2>
+    <div className="space-y-2 rounded-lg border border-white/10 bg-white/3 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-white/5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-[13px] font-medium text-white tracking-wide">
+            {title}
+          </h2>
+          <span className="px-2 py-0.5 text-[11px] font-mono font-medium rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 uppercase">
+            {currentLanguage}
+          </span>
+          {formattedTime && (
+            <span className="px-2 py-0.5 text-[11px] font-mono rounded bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
+              <span>⏱️</span> {formattedTime}
+            </span>
+          )}
+          {formattedSpace && (
+            <span className="px-2 py-0.5 text-[11px] font-mono rounded bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+              <span>💾</span> {formattedSpace}
+            </span>
+          )}
+        </div>
+
+        <button
+          onClick={copyToClipboard}
+          className={`flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded transition-all font-medium border cursor-pointer ${
+            copied
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/40 shadow-sm"
+              : "bg-white/10 text-white/90 border-white/10 hover:bg-white/20 hover:text-white"
+          }`}
+          title="Copy full code"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3.5 h-3.5 text-white/70" />
+              <span>Copy Code</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {isLoading ? (
-        <div className="space-y-1.5">
-          <div className="mt-4 flex">
-            <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
-              Loading solutions...
-            </p>
-          </div>
+        <div className="space-y-1.5 py-3">
+          <p className="text-[13px] bg-linear-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+            Loading solutions...
+          </p>
         </div>
       ) : (
-        <div className="w-full relative">
-          <button
-            onClick={copyToClipboard}
-            className="absolute top-2 right-2 text-[12px] text-white bg-white/10 hover:bg-white/20 rounded px-2 py-1 transition"
-          >
-            {copied ? "Copied!" : "Copy"}
-          </button>
+        <div className="w-full relative overflow-hidden rounded-md">
           <CodeSyntax
             code={content as string}
             showLineNumbers
@@ -90,12 +200,15 @@ const SolutionSection = ({
             customStyle={{
               maxWidth: "100%",
               margin: 0,
-              padding: "1rem",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-              backgroundColor: "rgba(22, 27, 34, 0.5)"
+              padding: "0.85rem",
+              whiteSpace: "pre",
+              wordBreak: "normal",
+              overflowX: "auto",
+              fontFamily:
+                "'JetBrains Mono', 'Fira Code', 'Menlo', 'Consolas', monospace",
+              backgroundColor: "rgba(13, 17, 23, 0.75)"
             }}
-            wrapLongLines
+            wrapLongLines={false}
           />
         </div>
       )}
@@ -112,33 +225,27 @@ export const ComplexitySection = ({
   spaceComplexity: string | null
   isLoading: boolean
 }) => {
-  // Helper to ensure we have proper complexity values
   const formatComplexity = (complexity: string | null): string => {
-    // Default if no complexity returned by LLM
     if (!complexity || complexity.trim() === "") {
-      return "Complexity not available";
+      return "Complexity not available"
     }
-
-    const bigORegex = /O\([^)]+\)/i;
-    // Return the complexity as is if it already has Big O notation
+    const bigORegex = /O\([^)]+\)/i
     if (bigORegex.test(complexity)) {
-      return complexity;
+      return complexity
     }
+    return `O(${complexity})`
+  }
 
-    // Concat Big O notation to the complexity
-    return `O(${complexity})`;
-  };
-
-  const formattedTimeComplexity = formatComplexity(timeComplexity);
-  const formattedSpaceComplexity = formatComplexity(spaceComplexity);
+  const formattedTimeComplexity = formatComplexity(timeComplexity)
+  const formattedSpaceComplexity = formatComplexity(spaceComplexity)
 
   return (
-    <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+    <div className="space-y-2 rounded-lg border border-white/10 bg-white/3 p-3">
       <h2 className="text-[13px] font-medium text-white tracking-wide">
         Complexity
       </h2>
       {isLoading ? (
-        <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+        <p className="text-[13px] bg-linear-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
           Calculating complexity...
         </p>
       ) : (
@@ -162,7 +269,7 @@ export const ComplexitySection = ({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 const NextStepSection = ({
@@ -176,7 +283,7 @@ const NextStepSection = ({
   onDebug: () => Promise<void>
   onReset: () => Promise<void>
 }) => (
-  <div className="space-y-2 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+  <div className="space-y-2 rounded-lg border border-white/10 bg-white/3 p-3">
     <h2 className="text-[13px] font-medium text-white tracking-wide">
       Next Step
     </h2>
@@ -205,11 +312,10 @@ const NextStepSection = ({
       </button>
       <button
         onClick={onDebug}
-        className={`h-8 px-3 rounded-md border text-[12px] transition-colors ${
-          isDebugReady
+        className={`h-8 px-3 rounded-md border text-[12px] transition-colors ${isDebugReady
             ? "border-blue-400/35 bg-blue-500/15 text-blue-200 hover:bg-blue-500/25"
             : "border-white/15 bg-white/5 text-white/45"
-        }`}
+          }`}
       >
         {isDebugReady ? "Run Debug" : "Need Screenshot for Debug"}
       </button>
@@ -691,6 +797,28 @@ const Solutions: React.FC<SolutionsProps> = ({
     )
   }
 
+  const handleFollowupSend = async (followupText: string) => {
+    try {
+      if (window.electronAPI.liveInterviewSendText) {
+        const res = await window.electronAPI.liveInterviewSendText(followupText)
+        if (res && res.success) {
+          showToast("Follow-up Sent", followupText, "success")
+          return
+        }
+      }
+
+      if (extraScreenshots.length > 0) {
+        showToast("Processing Follow-up", followupText, "neutral")
+        await window.electronAPI.triggerProcessScreenshots()
+      } else {
+        showToast("Follow-up Prompt", followupText, "neutral")
+      }
+    } catch (err) {
+      console.error("Follow-up error:", err)
+      showToast("Error", "Failed to send follow-up", "error")
+    }
+  }
+
   return (
     <>
       {!isResetting && queryClient.getQueryData(["new_solution"]) ? (
@@ -727,19 +855,19 @@ const Solutions: React.FC<SolutionsProps> = ({
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     onClick={handleInlinePrimary}
-                    className="h-8 px-3 rounded-md border border-amber-300/45 bg-amber-500/20 text-[12px] font-medium hover:bg-amber-500/30 transition-colors"
+                    className="h-8 px-3 rounded-md border border-amber-300/45 bg-amber-500/20 text-[12px] font-medium hover:bg-amber-500/30 transition-colors cursor-pointer"
                   >
                     {inlineNotice.code === "no_screenshots" ? "Capture Now" : "Retry Processing"}
                   </button>
                   <button
                     onClick={handleInlineSecondary}
-                    className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors"
+                    className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     Reset Session
                   </button>
                   <button
                     onClick={() => setInlineNotice(null)}
-                    className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                    className="h-8 px-3 rounded-md border border-white/20 bg-transparent text-[12px] text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
                   >
                     Dismiss
                   </button>
@@ -758,11 +886,11 @@ const Solutions: React.FC<SolutionsProps> = ({
 
             <div className="flex items-center justify-between px-1">
               <div className="text-[12px] text-white/45">
-                {"Workspace: Key points -> Code -> Complexity -> Next step"}
+                {"Workspace: Code -> Key Points -> Next Step -> Follow-up"}
               </div>
               <button
                 onClick={handleOpenHistory}
-                className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors"
+                className="h-8 px-3 rounded-md border border-white/20 bg-white/5 text-[12px] text-white/85 hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Session History
               </button>
@@ -781,7 +909,7 @@ const Solutions: React.FC<SolutionsProps> = ({
                       />
                       {problemStatementData && (
                         <div className="mt-4 flex">
-                          <p className="text-[13px] bg-gradient-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
+                          <p className="text-[13px] bg-linear-to-r from-gray-300 via-gray-100 to-gray-300 bg-clip-text text-transparent animate-pulse">
                             Generating solutions...
                           </p>
                         </div>
@@ -791,39 +919,18 @@ const Solutions: React.FC<SolutionsProps> = ({
 
                   {solutionData && (
                     <>
-                      <ContentSection
-                        title={`Key Points (${COMMAND_KEY} + Arrow keys to scroll)`}
-                        content={
-                          thoughtsData && (
-                            <div className="space-y-3">
-                              <div className="space-y-1">
-                                {thoughtsData.map((thought, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-start gap-2"
-                                  >
-                                    <div className="w-1 h-1 rounded-full bg-blue-400/80 mt-2 shrink-0" />
-                                    <div>{thought}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        }
-                        isLoading={!thoughtsData}
-                      />
-
                       <SolutionSection
                         title="Code"
                         content={solutionData}
                         isLoading={!solutionData}
                         currentLanguage={currentLanguage}
-                      />
-
-                      <ComplexitySection
                         timeComplexity={timeComplexityData}
                         spaceComplexity={spaceComplexityData}
-                        isLoading={!timeComplexityData || !spaceComplexityData}
+                      />
+
+                      <KeyPointsAccordion
+                        thoughts={thoughtsData}
+                        isLoading={!thoughtsData}
                       />
 
                       <NextStepSection
@@ -831,6 +938,15 @@ const Solutions: React.FC<SolutionsProps> = ({
                         onCapture={handleNextCapture}
                         onDebug={handleNextDebug}
                         onReset={handleNextReset}
+                      />
+
+                      <UnifiedInput
+                        screenshots={extraScreenshots}
+                        onTakeScreenshot={handleNextCapture}
+                        onDeleteScreenshot={handleDeleteExtraScreenshot}
+                        onSendText={handleFollowupSend}
+                        isProcessing={debugProcessing}
+                        placeholder="Ask a follow-up question, request optimization, or paste error output..."
                       />
                     </>
                   )}

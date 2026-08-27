@@ -31,7 +31,8 @@ interface StatusBarProps {
 const PROVIDER_INFO: Record<APIProvider, { name: string; color: string }> = {
   gemini: { name: 'Gemini', color: 'text-blue-400' },
   openai: { name: 'OpenAI', color: 'text-green-400' },
-  anthropic: { name: 'Claude', color: 'text-orange-400' }
+  anthropic: { name: 'Claude', color: 'text-orange-400' },
+  custom: { name: 'Custom / Ollama', color: 'text-purple-400' }
 };
 
 const HOTKEYS = [

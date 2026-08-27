@@ -1,5 +1,3 @@
-// src/components/ui/dialog.tsx
-
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { cn } from "../../lib/utils"
@@ -14,7 +12,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 bg-black bg-opacity-50 z-50", className)}
+    className={cn("fixed inset-0 bg-black/70 backdrop-blur-sm z-50", className)}
     {...props}
   />
 ))
@@ -31,7 +29,7 @@ const DialogContent = React.forwardRef<
       className={cn(
         "fixed z-50 top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2",
         "w-[90vw] max-w-md md:w-full",
-        "bg-white p-4 rounded-lg shadow-lg",
+        "bg-zinc-950 text-white border border-white/15 p-4 rounded-xl shadow-2xl backdrop-blur-xl",
         "focus:outline-none focus-visible:ring-0",
         className
       )}
@@ -80,7 +78,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-gray-400", className)}
+    className={cn("text-sm text-zinc-400", className)}
     {...props}
   />
 ))

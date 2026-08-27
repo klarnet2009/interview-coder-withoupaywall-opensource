@@ -108,7 +108,7 @@ export function useUnifiedPanelSubscriptions({
   }, [setDebugMode])
 
   useEffect(() => {
-    if (statusState === "no_signal" && isCapturing && !isActive) {
+    if (statusState === "no_signal" && (isCapturing || isActive)) {
       setActionNotice((prev) => {
         if (prev?.code === "audio_no_signal") {
           return prev

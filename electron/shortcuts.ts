@@ -59,9 +59,10 @@ export class ShortcutsHelper {
       await this.deps.processingHelper?.processScreenshots()
     })
 
-    globalShortcut.register("CommandOrControl+R", () => {
+    // Reset view & cancel ongoing requests
+    globalShortcut.register("CommandOrControl+Alt+R", () => {
       runtimeLogger.debug(
-        "Command + R pressed. Canceling requests and resetting queues..."
+        "Command/Ctrl + Alt + R pressed. Canceling requests and resetting queues..."
       )
 
       // Cancel ongoing API requests
@@ -83,25 +84,38 @@ export class ShortcutsHelper {
       }
     })
 
-    // New shortcuts for moving the window
-    globalShortcut.register("CommandOrControl+Left", () => {
-      runtimeLogger.debug("Command/Ctrl + Left pressed. Moving window left.")
+    // Window movement shortcuts with Alt modifier (avoids IDE cursor navigation conflict)
+    globalShortcut.register("CommandOrControl+Alt+Left", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + Left pressed. Moving window left.")
       this.deps.moveWindowLeft()
     })
 
-    globalShortcut.register("CommandOrControl+Right", () => {
-      runtimeLogger.debug("Command/Ctrl + Right pressed. Moving window right.")
+    globalShortcut.register("CommandOrControl+Alt+Right", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + Right pressed. Moving window right.")
       this.deps.moveWindowRight()
     })
 
-    globalShortcut.register("CommandOrControl+Down", () => {
-      runtimeLogger.debug("Command/Ctrl + down pressed. Moving window down.")
+    globalShortcut.register("CommandOrControl+Alt+Down", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + Down pressed. Moving window down.")
       this.deps.moveWindowDown()
     })
 
-    globalShortcut.register("CommandOrControl+Up", () => {
-      runtimeLogger.debug("Command/Ctrl + Up pressed. Moving window Up.")
+    globalShortcut.register("CommandOrControl+Alt+Up", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + Up pressed. Moving window Up.")
       this.deps.moveWindowUp()
+    })
+
+    // Center window shortcut
+    globalShortcut.register("CommandOrControl+Alt+C", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + C pressed. Centering window.")
+      if (this.deps.centerWindow) {
+        this.deps.centerWindow()
+      } else {
+        const mainWindow = this.deps.getMainWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.center()
+        }
+      }
     })
 
     globalShortcut.register("CommandOrControl+B", () => {
@@ -114,14 +128,14 @@ export class ShortcutsHelper {
       app.quit()
     })
 
-    // Adjust opacity shortcuts
-    globalShortcut.register("CommandOrControl+[", () => {
-      runtimeLogger.debug("Command/Ctrl + [ pressed. Decreasing opacity.")
+    // Adjust opacity shortcuts with Alt modifier
+    globalShortcut.register("CommandOrControl+Alt+[", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + [ pressed. Decreasing opacity.")
       this.adjustOpacity(-0.1)
     })
 
-    globalShortcut.register("CommandOrControl+]", () => {
-      runtimeLogger.debug("Command/Ctrl + ] pressed. Increasing opacity.")
+    globalShortcut.register("CommandOrControl+Alt+]", () => {
+      runtimeLogger.debug("Command/Ctrl + Alt + ] pressed. Increasing opacity.")
       this.adjustOpacity(0.1)
     })
 

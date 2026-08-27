@@ -175,14 +175,14 @@ export const StepProfile: React.FC<StepProfileProps> = ({
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-white/[0.05] rounded-xl p-1">
+      <div className="flex gap-1 bg-white/5 rounded-xl p-1">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${activeTab === tab.id
-                ? 'bg-white/15 text-white shadow-sm'
-                : 'text-white/50 hover:text-white/70 hover:bg-white/[0.05]'
+              ? 'bg-white/15 text-white shadow-sm'
+              : 'text-white/50 hover:text-white/70 hover:bg-white/5'
               }`}
           >
             <tab.icon className="w-3.5 h-3.5" />
@@ -344,8 +344,8 @@ export const StepProfile: React.FC<StepProfileProps> = ({
                   key={tone}
                   onClick={() => handleChange('tone', tone)}
                   className={`px-3 py-1.5 rounded-lg text-xs capitalize transition-colors ${profile.tone === tone
-                      ? 'bg-white/20 text-white border border-white/30'
-                      : 'bg-white/[0.05] text-white/60 border border-white/10 hover:bg-white/10'
+                    ? 'bg-white/20 text-white border border-white/30'
+                    : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
                     }`}
                 >
                   {tone}
@@ -404,7 +404,7 @@ export const StepProfile: React.FC<StepProfileProps> = ({
           {/* Company result */}
           {companyState.status === 'done' && (
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-green-400 font-medium">
                   {companyState.companyName || 'Company'} — {companyState.jobTitle || 'Position'}
@@ -418,7 +418,7 @@ export const StepProfile: React.FC<StepProfileProps> = ({
 
           {companyState.status === 'error' && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-red-400">{companyState.error}</p>
                 <button

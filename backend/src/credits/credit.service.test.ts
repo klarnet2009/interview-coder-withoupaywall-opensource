@@ -108,7 +108,7 @@ describe('CreditService', () => {
       }
 
       // Mock the interactive transaction
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             update: vi.fn().mockResolvedValueOnce({
@@ -125,7 +125,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.addCredits('user-1', 10, 'signup_bonus', 'Free signup credits')
 
@@ -147,7 +147,7 @@ describe('CreditService', () => {
         createdAt: new Date(),
       }
 
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             update: vi.fn().mockResolvedValueOnce({
@@ -160,7 +160,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.addCredits('user-1', 50, 'purchase', 'Starter pack')
 
@@ -180,7 +180,7 @@ describe('CreditService', () => {
         createdAt: new Date(),
       }
 
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             update: vi.fn().mockResolvedValueOnce({
@@ -193,7 +193,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.addFreeCredits('user-1')
 
@@ -216,7 +216,7 @@ describe('CreditService', () => {
         createdAt: new Date(),
       }
 
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             findUnique: vi.fn().mockResolvedValueOnce({
@@ -233,7 +233,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.deductCredits('user-1', 2, 'solution')
 
@@ -244,7 +244,7 @@ describe('CreditService', () => {
     })
 
     it('should fail with 402 when balance is insufficient', async () => {
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             findUnique: vi.fn().mockResolvedValueOnce({
@@ -254,7 +254,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.deductCredits('user-1', 2, 'solution')
 
@@ -266,7 +266,7 @@ describe('CreditService', () => {
     })
 
     it('should fail with 402 when balance is exactly zero', async () => {
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             findUnique: vi.fn().mockResolvedValueOnce({
@@ -276,7 +276,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.deductCredits('user-1', 1, 'extract')
 
@@ -289,7 +289,7 @@ describe('CreditService', () => {
     it('should never allow balance to go below zero (transactional)', async () => {
       // This test simulates a scenario where the balance check is atomic
       // within the transaction, preventing race conditions
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             findUnique: vi.fn().mockResolvedValueOnce({
@@ -300,7 +300,7 @@ describe('CreditService', () => {
         }
         // Attempt to deduct 5 when only 3 available - should fail without updating
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.deductCredits('user-1', 5, 'debug')
 
@@ -321,7 +321,7 @@ describe('CreditService', () => {
         createdAt: new Date(),
       }
 
-      vi.mocked(prisma.$transaction).mockImplementationOnce(async (callback: Function) => {
+      vi.mocked(prisma.$transaction).mockImplementationOnce((async (callback: (tx: unknown) => Promise<unknown>) => {
         const mockTx = {
           user: {
             findUnique: vi.fn().mockResolvedValueOnce({
@@ -338,7 +338,7 @@ describe('CreditService', () => {
           },
         }
         return callback(mockTx)
-      })
+      }) as never)
 
       const result = await creditService.deductCredits('user-1', 10, 'solution')
 

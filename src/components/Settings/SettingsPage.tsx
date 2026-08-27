@@ -2,38 +2,63 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../../contexts/toast";
 import { AudioSettings } from "./AudioSettings";
+import { ProfileManager } from "../Profile/ProfileManager";
+import { UserProfile } from "../../types";
 
-type APIProvider = "openai" | "gemini" | "anthropic";
+type APIProvider = "openai" | "gemini" | "anthropic" | "custom";
 
 type SettingsSection = "api" | "audio" | "language" | "mode" | "profile" | "style" | "window" | "shortcuts" | "debug";
 
 const PROVIDER_META: Record<APIProvider, { model: string; label: string; hint: string }> = {
+    gemini: { model: "gemini-3-flash-preview", label: "Gemini", hint: "AIzaSy..." },
     openai: { model: "gpt-4o", label: "OpenAI", hint: "sk-..." },
-    gemini: { model: "gemini-3-flash-preview", label: "Gemini", hint: "AI..." },
     anthropic: { model: "claude-3-7-sonnet-20250219", label: "Claude", hint: "sk-ant-..." },
+    custom: { model: "deepseek/deepseek-r1", label: "Custom / Ollama", hint: "sk-or-... or token" },
 };
 
 const MODELS: Record<APIProvider, { id: string; name: string }[]> = {
-    openai: [
-        { id: "gpt-4o", name: "GPT-4o" },
-        { id: "gpt-4o-mini", name: "GPT-4o Mini" },
-    ],
     gemini: [
         { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
         { id: "gemini-3-pro-preview", name: "Gemini 3 Pro" },
+        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
+        { id: "gemini-2.0-pro-exp-02-05", name: "Gemini 2.0 Pro Exp" },
+        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+        { id: "custom", name: "Custom Model..." },
+    ],
+    openai: [
+        { id: "gpt-4o", name: "GPT-4o" },
+        { id: "gpt-4o-mini", name: "GPT-4o Mini" },
+        { id: "o1", name: "o1" },
+        { id: "o3-mini", name: "o3-mini" },
+        { id: "o1-mini", name: "o1-mini" },
+        { id: "gpt-4.5-preview", name: "GPT-4.5" },
+        { id: "custom", name: "Custom Model..." },
     ],
     anthropic: [
         { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet" },
+        { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku" },
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
+        { id: "custom", name: "Custom Model..." },
+    ],
+    custom: [
+        { id: "deepseek/deepseek-r1", name: "DeepSeek R1" },
+        { id: "deepseek/deepseek-chat", name: "DeepSeek V3" },
+        { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B" },
+        { id: "qwen/qwen-2.5-coder-32b-instruct", name: "Qwen 2.5 Coder" },
+        { id: "deepseek-r1:latest", name: "Ollama R1" },
+        { id: "qwen2.5-coder:latest", name: "Ollama Qwen" },
+        { id: "custom", name: "Custom Model..." },
     ],
 };
 
 const PROVIDER_LINKS: Record<APIProvider, { signup: string; keys: string }> = {
-    openai: { signup: "https://platform.openai.com/signup", keys: "https://platform.openai.com/api-keys" },
     gemini: { signup: "https://aistudio.google.com/", keys: "https://aistudio.google.com/app/apikey" },
+    openai: { signup: "https://platform.openai.com/signup", keys: "https://platform.openai.com/api-keys" },
     anthropic: { signup: "https://console.anthropic.com/signup", keys: "https://console.anthropic.com/settings/keys" },
+    custom: { signup: "https://openrouter.ai/signup", keys: "https://openrouter.ai/keys" },
 };
+
 
 const SECTIONS: { id: SettingsSection; icon: string }[] = [
     { id: "api", icon: "🔑" },
@@ -92,8 +117,6 @@ const INTERVIEW_FOCUS = [
     { id: "ml", label: "ML / AI" },
 ];
 
-
-
 export interface SettingsPageProps {
     onClose: () => void;
 }
@@ -107,10 +130,19 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 
     // API state
     const [apiKey, setApiKey] = useState("");
-    const [apiProvider, setApiProvider] = useState<APIProvider>("openai");
-    const [extractionModel, setExtractionModel] = useState("gpt-4o");
-    const [solutionModel, setSolutionModel] = useState("gpt-4o");
-    const [debuggingModel, setDebuggingModel] = useState("gpt-4o");
+    const [apiProvider, setApiProvider] = useState<APIProvider>("gemini");
+    const [customBaseUrl, setCustomBaseUrl] = useState("https://openrouter.ai/api/v1");
+    const [extractionModel, setExtractionModel] = useState("gemini-3-flash-preview");
+    const [solutionModel, setSolutionModel] = useState("gemini-3-flash-preview");
+    const [debuggingModel, setDebuggingModel] = useState("gemini-3-flash-preview");
+    const [customExtractionModel, setCustomExtractionModel] = useState("");
+    const [customSolutionModel, setCustomSolutionModel] = useState("");
+    const [customDebuggingModel, setCustomDebuggingModel] = useState("");
+    const [temperature, setTemperature] = useState<number>(0.2);
+    const [reasoningEffort, setReasoningEffort] = useState<'low' | 'medium' | 'high'>('medium');
+    const [maxTokens, setMaxTokens] = useState<number>(4000);
+    const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+    const [testDetails, setTestDetails] = useState<{ responseTime?: number; error?: string }>({});
 
     // Audio state
     const [audioSource, setAudioSource] = useState<'microphone' | 'system' | 'application'>('system');
@@ -127,19 +159,19 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     const [interviewFocus, setInterviewFocus] = useState<string[]>(["algorithms"]);
     const [customTopic, setCustomTopic] = useState("");
 
-    // Profile state
+    // Profiles state
+    const [profiles, setProfiles] = useState<UserProfile[]>([]);
+    const [activeProfileId, setActiveProfileId] = useState<string | undefined>();
     const [profileName, setProfileName] = useState("");
     const [profileExperience, setProfileExperience] = useState("");
     const [profileSkills, setProfileSkills] = useState("");
 
     // Personalization state
-    const [cvUploadStatus, setCvUploadStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
-    const [cvFileName, setCvFileName] = useState<string>('');
     const [companyName, setCompanyName] = useState('');
     const [jobTitle, setJobTitle] = useState('');
     const [jobDescText, setJobDescText] = useState('');
     const [companyStatus, setCompanyStatus] = useState<'idle' | 'parsing' | 'done' | 'error'>('idle');
-    const [profileSubTab, setProfileSubTab] = useState<'profile' | 'cv' | 'company'>('profile');
+    const [profileSubTab, setProfileSubTab] = useState<'profile' | 'company'>('profile');
 
     // Response style state
     const [responseStyle, setResponseStyle] = useState("full");
@@ -168,6 +200,10 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 if (!config) return;
                 if (config.apiKey) setApiKey(config.apiKey as string);
                 if (config.apiProvider) setApiProvider(config.apiProvider as APIProvider);
+                if (config.customBaseUrl) setCustomBaseUrl(config.customBaseUrl as string);
+                if (config.temperature !== undefined) setTemperature(Number(config.temperature));
+                if (config.reasoningEffort) setReasoningEffort(config.reasoningEffort as 'low' | 'medium' | 'high');
+                if (config.maxTokens !== undefined) setMaxTokens(Number(config.maxTokens));
                 if (config.extractionModel) setExtractionModel(config.extractionModel as string);
                 if (config.solutionModel) setSolutionModel(config.solutionModel as string);
                 if (config.debuggingModel) setDebuggingModel(config.debuggingModel as string);
@@ -197,20 +233,14 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 if (config.profileExperience) setProfileExperience(config.profileExperience as string);
                 if (config.profileSkills) setProfileSkills(config.profileSkills as string);
 
-                // Load personalization data
-                const profiles = config.profiles as { id?: string; name?: string; skills?: string[]; cvFilePath?: string }[] | undefined;
-                const activeProfileId = config.activeProfileId as string | undefined;
-                if (profiles && activeProfileId) {
-                    const activeProfile = profiles.find((p: { id?: string }) => p.id === activeProfileId);
-                    if (activeProfile) {
-                        if (activeProfile.name) setProfileName(activeProfile.name);
-                        if (activeProfile.skills) setProfileSkills(activeProfile.skills.join(', '));
-                        if (activeProfile.cvFilePath) {
-                            setCvFileName(activeProfile.cvFilePath.split(/[/\\]/).pop() || '');
-                            setCvUploadStatus('done');
-                        }
-                    }
+                // Load personalization profiles
+                if (config.profiles && Array.isArray(config.profiles)) {
+                    setProfiles(config.profiles as UserProfile[]);
                 }
+                if (config.activeProfileId) {
+                    setActiveProfileId(config.activeProfileId as string);
+                }
+
                 const companies = config.companyContexts as { id?: string; companyName?: string; jobTitle?: string }[] | undefined;
                 const activeCompanyId = config.activeCompanyId as string | undefined;
                 if (companies && activeCompanyId) {
@@ -233,6 +263,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
             .finally(() => setIsLoading(false));
     }, [showToast, t, i18n]);
 
+
     // Wheel scroll workaround
     useEffect(() => {
         const el = contentRef.current;
@@ -244,7 +275,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
 
     // Resize window
     useEffect(() => {
-        window.electronAPI?.setSetupWindowSize({ width: 640, height: 780 });
+        window.electronAPI?.setSetupWindowSize({ width: 660, height: 800 });
     }, []);
 
     const handleProviderChange = useCallback((provider: APIProvider) => {
@@ -253,6 +284,8 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
         setExtractionModel(def);
         setSolutionModel(def);
         setDebuggingModel(def);
+        setTestStatus('idle');
+        setTestDetails({});
     }, []);
 
     const handleInterfaceLangChange = useCallback((lang: string) => {
@@ -266,15 +299,110 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
         );
     }, []);
 
+    const handleTestConnection = async () => {
+        if (apiProvider !== 'custom' && !apiKey.trim()) {
+            showToast(t("common.error"), "Please enter an API key first", "error");
+            return;
+        }
+
+        setTestStatus('testing');
+        setTestDetails({});
+        const startTime = Date.now();
+
+        try {
+            const activeModel = solutionModel === 'custom' ? (customSolutionModel || 'custom-model') : solutionModel;
+            const result = await window.electronAPI.testApiKey(
+                apiKey.trim(),
+                apiProvider,
+                activeModel,
+                apiProvider === 'custom' ? customBaseUrl : undefined
+            );
+            const responseTime = result?.latency ?? (Date.now() - startTime);
+            if (result?.valid) {
+                setTestStatus('success');
+                setTestDetails({ responseTime });
+                showToast(t("common.success"), `Connected to ${PROVIDER_META[apiProvider].label} (${responseTime}ms)`, "success");
+            } else {
+                setTestStatus('error');
+                setTestDetails({ error: result?.error || "Failed to validate API key or model" });
+                showToast(t("common.error"), result?.error || "Validation failed", "error");
+            }
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : "Network error";
+            setTestStatus('error');
+            setTestDetails({ error: errorMsg });
+            showToast(t("common.error"), errorMsg, "error");
+        }
+    };
+
+    const handleCreateProfile = async (profileData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>) => {
+        const now = Date.now();
+        const newProfile: UserProfile = {
+            ...profileData,
+            id: `profile-${now}`,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const updated = [...profiles, newProfile];
+        setProfiles(updated);
+        setActiveProfileId(newProfile.id);
+        await window.electronAPI.updateConfig({
+            profiles: updated,
+            activeProfileId: newProfile.id,
+        });
+        showToast(t("common.success"), "Profile created successfully", "success");
+    };
+
+    const handleUpdateProfile = async (id: string, updates: Partial<UserProfile>) => {
+        const updated = profiles.map(p => p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p);
+        setProfiles(updated);
+        await window.electronAPI.updateConfig({ profiles: updated });
+        showToast(t("common.success"), "Profile updated", "success");
+    };
+
+    const handleDeleteProfile = async (id: string) => {
+        const updated = profiles.filter(p => p.id !== id);
+        let nextActiveId = activeProfileId;
+        if (activeProfileId === id) {
+            nextActiveId = updated.length > 0 ? updated[0].id : undefined;
+        }
+        setProfiles(updated);
+        setActiveProfileId(nextActiveId);
+        await window.electronAPI.updateConfig({
+            profiles: updated,
+            activeProfileId: nextActiveId,
+        });
+        showToast(t("common.success"), "Profile deleted", "success");
+    };
+
+    const handleSetActiveProfile = async (id: string) => {
+        setActiveProfileId(id);
+        await window.electronAPI.updateConfig({ activeProfileId: id });
+        showToast(t("common.success"), "Active profile updated", "success");
+    };
+
     const handleSave = async () => {
         setIsLoading(true);
         try {
+            const finalExtraction = extractionModel === 'custom' ? (customExtractionModel.trim() || 'custom-model') : extractionModel;
+            const finalSolution = solutionModel === 'custom' ? (customSolutionModel.trim() || 'custom-model') : solutionModel;
+            const finalDebugging = debuggingModel === 'custom' ? (customDebuggingModel.trim() || 'custom-model') : debuggingModel;
+
             const result = await window.electronAPI.updateConfig({
-                apiKey, apiProvider, extractionModel, solutionModel, debuggingModel,
+                apiKey: apiKey.trim(),
+                apiProvider,
+                customBaseUrl: apiProvider === 'custom' ? customBaseUrl.trim() : undefined,
+                extractionModel: finalExtraction,
+                solutionModel: finalSolution,
+                debuggingModel: finalDebugging,
+                temperature,
+                reasoningEffort,
+                maxTokens,
                 audioConfig: {
                     source: audioSource,
                     applicationName: audioSource === 'application' ? applicationName : undefined,
-                    autoStart: true, testCompleted: true,
+                    autoStart: true,
+                    testCompleted: true,
                 },
                 recognitionLanguage: recognitionLang,
                 interfaceLanguage: interfaceLang,
@@ -288,11 +416,14 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 profileSkills,
                 responseStyle,
                 responseLength,
+                displayConfig: {
+                    alwaysOnTop,
+                    stealthMode,
+                }
             });
             if (result) {
                 showToast(t("common.success"), t("common.settingsSaved"), "success");
                 onClose();
-                setTimeout(() => window.location.reload(), 1500);
             }
         } catch {
             showToast(t("common.error"), t("common.settingsSaveError"), "error");
@@ -310,8 +441,8 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
         <div className="space-y-5">
             {/* Provider toggle */}
             <Field label={t("settings.api.provider")}>
-                <div className="flex gap-1.5">
-                    {(["openai", "gemini", "anthropic"] as const).map((p) => (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {(["gemini", "openai", "anthropic", "custom"] as const).map((p) => (
                         <Pill key={p} active={apiProvider === p} onClick={() => handleProviderChange(p)}>
                             {PROVIDER_META[p].label}
                         </Pill>
@@ -319,47 +450,212 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 </div>
             </Field>
 
+            {/* Custom Base URL (shown when provider === 'custom') */}
+            {apiProvider === 'custom' && (
+                <Field label="Endpoint Base URL (OpenAI-Compatible)">
+                    <input
+                        type="text"
+                        value={customBaseUrl}
+                        onChange={(e) => setCustomBaseUrl(e.target.value)}
+                        placeholder="https://openrouter.ai/api/v1"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors font-mono"
+                    />
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        <span className="text-[11px] text-white/40 mr-1">Presets:</span>
+                        {[
+                            { label: "OpenRouter", url: "https://openrouter.ai/api/v1", model: "deepseek/deepseek-r1" },
+                            { label: "Ollama (Local)", url: "http://localhost:11434/v1", model: "deepseek-r1:latest" },
+                            { label: "DeepSeek", url: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+                            { label: "Groq", url: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
+                            { label: "LM Studio", url: "http://localhost:1234/v1", model: "local-model" }
+                        ].map((preset) => (
+                            <button
+                                key={preset.label}
+                                type="button"
+                                onClick={() => {
+                                    setCustomBaseUrl(preset.url);
+                                    setSolutionModel(preset.model);
+                                    setExtractionModel(preset.model);
+                                    setDebuggingModel(preset.model);
+                                }}
+                                className="px-2 py-0.5 rounded text-[11px] bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors"
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                    </div>
+                </Field>
+            )}
+
             {/* API Key */}
             <Field label={`${PROVIDER_META[apiProvider].label} ${t("settings.api.apiKey")}`}>
                 <input
                     type="password"
                     value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
+                    onChange={(e) => {
+                        setApiKey(e.target.value);
+                        if (testStatus !== 'idle') {
+                            setTestStatus('idle');
+                            setTestDetails({});
+                        }
+                    }}
                     placeholder={PROVIDER_META[apiProvider].hint}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                     placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
                 />
                 {apiKey && <p className="text-xs text-white/40 mt-1">{t("settings.api.currentKey")}: {apiKey.substring(0, 4)}...{apiKey.substring(apiKey.length - 4)}</p>}
                 <p className="text-xs text-white/30 mt-1">{t("settings.api.storedLocally", { provider: PROVIDER_META[apiProvider].label })}</p>
-                <p className="text-xs text-white/50 mt-1">
-                    {t("settings.api.noKey")}{" "}
-                    <button onClick={() => openLink(link.signup)} className="text-blue-400 hover:underline">{t("settings.api.signup")}</button>
-                    {" → "}
-                    <button onClick={() => openLink(link.keys)} className="text-blue-400 hover:underline">{t("settings.api.getKey")}</button>
-                </p>
+                {apiProvider !== 'custom' && link && (
+                    <p className="text-xs text-white/50 mt-1">
+                        {t("settings.api.noKey")}{" "}
+                        <button onClick={() => openLink(link.signup)} className="text-blue-400 hover:underline">{t("settings.api.signup")}</button>
+                        {" → "}
+                        <button onClick={() => openLink(link.keys)} className="text-blue-400 hover:underline">{t("settings.api.getKey")}</button>
+                    </p>
+                )}
             </Field>
 
-            {/* Models */}
+            {/* Test Connection Button & Result */}
+            <div className="space-y-2 pt-1">
+                <button
+                    type="button"
+                    onClick={handleTestConnection}
+                    disabled={(apiProvider !== 'custom' && !apiKey.trim()) || testStatus === 'testing'}
+                    className={`w-full py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 border ${
+                        testStatus === 'success'
+                            ? 'bg-green-500/15 text-green-300 border-green-500/30'
+                            : testStatus === 'error'
+                            ? 'bg-red-500/15 text-red-300 border-red-500/30'
+                            : 'bg-white/5 hover:bg-white/10 text-white/80 border-white/10'
+                    } ${((apiProvider !== 'custom' && !apiKey.trim()) || testStatus === 'testing') ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {testStatus === 'testing' ? '⏳ Testing Connection & Model...' :
+                     testStatus === 'success' ? `✅ Connected (${testDetails.responseTime || 0}ms)` :
+                     testStatus === 'error' ? '❌ Connection Failed — Retry' :
+                     '🔍 Test Connection & Model'}
+                </button>
+                {testStatus === 'error' && testDetails.error && (
+                    <p className="text-[11px] text-red-400/90 px-1">{testDetails.error}</p>
+                )}
+            </div>
+
+            {/* Models Selection */}
             <Field label={t("settings.api.models")}>
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                     {([
-                        { key: "extraction", value: extractionModel, set: setExtractionModel },
-                        { key: "solution", value: solutionModel, set: setSolutionModel },
-                        { key: "debugging", value: debuggingModel, set: setDebuggingModel },
-                    ] as const).map(({ key, value, set }) => (
-                        <div key={key} className="flex items-center gap-3">
-                            <span className="text-xs text-white/50 w-20 shrink-0">{t(`settings.api.${key}`)}</span>
-                            <div className="flex gap-1.5 flex-1">
-                                {MODELS[apiProvider].map((m) => (
-                                    <Pill key={m.id} active={value === m.id} onClick={() => set(m.id)} small>{m.name}</Pill>
-                                ))}
+                        { key: "extraction", value: extractionModel, set: setExtractionModel, customVal: customExtractionModel, setCustom: setCustomExtractionModel },
+                        { key: "solution", value: solutionModel, set: setSolutionModel, customVal: customSolutionModel, setCustom: setCustomSolutionModel },
+                        { key: "debugging", value: debuggingModel, set: setDebuggingModel, customVal: customDebuggingModel, setCustom: setCustomDebuggingModel },
+                    ] as const).map(({ key, value, set, customVal, setCustom }) => {
+                        const isCustom = !MODELS[apiProvider].some(m => m.id === value && m.id !== 'custom') || value === 'custom';
+                        return (
+                            <div key={key} className="space-y-1.5 bg-white/[0.02] p-2.5 rounded-lg border border-white/5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-white/70">{t(`settings.api.${key}`)}</span>
+                                    <span className="text-[11px] text-white/40 font-mono">{isCustom ? customVal || value : value}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {MODELS[apiProvider].map((m) => (
+                                        <Pill
+                                            key={m.id}
+                                            active={m.id === 'custom' ? isCustom : value === m.id}
+                                            onClick={() => {
+                                                if (m.id === 'custom') {
+                                                    set('custom');
+                                                } else {
+                                                    set(m.id);
+                                                }
+                                            }}
+                                            small
+                                        >
+                                            {m.name}
+                                        </Pill>
+                                    ))}
+                                </div>
+                                {isCustom && (
+                                    <input
+                                        type="text"
+                                        value={customVal || (value !== 'custom' ? value : '')}
+                                        onChange={(e) => {
+                                            setCustom(e.target.value);
+                                            set(e.target.value || 'custom');
+                                        }}
+                                        placeholder="Enter model identifier (e.g. o3-mini, deepseek/deepseek-r1)"
+                                        className="w-full mt-1.5 px-2.5 py-1.5 bg-white/5 border border-white/10 rounded text-xs text-white placeholder:text-white/30 font-mono focus:outline-none focus:border-white/30"
+                                    />
+                                )}
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </Field>
+
+            {/* Hyperparameters Section */}
+            <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
+                <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">
+                    Model Hyperparameters
+                </h4>
+                <div className="space-y-3">
+                    {/* Temperature Slider */}
+                    <div>
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-white/60">Temperature (Creativity)</span>
+                            <span className="text-white/90 font-mono">{temperature.toFixed(2)}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={temperature}
+                            onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                            className="w-full accent-blue-500 bg-white/10 rounded-lg cursor-pointer h-1.5"
+                        />
+                        <div className="flex justify-between text-[10px] text-white/30 mt-0.5">
+                            <span>0.0 (Deterministic / Exact Code)</span>
+                            <span>0.2 (Optimal)</span>
+                            <span>1.0 (Creative)</span>
+                        </div>
+                    </div>
+
+                    {/* Reasoning Effort (o1, o3, DeepSeek R1) */}
+                    <div>
+                        <span className="text-xs text-white/60 block mb-1">Reasoning Effort (for o1 / o3 / R1)</span>
+                        <div className="flex gap-1.5">
+                            {(["low", "medium", "high"] as const).map((effort) => (
+                                <Pill
+                                    key={effort}
+                                    active={reasoningEffort === effort}
+                                    onClick={() => setReasoningEffort(effort)}
+                                    small
+                                >
+                                    {effort.toUpperCase()}
+                                </Pill>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Max Tokens */}
+                    <div>
+                        <div className="flex justify-between text-xs mb-1">
+                            <span className="text-white/60">Max Output Tokens</span>
+                            <span className="text-white/90 font-mono">{maxTokens}</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="1000"
+                            max="16000"
+                            step="500"
+                            value={maxTokens}
+                            onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
+                            className="w-full accent-blue-500 bg-white/10 rounded-lg cursor-pointer h-1.5"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
     );
+
 
     const renderAudio = () => (
         <AudioSettings
@@ -377,8 +673,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 <select
                     value={recognitionLang}
                     onChange={(e) => setRecognitionLang(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                     focus:outline-none focus:border-white/30 transition-colors appearance-none cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-white/30 transition-colors appearance-none cursor-pointer"
                 >
                     {RECOGNITION_LANGUAGES.map((lang) => (
                         <option key={lang.code} value={lang.code} className="bg-black text-white">
@@ -457,33 +752,12 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                         value={customTopic}
                         onChange={(e) => setCustomTopic(e.target.value)}
                         placeholder={t("settings.mode.topicPlaceholder")}
-                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                       placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                        className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
                     />
                 </Field>
             )}
         </div>
     );
-
-    const handleCvUploadSettings = async () => {
-        setCvUploadStatus('uploading');
-        try {
-            const result = await window.electronAPI.uploadCv();
-            if (result.canceled) { setCvUploadStatus('idle'); return; }
-            if (!result.success) { setCvUploadStatus('error'); return; }
-            const p = result.profile as { name?: string; skills?: string[]; achievements?: string } | undefined;
-            if (p) {
-                if (p.name) setProfileName(p.name);
-                if (p.skills) setProfileSkills(p.skills.join(', '));
-                if (p.achievements) setProfileExperience(p.achievements);
-            }
-            setCvFileName(result.fileName || '');
-            setCvUploadStatus('done');
-            showToast(t("common.success"), "CV processed successfully", "success");
-        } catch {
-            setCvUploadStatus('error');
-        }
-    };
 
     const handleJobDescSettings = async () => {
         if (!jobDescText.trim()) return;
@@ -522,20 +796,19 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     };
 
     const renderProfile = () => (
-        <div className="space-y-5">
+        <div className="space-y-4">
             {/* Sub-tabs for profile section */}
-            <div className="flex gap-1 bg-white/[0.03] rounded-lg p-1">
+            <div className="flex gap-1 bg-white/5 rounded-lg p-1">
                 {([
-                    { id: 'profile' as const, label: '👤 Profile' },
-                    { id: 'cv' as const, label: '📄 CV Upload' },
-                    { id: 'company' as const, label: '🏢 Company' },
+                    { id: 'profile' as const, label: '👤 Profile Manager' },
+                    { id: 'company' as const, label: '🏢 Company Context' },
                 ]).map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setProfileSubTab(tab.id)}
                         className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                             profileSubTab === tab.id
-                                ? 'bg-white/10 text-white'
+                                ? 'bg-white/15 text-white shadow-sm'
                                 : 'text-white/40 hover:text-white/60'
                         }`}
                     >
@@ -544,108 +817,21 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 ))}
             </div>
 
-            {/* Profile sub-tab */}
             {profileSubTab === 'profile' && (
-                <>
-                    <Field label={t("settings.profile.name")}>
-                        <input
-                            value={profileName}
-                            onChange={(e) => setProfileName(e.target.value)}
-                            placeholder={t("settings.profile.namePlaceholder")}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                        />
-                    </Field>
-
-                    <Field label={t("settings.profile.experience")}>
-                        <textarea
-                            value={profileExperience}
-                            onChange={(e) => setProfileExperience(e.target.value)}
-                            placeholder={t("settings.profile.experiencePlaceholder")}
-                            rows={4}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none
-                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                        />
-                    </Field>
-
-                    <Field label={t("settings.profile.skills")}>
-                        <input
-                            value={profileSkills}
-                            onChange={(e) => setProfileSkills(e.target.value)}
-                            placeholder={t("settings.profile.skillsPlaceholder")}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm
-                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
-                        />
-                        <p className="text-xs text-white/30 mt-1">{t("settings.profile.skillsHint")}</p>
-                    </Field>
-
-                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <p className="text-xs text-blue-300">
-                            {t("settings.profile.profileHint")}
-                        </p>
-                    </div>
-                </>
-            )}
-
-            {/* CV Upload sub-tab */}
-            {profileSubTab === 'cv' && (
-                <div className="space-y-4">
-                    <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center">
-                        {cvUploadStatus === 'idle' && (
-                            <>
-                                <p className="text-3xl mb-2">📄</p>
-                                <p className="text-sm text-white/60 mb-3">Upload your CV/Resume (PDF)</p>
-                                <button
-                                    onClick={handleCvUploadSettings}
-                                    className="px-4 py-2 bg-white/10 hover:bg-white/15 rounded-lg text-sm text-white/80 transition-colors"
-                                >
-                                    Choose File
-                                </button>
-                            </>
-                        )}
-                        {cvUploadStatus === 'uploading' && (
-                            <div className="flex flex-col items-center gap-2">
-                                <p className="text-3xl animate-pulse">⏳</p>
-                                <p className="text-sm text-white/60">Processing CV with AI...</p>
-                            </div>
-                        )}
-                        {cvUploadStatus === 'done' && (
-                            <div className="flex flex-col items-center gap-2">
-                                <p className="text-3xl">✅</p>
-                                <p className="text-sm text-white/80 font-medium">{cvFileName}</p>
-                                <p className="text-xs text-white/50">Profile fields auto-populated from CV</p>
-                                <button
-                                    onClick={handleCvUploadSettings}
-                                    className="text-xs text-white/40 hover:text-white/60 underline mt-1"
-                                >
-                                    Upload different file
-                                </button>
-                            </div>
-                        )}
-                        {cvUploadStatus === 'error' && (
-                            <div className="flex flex-col items-center gap-2">
-                                <p className="text-3xl">❌</p>
-                                <p className="text-sm text-red-400/80">Upload failed</p>
-                                <button
-                                    onClick={() => setCvUploadStatus('idle')}
-                                    className="text-xs text-white/40 hover:text-white/60 underline"
-                                >
-                                    Try again
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <p className="text-xs text-blue-300">
-                            Your CV is parsed locally and sent to AI for skill extraction. Data stays on your device.
-                        </p>
-                    </div>
-                </div>
+                <ProfileManager
+                    embedded={true}
+                    profiles={profiles}
+                    activeProfileId={activeProfileId}
+                    onCreateProfile={handleCreateProfile}
+                    onUpdateProfile={handleUpdateProfile}
+                    onDeleteProfile={handleDeleteProfile}
+                    onSetActiveProfile={handleSetActiveProfile}
+                />
             )}
 
             {/* Company sub-tab */}
             {profileSubTab === 'company' && (
-                <div className="space-y-4">
+                <div className="space-y-4 pt-2">
                     {companyStatus === 'done' && companyName && (
                         <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 flex items-start gap-2">
                             <span className="text-sm">✅</span>
@@ -660,8 +846,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                         <button
                             onClick={handleJdUploadSettings}
                             disabled={companyStatus === 'parsing'}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white/80 text-sm
-                             hover:bg-white/10 disabled:opacity-50 transition-colors"
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white/80 text-sm hover:bg-white/10 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
                         >
                             {companyStatus === 'parsing' ? '⏳ Analyzing...' : '📄 Upload JD (PDF)'}
                         </button>
@@ -673,14 +858,13 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                             onChange={(e) => setJobDescText(e.target.value)}
                             placeholder="Paste the full job description here..."
                             rows={4}
-                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none
-                             placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
+                            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm resize-none placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors"
                         />
                     </Field>
                     <button
                         onClick={handleJobDescSettings}
                         disabled={!jobDescText.trim() || companyStatus === 'parsing'}
-                        className="w-full px-3 py-2 bg-white/10 hover:bg-white/15 disabled:opacity-50 rounded-lg text-sm text-white/80 transition-colors"
+                        className="w-full px-3 py-2 bg-white/10 hover:bg-white/15 disabled:opacity-50 rounded-lg text-sm text-white/80 transition-colors font-medium"
                     >
                         {companyStatus === 'parsing' ? '⏳ Analyzing...' : 'Analyze Job Description'}
                     </button>
@@ -780,10 +964,11 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 [t("settings.shortcuts.takeScreenshot"), "Ctrl+H"],
                 [t("settings.shortcuts.processScreenshots"), "Ctrl+Enter"],
                 [t("settings.shortcuts.deleteLastScreenshot"), "Ctrl+L"],
-                [t("settings.shortcuts.resetView"), "Ctrl+R"],
+                [t("settings.shortcuts.resetView"), "Ctrl+Alt+R"],
                 [t("settings.shortcuts.quit"), "Ctrl+Q"],
-                [t("settings.shortcuts.moveWindow"), "Ctrl+Arrows"],
-                [t("settings.shortcuts.opacity"), "Ctrl+[ / ]"],
+                [t("settings.shortcuts.moveWindow"), "Ctrl+Alt+Arrows"],
+                [t("settings.shortcuts.centerWindow") || "Center Window", "Ctrl+Alt+C"],
+                [t("settings.shortcuts.opacity"), "Ctrl+Alt+[ / ]"],
                 [t("settings.shortcuts.zoom"), "Ctrl+- / 0 / ="],
             ].map(([label, key]) => (
                 <div key={label} className="contents">
@@ -948,8 +1133,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                     <button
                         onClick={handleSave}
                         disabled={isLoading || !apiKey}
-                        className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg
-                       hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                         {isLoading ? t("settings.actions.saving") : t("settings.actions.save")}
                     </button>

@@ -47,7 +47,7 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
   const handleLanguageSelect = (lang: string) => {
     setLanguage(lang);
     setDropdownOpen(false);
-    
+
     // Also save the language preference to config
     window.electronAPI.updateConfig({
       language: lang
@@ -66,79 +66,78 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
   return (
     <>
       {/* Drag Handle */}
-      <div 
-        className="h-5 bg-white/[0.02] border-b border-white/5 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/[0.04] transition-colors"
+      <div
+        className="h-5 bg-white/2 border-b border-white/5 flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-white/4 transition-colors"
         style={{ ['WebkitAppRegion' as string]: 'drag', ['appRegion' as string]: 'drag' }}
         title="Drag to move window"
       >
         <GripHorizontal className="w-4 h-4 text-white/20" />
       </div>
-      
-      <div 
+
+      <div
         className="bg-black p-2 border-b border-white/10 flex items-center justify-between"
         style={{ ['WebkitAppRegion' as string]: 'drag', ['appRegion' as string]: 'drag' }}
       >
-      <div className="flex items-center space-x-1" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
-        <span className="text-white text-sm mr-2">Language:</span>
-        <div className="relative">
-          <button
-            onClick={toggleDropdown}
-            className="flex items-center gap-1 rounded-md bg-white/5 px-3 py-1.5 text-sm text-white hover:bg-white/10 transition-colors"
-          >
-            {currentLangObj.label}
-            {dropdownOpen ? (
-              <ChevronUp className="h-4 w-4 text-white/70" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-white/70" />
-            )}
-          </button>
-          
-          {dropdownOpen && (
-            <div className="absolute z-10 mt-1 w-full rounded-md bg-black border border-white/10 shadow-lg">
-              <div className="py-1">
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.value}
-                    onClick={() => handleLanguageSelect(lang.value)}
-                    className={`block w-full text-left px-4 py-2 text-sm ${
-                      currentLanguage === lang.value
-                        ? 'bg-white/10 text-white'
-                        : 'text-white/70 hover:bg-white/5'
-                    }`}
-                  >
-                    {lang.label}
-                  </button>
-                ))}
+        <div className="flex items-center space-x-1" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
+          <span className="text-white text-sm mr-2">Language:</span>
+          <div className="relative">
+            <button
+              onClick={toggleDropdown}
+              className="flex items-center gap-1 rounded-md bg-white/5 px-3 py-1.5 text-sm text-white hover:bg-white/10 transition-colors"
+            >
+              {currentLangObj.label}
+              {dropdownOpen ? (
+                <ChevronUp className="h-4 w-4 text-white/70" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-white/70" />
+              )}
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute z-10 mt-1 w-full rounded-md bg-black border border-white/10 shadow-lg">
+                <div className="py-1">
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.value}
+                      onClick={() => handleLanguageSelect(lang.value)}
+                      className={`block w-full text-left px-4 py-2 text-sm ${currentLanguage === lang.value
+                          ? 'bg-white/10 text-white'
+                          : 'text-white/70 hover:bg-white/5'
+                        }`}
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
+            onClick={onOpenSettings}
+            title="Settings"
+          >
+            <Settings className="h-4 w-4 mr-1" />
+            <span className="text-xs">Settings</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-red-400/80 hover:text-red-400 hover:bg-white/10"
+            onClick={handleLogout}
+            title="Log Out"
+          >
+            <LogOut className="h-4 w-4 mr-1" />
+            <span className="text-xs">Log Out</span>
+          </Button>
         </div>
       </div>
-      
-      <div className="flex items-center space-x-2" style={{ ['WebkitAppRegion' as string]: 'no-drag', ['appRegion' as string]: 'no-drag' }}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
-          onClick={onOpenSettings}
-          title="Settings"
-        >
-          <Settings className="h-4 w-4 mr-1" />
-          <span className="text-xs">Settings</span>
-        </Button>
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-red-400/80 hover:text-red-400 hover:bg-white/10"
-          onClick={handleLogout}
-          title="Log Out"
-        >
-          <LogOut className="h-4 w-4 mr-1" />
-          <span className="text-xs">Log Out</span>
-        </Button>
-      </div>
-    </div>
     </>
   );
 }

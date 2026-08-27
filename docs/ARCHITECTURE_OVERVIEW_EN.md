@@ -24,10 +24,11 @@ Renderer (React UI)
       -> ipcMain.handle / BrowserWindow.webContents.send
         -> Main process services
            - ScreenshotHelper
-           - ProcessingHelper (OpenAI/Gemini/Anthropic)
+           - ProcessingHelper (OpenAI/Gemini/Anthropic/Custom OpenAI-Compatible: OpenRouter, Ollama, DeepSeek, Groq)
            - LiveInterviewService (Gemini Live + HintGeneration)
            - ConfigHelper
 ```
+
 
 ## Main Process Responsibilities
 
@@ -108,7 +109,11 @@ Renderer owns:
 - Renderer uses context isolation and preload bridge (`nodeIntegration: false`, `contextIsolation: true`).
 - IPC input validation exists for selected handlers (`electron/validation.ts`).
 - External URL opening is brokered by main process.
+- Non-colliding global hotkey scheme (`Ctrl+Alt+Arrows`, `Ctrl+Alt+R`, `Ctrl+Alt+C`, `Ctrl+Alt+[`/`]`) preserves IDE text editing.
+- Audio DSP Worklet is throttled to 20Hz (~50ms) to ensure 60fps UI responsiveness.
+- Window resize recalculations are debounced (150ms) preventing OS window manager jitter.
 
 Known boundary weakness:
 
-- API keys are currently stored in raw JSON config (`ConfigHelper`), not encrypted at rest.
+- API keys are stored in JSON configuration (`ConfigHelper`), validated for modern provider formats (`sk-proj-...`, `sk-ant-...`).
+

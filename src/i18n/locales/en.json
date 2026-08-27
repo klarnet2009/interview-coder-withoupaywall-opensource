@@ -24,7 +24,11 @@
             "models": "Models",
             "extraction": "Extraction",
             "solution": "Solution",
-            "debugging": "Debugging"
+            "debugging": "Debugging",
+            "testConnection": "Test Connection",
+            "testing": "Testing connection...",
+            "testSuccess": "Connection successful!",
+            "testFailed": "Connection failed"
         },
         "window": {
             "alwaysOnTop": "Always on top",
@@ -113,7 +117,14 @@
             "skills": "Skills & Technologies",
             "skillsPlaceholder": "React, Node.js, Python, AWS, Docker...",
             "skillsHint": "Comma-separated list",
-            "profileHint": "💡 Profile info is included in the system prompt so the AI tailors answers to your background."
+            "profileHint": "💡 Profile info is included in the system prompt so the AI tailors answers to your background.",
+            "manager": "Profile Manager",
+            "companyContext": "Company Context",
+            "newProfile": "New Profile",
+            "editProfile": "Edit Profile",
+            "saveProfile": "Save Profile",
+            "deleteProfile": "Delete Profile",
+            "setActive": "Set as Active"
         },
         "style": {
             "responseStyle": "Response Style",
@@ -129,6 +140,15 @@
             "short": "Short",
             "medium": "Standard",
             "long": "Detailed"
+        },
+        "debug": {
+            "title": "System Prompt Debug",
+            "loadPrompts": "Load Prompts",
+            "loading": "Loading...",
+            "activeSettings": "Active Settings",
+            "hintPrompt": "Hint Generation Prompt",
+            "transcriptionPrompt": "Transcription Prompt",
+            "promptHint": "These are the exact system instructions sent to Gemini when you start an interview."
         }
     },
     "welcome": {
@@ -177,41 +197,130 @@
             },
             "modeselect": {
                 "title": "Setup Mode",
-                "description": "Choose how you want to set up"
+                "description": "Choose how you want to set up",
+                "quickTitle": "Quick Setup",
+                "quickDesc": "Configure provider and API key in under 1 minute",
+                "advancedTitle": "Full Customization",
+                "advancedDesc": "Fine-tune profiles, audio sources, display modes & shortcuts"
             },
             "provider": {
                 "title": "Provider",
-                "description": "Choose your AI provider"
+                "description": "Choose your AI provider",
+                "byokTitle": "BYOK Architecture (Bring Your Own Key)",
+                "byokDesc": "Direct requests from your device to AI provider. Zero telemetry, maximum privacy.",
+                "geminiFree": "Gemini Free Tier",
+                "geminiFreeDesc": "60 requests/minute without credit card. Best to get started immediately.",
+                "paidProviders": "OpenAI & Anthropic",
+                "paidProvidersDesc": "Requires billing account. Superb for deep technical & algorithm interviews."
             },
             "apikey": {
                 "title": "API Key",
-                "description": "Enter your API key"
+                "description": "Enter your API key",
+                "paste": "Paste from clipboard",
+                "testConnection": "Test Connection",
+                "testing": "Testing connection...",
+                "testSuccess": "Connection successful",
+                "testFailed": "Connection failed",
+                "securityTitle": "Security",
+                "securityDesc": "Your key is stored locally and used only for direct API calls."
             },
             "profile": {
                 "title": "Profile",
-                "description": "Set up your profile"
+                "description": "Set up your personal background",
+                "cvTab": "CV Upload",
+                "manualTab": "Manual Edit",
+                "companyTab": "Company Context",
+                "uploadCv": "Upload CV / Resume (PDF)",
+                "skipHint": "You can skip this step and configure profiles later in settings."
             },
             "mode": {
-                "title": "Mode",
-                "description": "Configure interview preferences"
+                "title": "Interview Mode",
+                "description": "Configure interview preferences",
+                "coding": "Coding Interview",
+                "systemDesign": "System Design",
+                "behavioral": "Behavioral"
             },
             "audio": {
                 "title": "Audio",
-                "description": "Configure audio input"
+                "description": "Configure audio input for live transcription",
+                "testAudio": "Test Audio"
             },
             "display": {
                 "title": "Display",
-                "description": "Configure display settings"
+                "description": "Configure visibility and display options",
+                "stealth": "Stealth Mode (Capture Invisibility)",
+                "opacity": "Window Opacity"
             },
             "test": {
-                "title": "Test",
-                "description": "Test your setup"
+                "title": "Test Setup",
+                "description": "Verify your end-to-end configuration",
+                "runTest": "Run Diagnostics",
+                "allPassed": "All checks passed!"
             },
             "ready": {
                 "title": "Ready",
-                "description": "You are all set!"
+                "description": "You are all set!",
+                "heading": "You're All Set!",
+                "subtitle": "Interview Coder is ready to assist you in your interviews."
             }
         }
+    },
+    "unifiedPanel": {
+        "sessionControls": "Session Controls",
+        "capture": "Capture",
+        "fullScreen": "Full Screen",
+        "captureFullScreen": "Capture entire display",
+        "windows": "Windows",
+        "searchWindows": "Search windows...",
+        "noWindows": "No windows found",
+        "start": "Start",
+        "stop": "Stop",
+        "audioLevel": "Audio Level",
+        "noSignalHint": "No signal detected. Check source sharing and volume.",
+        "liveErrorHint": "Live session hit an error. Use recovery actions below.",
+        "shortcuts": {
+            "title": "Shortcuts",
+            "toggle": "Toggle",
+            "screenshot": "Screenshot",
+            "process": "Process",
+            "openSettings": "Open Settings",
+            "logOut": "Log Out"
+        },
+        "notices": {
+            "noScreenshots": "No screenshots in queue. Capture a question first.",
+            "processFailed": "Failed to process screenshot.",
+            "audioPermission": "Audio permission required.",
+            "audioNoSignal": "No audio signal detected.",
+            "apiKeyInvalid": "API key is invalid or expired."
+        }
+    },
+    "devMode": {
+        "devTools": "Dev Tools",
+        "debug": "Debug",
+        "stealth": "Stealth",
+        "visible": "Visible",
+        "debugOn": "Debug Mode ON — verbose UI",
+        "debugOff": "Debug Mode OFF — minimal UI",
+        "stealthOn": "Stealth ON — invisible in capture",
+        "stealthOff": "Stealth OFF — visible in capture"
+    },
+    "updateNotification": {
+        "title": "Update Available",
+        "newVersion": "A New Version is Available",
+        "updateReady": "Update Ready to Install",
+        "newVersionDesc": "A new version of Interview Coder is available with improvements and fixes.",
+        "updateReadyDesc": "The update has been downloaded and is ready to install. Restart the app whenever you're ready.",
+        "downloadUpdate": "Download Update",
+        "downloading": "Downloading...",
+        "restartAndInstall": "Restart & Install",
+        "remindLater": "Remind Me Later"
+    },
+    "errorBoundary": {
+        "somethingWentWrong": "Something went wrong",
+        "unexpectedError": "An unexpected error occurred. Try clicking the button below to reload.",
+        "tryAgain": "Try Again",
+        "clearCacheAndReload": "Clear Cache & Reload",
+        "reloadApp": "Reload App"
     },
     "common": {
         "loading": "Loading...",

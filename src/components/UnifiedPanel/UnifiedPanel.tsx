@@ -23,6 +23,7 @@ import {
   isPermissionError,
   NOTICE_MAP,
   stateBadgeClasses,
+  stateDotClasses,
   stateLabels,
   toRuntimeAudioSource
 } from "./constants";
@@ -428,10 +429,16 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       : "bg-black/80 rounded-lg"
       }`}>
       <div className="px-3 py-3 border-b border-white/10 space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div
+          className="flex items-center justify-between gap-3 select-none"
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        >
           <div className="text-[14px] font-semibold text-white">Session Controls</div>
 
-          <div className="flex items-center gap-1.5">
+          <div
+            className="flex items-center gap-1.5"
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          >
             {debugMode ? (
               <span
                 className={`text-[12px] px-2 py-1 rounded-md border ${stateBadgeClasses[status.state]}`}
@@ -440,12 +447,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
               </span>
             ) : (
               <span
-                className={`w-2 h-2 rounded-full transition-colors ${status.state === "idle" || status.state === "error"
-                  ? "bg-white/30"
-                  : status.state === "generating"
-                    ? "bg-purple-400 animate-pulse"
-                    : "bg-emerald-400 animate-pulse"
-                  }`}
+                className={`w-2 h-2 rounded-full transition-colors ${stateDotClasses[status.state]}`}
                 title={stateLabels[status.state]}
               />
             )}
@@ -506,7 +508,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
             <div
               className="p-2 rounded-md hover:bg-white/10 cursor-grab active:cursor-grabbing transition-colors"
-              style={{ WebkitAppRegion: "drag", appRegion: "drag" } as React.CSSProperties}
+              style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
               title="Drag to move window"
             >
               <svg
@@ -744,8 +746,8 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
           </div>
         )}
 
-        {/* Error/no_signal — no_signal only shown during setup, not during live interview */}
-        {(status.state === "error" || (status.state === "no_signal" && !isActive)) && (
+        {/* Error/no_signal */}
+        {(status.state === "error" || status.state === "no_signal") && (
           <div className="text-[12px] text-orange-300 flex items-center gap-1.5 px-1">
             <AlertCircle className="w-3.5 h-3.5" />
             {status.state === "no_signal"
@@ -796,7 +798,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
           {screenshotCount > 0 && (
             <div className="px-3 py-3 border-t border-white/5 mt-3">
               <ScreenshotQueue
-                isLoading={false}
+                isLoading={status.state === "generating"}
                 screenshots={screenshots}
                 onDeleteScreenshot={onDeleteScreenshot}
               />

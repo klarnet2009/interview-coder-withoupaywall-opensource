@@ -22,9 +22,11 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const { showToast } = useToast()
 
-  // Dynamically update the window size
+  // Dynamically update the window size with debounce
   useEffect(() => {
     if (!containerRef.current) return
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
     const updateDimensions = () => {
       if (!containerRef.current) return
@@ -33,15 +35,23 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
       window.electronAPI?.updateContentDimensions({ width, height })
     }
 
+    const debouncedUpdateDimensions = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
+      debounceTimer = setTimeout(() => {
+        updateDimensions()
+      }, 150)
+    }
+
     // Force initial dimension update immediately
     updateDimensions()
 
-
-    const resizeObserver = new ResizeObserver(updateDimensions)
+    const resizeObserver = new ResizeObserver(debouncedUpdateDimensions)
     resizeObserver.observe(containerRef.current)
 
     // Also watch DOM changes
-    const mutationObserver = new MutationObserver(updateDimensions)
+    const mutationObserver = new MutationObserver(debouncedUpdateDimensions)
     mutationObserver.observe(containerRef.current, {
       childList: true,
       subtree: true,
@@ -56,6 +66,9 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
       resizeObserver.disconnect()
       mutationObserver.disconnect()
 
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
       clearTimeout(delayedUpdate)
     }
   }, [view])

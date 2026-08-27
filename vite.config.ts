@@ -88,6 +88,11 @@ export default defineConfig({
     sourcemap: true,
     // Disable modulePreload — Electron loads from file:// where crossorigin fails
     modulePreload: false,
+    rollupOptions: {
+      output: {
+        manualChunks: rendererManualChunks
+      }
+    }
   },
   resolve: {
     alias: {

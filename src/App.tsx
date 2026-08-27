@@ -29,6 +29,14 @@ interface ProcessingStatusState {
   progress: number
 }
 
+interface ToastItem {
+  id: string
+  title: string
+  description: string
+  variant: "neutral" | "success" | "error"
+  open: boolean
+}
+
 // Create a React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,12 +55,7 @@ const queryClient = new QueryClient({
 // Root component that provides the QueryClient
 function App() {
   const { t } = useTranslation();
-  const [toastState, setToastState] = useState({
-    open: false,
-    title: "",
-    description: "",
-    variant: "neutral" as "neutral" | "success" | "error"
-  })
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [credits, setCredits] = useState<number>(999) // Unlimited credits
   const [currentLanguage, setCurrentLanguage] = useState<string>("python")
   const [isInitialized, setIsInitialized] = useState(false)
@@ -84,22 +87,37 @@ function App() {
     setIsInitialized(true)
   }, [])
 
-  // Show toast method
+  // Show toast method - maintains a queue of up to 3 messages
   const showToast = useCallback(
     (
       title: string,
       description: string,
-      variant: "neutral" | "success" | "error"
+      variant: "neutral" | "success" | "error" = "neutral"
     ) => {
-      setToastState({
-        open: true,
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const newToast: ToastItem = {
+        id,
         title,
         description,
-        variant
-      })
+        variant,
+        open: true
+      };
+      setToasts((prev) => {
+        const active = prev.filter((item) => item.open);
+        const updated = [...active, newToast];
+        return updated.slice(-3);
+      });
     },
     []
-  )
+  );
+
+  const handleToastOpenChange = useCallback((id: string, open: boolean) => {
+    setToasts((prev) =>
+      prev
+        .map((item) => (item.id === id ? { ...item, open } : item))
+        .filter((item) => item.id !== id || open)
+    );
+  }, []);
 
   // Check for wizard completion and API key
   useEffect(() => {
@@ -268,7 +286,6 @@ function App() {
     const unsubscribeSolutionSuccess = window.electronAPI.onSolutionSuccess(
       () => {
         console.log("Solution success - no credits deducted in this version")
-        // No credit deduction in this version
       }
     )
 
@@ -294,11 +311,6 @@ function App() {
       setShowWizard(false)
 
       showToast("Success", "Setup completed! Welcome to Interview Assistant.", "success")
-
-      // Reload to apply all settings
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
     } catch (error) {
       console.error("Failed to complete wizard:", error)
       showToast("Error", "Failed to save settings", "error")
@@ -386,19 +398,18 @@ function App() {
             </Routes>
           </ErrorBoundary>
 
-
-
-          <Toast
-            open={toastState.open}
-            onOpenChange={(open) =>
-              setToastState((prev) => ({ ...prev, open }))
-            }
-            variant={toastState.variant}
-            duration={1500}
-          >
-            <ToastTitle>{toastState.title}</ToastTitle>
-            <ToastDescription>{toastState.description}</ToastDescription>
-          </Toast>
+          {toasts.map((toast) => (
+            <Toast
+              key={toast.id}
+              open={toast.open}
+              onOpenChange={(open) => handleToastOpenChange(toast.id, open)}
+              variant={toast.variant}
+              duration={4500}
+            >
+              <ToastTitle>{toast.title}</ToastTitle>
+              <ToastDescription>{toast.description}</ToastDescription>
+            </Toast>
+          ))}
           <ToastViewport />
         </ToastContext.Provider>
       </ToastProvider>

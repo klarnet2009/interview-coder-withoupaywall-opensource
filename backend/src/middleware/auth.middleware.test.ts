@@ -57,7 +57,6 @@ vi.mock('../credits/credit.service', () => ({
 import { app } from '../index'
 import { prisma } from '../database'
 import { config } from '../config'
-import { authenticate } from './auth.middleware'
 
 describe('Auth Middleware', () => {
   let validToken: string
@@ -77,7 +76,7 @@ describe('Auth Middleware', () => {
         createdAt: new Date(),
       }
 
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser as any)
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser as never)
 
       const response = await request(app)
         .get('/auth/me')
@@ -135,7 +134,7 @@ describe('Auth Middleware', () => {
         createdAt: new Date('2026-01-01'),
       }
 
-      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser as any)
+      vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser as never)
 
       const response = await request(app)
         .get('/auth/me')

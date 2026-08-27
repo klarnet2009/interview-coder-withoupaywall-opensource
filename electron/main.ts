@@ -95,6 +95,7 @@ export interface IShortcutsHelperDeps {
   moveWindowRight: () => void
   moveWindowUp: () => void
   moveWindowDown: () => void
+  centerWindow?: () => void
 }
 
 export interface IIpcHandlerDeps {
@@ -161,7 +162,8 @@ function initializeHelpers() {
         )
       ),
     moveWindowUp: () => moveWindowVertical((y) => y - state.step),
-    moveWindowDown: () => moveWindowVertical((y) => y + state.step)
+    moveWindowDown: () => moveWindowVertical((y) => y + state.step),
+    centerWindow: () => centerMainWindow()
   } as IShortcutsHelperDeps)
 }
 
@@ -179,9 +181,11 @@ async function createWindow(): Promise<void> {
 
   const primaryDisplay = screen.getPrimaryDisplay()
   const workArea = primaryDisplay.workAreaSize
+  const initialWidth = isDev ? 560 : 800
   state.screenWidth = workArea.width
   state.screenHeight = workArea.height
   state.step = 60
+  state.currentX = Math.max(0, Math.round((workArea.width - initialWidth) / 2))
   state.currentY = 50
 
   // Debug mode: auto-enabled in development (npm run dev), disabled in production
@@ -190,13 +194,13 @@ async function createWindow(): Promise<void> {
   }
 
   const windowSettings: Electron.BrowserWindowConstructorOptions = {
-    width: isDev ? 560 : 800,
+    width: initialWidth,
     height: 600,
-    minWidth: isDev ? 520 : 750,
-    minHeight: isDev ? 100 : 100,
+    minWidth: 520,
+    minHeight: 100,
     x: state.currentX,
-    y: 50,
-    alwaysOnTop: false,
+    y: state.currentY,
+    alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -206,7 +210,8 @@ async function createWindow(): Promise<void> {
       scrollBounce: true
     },
     show: true,
-    frame: false,
+    title: "Interview Coder",
+    frame: true,
     transparent: false,
     fullscreenable: false,
     hasShadow: true,
@@ -215,7 +220,7 @@ async function createWindow(): Promise<void> {
     focusable: true,
     skipTaskbar: false,
     paintWhenInitiallyHidden: true,
-    titleBarStyle: "hidden",
+    titleBarStyle: "default",
     enableLargerThanScreen: true,
     movable: true
   }
@@ -228,6 +233,9 @@ async function createWindow(): Promise<void> {
   // Add more detailed logging for window events
   state.mainWindow.webContents.on("did-finish-load", () => {
     runtimeLogger.debug("Window finished loading")
+  })
+  state.mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    runtimeLogger.debug(`[Renderer Console] [level ${level}] ${message} (${sourceId}:${line})`)
   })
   state.mainWindow.webContents.on(
     "did-fail-load",
@@ -254,7 +262,9 @@ async function createWindow(): Promise<void> {
       const indexPath = path.join(__dirname, "../dist/index.html")
       runtimeLogger.debug("Falling back to:", indexPath)
       if (fs.existsSync(indexPath) && state.mainWindow) {
-        state.mainWindow.loadFile(indexPath)
+        state.mainWindow.loadFile(indexPath).catch((err) => {
+          runtimeLogger.error("Failed to load fallback index.html:", err)
+        })
       } else {
         runtimeLogger.error("Could not find index.html in dist folder")
       }
@@ -265,7 +275,9 @@ async function createWindow(): Promise<void> {
     runtimeLogger.debug("Loading production build:", indexPath)
 
     if (fs.existsSync(indexPath)) {
-      state.mainWindow.loadFile(indexPath)
+      state.mainWindow.loadFile(indexPath).catch((err) => {
+        runtimeLogger.error("Failed to load index.html in production:", err)
+      })
     } else {
       runtimeLogger.error("Could not find index.html in dist folder")
     }
@@ -273,8 +285,10 @@ async function createWindow(): Promise<void> {
 
   // Configure window behavior
   state.mainWindow.webContents.setZoomFactor(1)
-  // DevTools — always open for debugging
-  state.mainWindow.webContents.openDevTools({ mode: 'detach' })
+  // DevTools — open docked in dev mode
+  if (isDev) {
+    state.mainWindow.webContents.openDevTools({ mode: 'right' })
+  }
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     runtimeLogger.debug("Attempting to open URL:", url)
     try {
@@ -315,22 +329,16 @@ async function createWindow(): Promise<void> {
   state.isWindowVisible = true
 
   // Set opacity based on user preferences or hide initially
-  // Ensure the window is visible for the first launch or if opacity > 0.1
-  const savedOpacity = configHelper.getOpacity();
-  runtimeLogger.debug(`Initial opacity from config: ${savedOpacity}`);
+  // Ensure the window is always visible by default
+  const savedOpacity = Math.max(0.5, configHelper.getOpacity() || 1.0);
+  runtimeLogger.debug(`Setting initial opacity to: ${savedOpacity}`);
 
-  // Always make sure window is shown first
-  state.mainWindow.showInactive(); // Use showInactive for consistency
-
-  if (savedOpacity <= 0.1) {
-    runtimeLogger.debug('Initial opacity too low, setting to 0 and hiding window');
-    state.mainWindow.setOpacity(0);
-    state.isWindowVisible = false;
-  } else {
-    runtimeLogger.debug(`Setting initial opacity to ${savedOpacity}`);
-    state.mainWindow.setOpacity(savedOpacity);
-    state.isWindowVisible = true;
-  }
+  state.mainWindow.setOpacity(savedOpacity);
+  state.mainWindow.center();
+  state.mainWindow.setAlwaysOnTop(true);
+  state.mainWindow.show();
+  state.mainWindow.focus();
+  state.isWindowVisible = true;
 }
 
 function handleWindowMove(): void {
@@ -378,18 +386,12 @@ function showMainWindow(): void {
       });
     }
     win.setIgnoreMouseEvents(false);
-    if (!isDev) {
-      win.setAlwaysOnTop(true, "screen-saver", 1);
-      win.setVisibleOnAllWorkspaces(true, {
-        visibleOnFullScreen: true
-      });
-      win.setContentProtection(true);
-    }
-    win.setOpacity(0); // Set opacity to 0 before showing
-    win.showInactive(); // Use showInactive instead of show+focus
-    win.setOpacity(1); // Then set opacity to 1 after showing
+    win.setAlwaysOnTop(true);
+    win.show();
+    win.focus();
+    win.setOpacity(1);
     state.isWindowVisible = true;
-    runtimeLogger.debug('Window shown with showInactive(), opacity set to 1');
+    runtimeLogger.debug('Window shown and focused, opacity set to 1');
   }
 }
 
@@ -439,6 +441,20 @@ function moveWindowVertical(updateFn: (y: number) => number): void {
       Math.round(state.currentY)
     )
   }
+}
+
+function centerMainWindow(): void {
+  const win = state.mainWindow;
+  if (!win || win.isDestroyed()) return;
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const workArea = primaryDisplay.workAreaSize;
+  const bounds = win.getBounds();
+  const x = Math.round((workArea.width - bounds.width) / 2);
+  const y = Math.round((workArea.height - bounds.height) / 2);
+  state.currentX = x;
+  state.currentY = y;
+  win.setPosition(x, y);
+  runtimeLogger.debug(`Window centered at x=${x}, y=${y}`);
 }
 
 // Window dimension functions

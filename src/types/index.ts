@@ -33,7 +33,7 @@ export interface WizardState {
 // API Provider Types
 // ============================================================================
 
-export type APIProvider = 'openai' | 'gemini' | 'anthropic';
+export type APIProvider = 'openai' | 'gemini' | 'anthropic' | 'custom';
 
 export interface ProviderInfo {
   id: APIProvider;
@@ -57,21 +57,30 @@ export const PROVIDERS: ProviderInfo[] = [
   },
   {
     id: 'openai',
-    name: 'OpenAI (GPT-4o)',
-    description: 'Most capable for technical deep-dives. Requires billing setup.',
+    name: 'OpenAI (GPT-4o / o1 / o3)',
+    description: 'Most capable for technical deep-dives and complex algorithms. Requires billing setup.',
     getKeyUrl: 'https://platform.openai.com/api-keys',
     keyFormat: 'sk-...',
     keyPlaceholder: 'sk-...'
   },
   {
     id: 'anthropic',
-    name: 'Anthropic (Claude)',
-    description: 'Excellent reasoning and analysis capabilities.',
+    name: 'Anthropic (Claude 3.7)',
+    description: 'State of the art reasoning and clean code generation.',
     getKeyUrl: 'https://console.anthropic.com/settings/keys',
     keyFormat: 'sk-ant-...',
     keyPlaceholder: 'sk-ant-...'
+  },
+  {
+    id: 'custom',
+    name: 'Custom / OpenRouter / Ollama',
+    description: 'Connect OpenRouter, DeepSeek, Groq, or local LLMs (Ollama/LM Studio).',
+    getKeyUrl: 'https://openrouter.ai/keys',
+    keyFormat: 'sk-or-... or custom',
+    keyPlaceholder: 'sk-or-... / token'
   }
 ];
+
 
 // ============================================================================
 // User Profile Types
@@ -228,11 +237,17 @@ export interface AppConfig {
   // Existing fields
   apiKey: string;
   apiProvider: APIProvider;
+  customBaseUrl?: string;
+  customModel?: string;
+  temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  maxTokens?: number;
   extractionModel: string;
   solutionModel: string;
   debuggingModel: string;
   language: string;
   opacity: number;
+
 
   // Wizard
   wizardCompleted: boolean;

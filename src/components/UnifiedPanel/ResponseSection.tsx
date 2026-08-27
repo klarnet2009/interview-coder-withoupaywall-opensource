@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useMemo } from "react"
 import {
   ChevronDown,
   ChevronUp,
@@ -18,7 +18,7 @@ interface ResponseSectionProps {
   responseRef: React.RefObject<HTMLDivElement | null>
 }
 
-export const ResponseSection: React.FC<ResponseSectionProps> = ({
+export const ResponseSection: React.FC<ResponseSectionProps> = React.memo(({
   hasResponse,
   isListeningActive,
   isActive,
@@ -28,6 +28,11 @@ export const ResponseSection: React.FC<ResponseSectionProps> = ({
   onToggleCollapse,
   responseRef
 }) => {
+  const formattedContent = useMemo(() => {
+    if (!response) return null
+    return renderFormattedText(response)
+  }, [response])
+
   if (!(hasResponse || (isListeningActive && isActive))) {
     return null
   }
@@ -58,7 +63,7 @@ export const ResponseSection: React.FC<ResponseSectionProps> = ({
         <div ref={responseRef} className="px-3 pb-3 overflow-y-auto max-h-[60vh]">
           {hasResponse ? (
             <div className="text-[13px] text-white/90 whitespace-pre-wrap leading-relaxed">
-              {renderFormattedText(response)}
+              {formattedContent}
               {isGenerating && (
                 <span className="inline-block w-1 h-3.5 bg-purple-400 motion-safe:animate-pulse align-middle ml-0.5" />
               )}
@@ -72,4 +77,7 @@ export const ResponseSection: React.FC<ResponseSectionProps> = ({
       )}
     </div>
   )
-}
+})
+
+ResponseSection.displayName = "ResponseSection"
+

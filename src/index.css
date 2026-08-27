@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: Inter, system-ui, sans-serif;
+  --color-ring: rgba(255, 255, 255, 0.4);
 
   --animate-in: in 0.2s ease-out;
   --animate-out: out 0.2s ease-in;
@@ -66,6 +67,10 @@
   }
 }
 
+:root {
+  --color-ring: rgba(255, 255, 255, 0.4);
+}
+
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
@@ -118,6 +123,12 @@
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
+  }
+
+  /* Focus ring accessibility styles */
+  *:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 }
 

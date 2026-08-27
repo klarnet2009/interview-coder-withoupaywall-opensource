@@ -25,6 +25,16 @@ export const stateBadgeClasses: Record<ListeningState, string> = {
   error: "bg-red-500/20 text-red-300 border-red-400/30"
 }
 
+export const stateDotClasses: Record<ListeningState, string> = {
+  idle: "bg-white/30",
+  connecting: "bg-yellow-400 animate-pulse",
+  listening: "bg-emerald-400 animate-pulse",
+  no_signal: "bg-orange-400 animate-pulse",
+  transcribing: "bg-blue-400 animate-pulse",
+  generating: "bg-purple-400 animate-pulse",
+  error: "bg-red-400"
+}
+
 export const stateLane: ListeningState[] = [
   "connecting",
   "listening",

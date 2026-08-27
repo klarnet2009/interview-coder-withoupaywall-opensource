@@ -17,6 +17,9 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
         this.resampleRatio = this.inputRate / this.targetRate;
         // Leftover samples from previous chunk for accurate resampling
         this.resampleBuffer = [];
+        // Audio level throttling (send at most once every 50ms / 20Hz)
+        this.lastLevelTime = 0;
+        this.lastLevel = 0;
     }
 
     process(inputs, _outputs, _parameters) {
@@ -40,12 +43,18 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
             monoData = input[0];
         }
 
-        // Calculate RMS audio level (before resampling for accuracy)
-        let sum = 0;
-        for (let i = 0; i < monoData.length; i++) {
-            sum += monoData[i] * monoData[i];
+        // Calculate RMS audio level with throttling (at most once every 50ms / 20Hz)
+        const now = typeof currentTime !== 'undefined' ? currentTime * 1000 : Date.now();
+        let level = this.lastLevel;
+        if (now - this.lastLevelTime >= 50) {
+            let sum = 0;
+            for (let i = 0; i < monoData.length; i++) {
+                sum += monoData[i] * monoData[i];
+            }
+            level = Math.sqrt(sum / monoData.length);
+            this.lastLevel = level;
+            this.lastLevelTime = now;
         }
-        const level = Math.sqrt(sum / monoData.length);
 
         // Resample if needed (linear interpolation)
         let outputData;

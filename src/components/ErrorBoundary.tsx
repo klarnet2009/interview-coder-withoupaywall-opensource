@@ -34,6 +34,16 @@ export class ErrorBoundary extends Component<Props, State> {
         this.setState({ hasError: false, error: null });
     };
 
+    handleClearCacheAndReload = (): void => {
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch (e) {
+            console.warn('Failed to clear cache:', e);
+        }
+        window.location.reload();
+    };
+
     render(): ReactNode {
         if (this.state.hasError) {
             if (this.props.fallback) {
@@ -41,10 +51,10 @@ export class ErrorBoundary extends Component<Props, State> {
             }
 
             return (
-                <div className="min-h-screen bg-black flex items-center justify-center p-6">
-                    <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-lg">
+                <div className="min-h-screen bg-black flex items-center justify-center p-6 select-none">
+                    <div className="max-w-md w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
+                            <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center shrink-0">
                                 <svg
                                     className="w-5 h-5 text-red-500"
                                     fill="none"
@@ -59,33 +69,47 @@ export class ErrorBoundary extends Component<Props, State> {
                                     />
                                 </svg>
                             </div>
-                            <h2 className="text-lg font-semibold text-white">
-                                Something went wrong
-                            </h2>
+                            <div>
+                                <h2 className="text-base font-semibold text-white">
+                                    Something went wrong
+                                </h2>
+                                <p className="text-xs text-zinc-400">
+                                    An unexpected application error was caught
+                                </p>
+                            </div>
                         </div>
 
-                        <p className="text-zinc-400 text-sm mb-4">
-                            An unexpected error occurred. Try clicking the button below to reload.
+                        <p className="text-zinc-300 text-xs mb-4 leading-relaxed">
+                            Try clicking Try Again, or Clear Cache & Reload if the issue persists after updating settings.
                         </p>
 
                         {this.state.error && (
-                            <div className="bg-zinc-800 rounded-lg p-3 mb-4 overflow-auto max-h-32">
-                                <code className="text-xs text-red-400 font-mono">
+                            <div className="bg-black/60 border border-white/5 rounded-xl p-3 mb-4 overflow-auto max-h-32">
+                                <code className="text-xs text-red-400 font-mono break-all">
                                     {this.state.error.message}
                                 </code>
                             </div>
                         )}
 
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <button
+                                type="button"
                                 onClick={this.handleRetry}
-                                className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors border border-white/10"
                             >
                                 Try Again
                             </button>
                             <button
+                                type="button"
+                                onClick={this.handleClearCacheAndReload}
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-amber-300 text-xs font-medium py-2 px-3 rounded-lg transition-colors border border-amber-500/20"
+                            >
+                                Clear Cache & Reload
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => window.location.reload()}
-                                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+                                className="flex-1 bg-white hover:bg-white/90 text-black text-xs font-medium py-2 px-3 rounded-lg transition-colors"
                             >
                                 Reload App
                             </button>

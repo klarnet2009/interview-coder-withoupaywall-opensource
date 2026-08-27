@@ -57,12 +57,19 @@ interface CompanyContext {
 }
 
 interface InterviewPreferences {
-  mode: 'coding' | 'behavioral' | 'system_design';
-  answerStyle: 'concise' | 'structured' | 'detailed' | 'star' | 'custom';
+  mode: 'coding' | 'behavioral' | 'system_design' | 'programming' | 'general' | 'custom' | string;
+  answerStyle: 'concise' | 'structured' | 'detailed' | 'star' | 'custom' | string;
   language: string;
   answerLanguage: string;
   autoDetectLanguage: boolean;
   confidenceHelper: boolean;
+  programmingLanguage?: string;
+  interviewLevel?: string;
+  interviewFocus?: string[] | string;
+  customTopic?: string;
+  interfaceLanguage?: string;
+  responseLength?: string;
+  responseStyle?: string;
 }
 
 interface AudioConfig {
@@ -94,7 +101,12 @@ interface DisplayConfig {
 interface Config {
   // Existing fields
   apiKey: string;
-  apiProvider: "openai" | "gemini" | "anthropic";
+  apiProvider: "openai" | "gemini" | "anthropic" | "custom";
+  customBaseUrl?: string;
+  customModel?: string;
+  temperature?: number;
+  reasoningEffort?: "low" | "medium" | "high";
+  maxTokens?: number;
   extractionModel: string;
   solutionModel: string;
   debuggingModel: string;
@@ -116,6 +128,20 @@ interface Config {
   displayConfig: DisplayConfig;
   companyContexts: CompanyContext[];
   activeCompanyId?: string;
+
+  // Preserved settings fields for direct form bindings and backward compatibility
+  interfaceLanguage?: string;
+  interviewMode?: string;
+  programmingLanguage?: string;
+  interviewLevel?: string;
+  interviewFocus?: string[] | string;
+  customTopic?: string;
+  profileName?: string;
+  profileExperience?: string | number;
+  profileSkills?: string | string[];
+  responseStyle?: string;
+  responseLength?: string;
+  recognitionLanguage?: string;
 }
 
 export class ConfigHelper extends EventEmitter {
@@ -125,6 +151,10 @@ export class ConfigHelper extends EventEmitter {
     // Existing defaults
     apiKey: "",
     apiProvider: "gemini",
+    customBaseUrl: "https://openrouter.ai/api/v1",
+    temperature: 0.2,
+    reasoningEffort: "medium",
+    maxTokens: 4000,
     extractionModel: "gemini-3-flash-preview",
     solutionModel: "gemini-3-flash-preview",
     debuggingModel: "gemini-3-flash-preview",
@@ -201,34 +231,18 @@ export class ConfigHelper extends EventEmitter {
   }
 
   /**
-   * Validate and sanitize model selection to ensure only allowed models are used
+   * Validate and sanitize model selection to ensure non-empty model names
    */
-  private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic"): string {
-    if (provider === "openai") {
-      const allowedModels = ['gpt-4o', 'gpt-4o-mini'];
-      if (!allowedModels.includes(model)) {
-        runtimeLogger.warn(`Invalid OpenAI model specified: ${model}. Using default model: gpt-4o`);
-        return 'gpt-4o';
-      }
-      return model;
-    } else if (provider === "gemini") {
-      // Only Gemini 3 family models (2.5 series)
-      const allowedModels = ['gemini-3-flash-preview', 'gemini-3-pro-preview'];
-      if (!allowedModels.includes(model)) {
-        runtimeLogger.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-3-flash-preview`);
-        return 'gemini-3-flash-preview';
-      }
-      return model;
-    } else if (provider === "anthropic") {
-      const allowedModels = ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
-      if (!allowedModels.includes(model)) {
-        runtimeLogger.warn(`Invalid Anthropic model specified: ${model}. Using default model: claude-3-7-sonnet-20250219`);
-        return 'claude-3-7-sonnet-20250219';
-      }
-      return model;
+  private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic" | "custom"): string {
+    if (!model || typeof model !== "string" || !model.trim()) {
+      if (provider === "openai") return "gpt-4o";
+      if (provider === "gemini") return "gemini-3-flash-preview";
+      if (provider === "anthropic") return "claude-3-7-sonnet-20250219";
+      return "deepseek/deepseek-r1";
     }
-    return model;
+    return model.trim();
   }
+
 
   /**
    * Migrate old config format to new format
@@ -463,27 +477,38 @@ export class ConfigHelper extends EventEmitter {
       if (nextUpdates.debuggingModel) {
         nextUpdates.debuggingModel = this.sanitizeModelSelection(nextUpdates.debuggingModel, provider);
       }
-      // Map flat settings fields into nested interviewPreferences
+      // Map flat settings fields into nested interviewPreferences and keep fields in config
       const anyUpdates = nextUpdates as Record<string, unknown>;
-      if (anyUpdates.interviewMode || anyUpdates.responseStyle || anyUpdates.responseLength ||
-        anyUpdates.programmingLanguage || anyUpdates.interviewLevel || anyUpdates.interviewFocus ||
-        anyUpdates.customTopic || anyUpdates.recognitionLanguage || anyUpdates.interfaceLanguage) {
-        const prefs = { ...(currentConfig.interviewPreferences || {}) };
-        if (anyUpdates.interviewMode) prefs.mode = anyUpdates.interviewMode as InterviewPreferences['mode'];
-        if (anyUpdates.responseStyle) prefs.answerStyle = anyUpdates.responseStyle as InterviewPreferences['answerStyle'];
-        if (anyUpdates.recognitionLanguage) prefs.language = anyUpdates.recognitionLanguage as string;
-        nextUpdates.interviewPreferences = prefs as InterviewPreferences;
+      if (
+        anyUpdates.interviewMode !== undefined ||
+        anyUpdates.responseStyle !== undefined ||
+        anyUpdates.responseLength !== undefined ||
+        anyUpdates.programmingLanguage !== undefined ||
+        anyUpdates.interviewLevel !== undefined ||
+        anyUpdates.interviewFocus !== undefined ||
+        anyUpdates.customTopic !== undefined ||
+        anyUpdates.recognitionLanguage !== undefined ||
+        anyUpdates.interfaceLanguage !== undefined
+      ) {
+        const prefs: InterviewPreferences = {
+          ...(currentConfig.interviewPreferences || this.defaultConfig.interviewPreferences)
+        };
+        if (anyUpdates.interviewMode !== undefined) prefs.mode = anyUpdates.interviewMode as InterviewPreferences['mode'];
+        if (anyUpdates.responseStyle !== undefined) prefs.answerStyle = anyUpdates.responseStyle as InterviewPreferences['answerStyle'];
+        if (anyUpdates.recognitionLanguage !== undefined) prefs.language = anyUpdates.recognitionLanguage as string;
+        if (anyUpdates.programmingLanguage !== undefined) {
+          prefs.programmingLanguage = anyUpdates.programmingLanguage as string;
+          if (!nextUpdates.language) {
+            nextUpdates.language = anyUpdates.programmingLanguage as string;
+          }
+        }
+        if (anyUpdates.interviewLevel !== undefined) prefs.interviewLevel = anyUpdates.interviewLevel as string;
+        if (anyUpdates.interviewFocus !== undefined) prefs.interviewFocus = anyUpdates.interviewFocus as string[] | string;
+        if (anyUpdates.customTopic !== undefined) prefs.customTopic = anyUpdates.customTopic as string;
+        if (anyUpdates.interfaceLanguage !== undefined) prefs.interfaceLanguage = anyUpdates.interfaceLanguage as string;
+        if (anyUpdates.responseLength !== undefined) prefs.responseLength = anyUpdates.responseLength as string;
 
-        // Clean up flat fields so they don't pollute the config
-        delete anyUpdates.interviewMode;
-        delete anyUpdates.responseStyle;
-        delete anyUpdates.responseLength;
-        delete anyUpdates.programmingLanguage;
-        delete anyUpdates.interviewLevel;
-        delete anyUpdates.interviewFocus;
-        delete anyUpdates.customTopic;
-        delete anyUpdates.recognitionLanguage;
-        delete anyUpdates.interfaceLanguage;
+        nextUpdates.interviewPreferences = prefs;
       }
 
       // Map audioConfig if provided as a nested object
@@ -494,10 +519,54 @@ export class ConfigHelper extends EventEmitter {
         } as AudioConfig;
       }
 
-      // Clean up profile flat fields
-      delete anyUpdates.profileName;
-      delete anyUpdates.profileExperience;
-      delete anyUpdates.profileSkills;
+      // Persist profile fields into profiles collection and retain flat fields
+      if (
+        anyUpdates.profileName !== undefined ||
+        anyUpdates.profileExperience !== undefined ||
+        anyUpdates.profileSkills !== undefined
+      ) {
+        const profiles = [...(currentConfig.profiles || [])];
+        const activeId = currentConfig.activeProfileId || (profiles.length > 0 ? profiles[0].id : undefined);
+
+        let skillsArray: string[] = [];
+        if (Array.isArray(anyUpdates.profileSkills)) {
+          skillsArray = anyUpdates.profileSkills as string[];
+        } else if (typeof anyUpdates.profileSkills === "string") {
+          skillsArray = anyUpdates.profileSkills.split(",").map((s: string) => s.trim()).filter(Boolean);
+        }
+
+        const years = typeof anyUpdates.profileExperience === "number"
+          ? anyUpdates.profileExperience
+          : typeof anyUpdates.profileExperience === "string"
+            ? parseInt(anyUpdates.profileExperience, 10) || undefined
+            : undefined;
+
+        if (activeId && profiles.length > 0) {
+          const idx = profiles.findIndex(p => p.id === activeId);
+          if (idx !== -1) {
+            profiles[idx] = {
+              ...profiles[idx],
+              ...(anyUpdates.profileName !== undefined ? { name: String(anyUpdates.profileName) } : {}),
+              ...(anyUpdates.profileSkills !== undefined ? { skills: skillsArray } : {}),
+              ...(years !== undefined ? { yearsExperience: years } : {}),
+              updatedAt: Date.now()
+            };
+          }
+        } else if (anyUpdates.profileName || anyUpdates.profileSkills || anyUpdates.profileExperience) {
+          const newProfile: UserProfile = {
+            id: `profile_${Date.now()}`,
+            name: String(anyUpdates.profileName || "Default"),
+            skills: skillsArray,
+            yearsExperience: years,
+            tone: "professional",
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          };
+          profiles.push(newProfile);
+          nextUpdates.activeProfileId = newProfile.id;
+        }
+        nextUpdates.profiles = profiles;
+      }
 
       const newConfig: Config = {
         ...currentConfig,
@@ -557,29 +626,42 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Validate the API key format
    */
-  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): boolean {
+  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic" | "custom"): boolean {
+    if (provider === "custom") {
+      return true;
+    }
+    if (!apiKey || typeof apiKey !== "string") return false;
+    const trimmed = apiKey.trim();
+    if (trimmed.length === 0) return false;
+
     if (!provider) {
-      if (apiKey.trim().startsWith('sk-')) {
-        if (apiKey.trim().startsWith('sk-ant-')) {
-          provider = "anthropic";
-        } else {
-          provider = "openai";
-        }
+      if (trimmed.startsWith('sk-ant-')) {
+        provider = "anthropic";
+      } else if (trimmed.startsWith('sk-')) {
+        provider = "openai";
       } else {
         provider = "gemini";
       }
     }
 
     if (provider === "openai") {
-      return /^sk-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
+      return /^sk-[a-zA-Z0-9_-]{20,}$/.test(trimmed);
     } else if (provider === "gemini") {
-      return apiKey.trim().length >= 10;
+      return trimmed.length >= 10;
     } else if (provider === "anthropic") {
-      return /^sk-ant-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
+      return /^sk-ant-[a-zA-Z0-9_-]{20,}$/.test(trimmed);
     }
 
     return false;
   }
+
+  /**
+   * Alias for isValidApiKeyFormat
+   */
+  public validateApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic" | "custom"): boolean {
+    return this.isValidApiKeyFormat(apiKey, provider);
+  }
+
 
   /**
    * Get the stored opacity value
@@ -776,9 +858,15 @@ export class ConfigHelper extends EventEmitter {
   }
 
   /**
-   * Test API key with the selected provider
+   * Test API key with the selected provider and model
    */
-  public async testApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): Promise<{ valid: boolean, error?: string }> {
+  public async testApiKey(
+    apiKey: string,
+    provider?: "openai" | "gemini" | "anthropic" | "custom",
+    model?: string,
+    baseUrl?: string
+  ): Promise<{ valid: boolean; error?: string; latency?: number }> {
+    const startTime = Date.now();
     if (!provider) {
       if (apiKey.trim().startsWith('sk-')) {
         if (apiKey.trim().startsWith('sk-ant-')) {
@@ -794,19 +882,28 @@ export class ConfigHelper extends EventEmitter {
       }
     }
 
+    let result: { valid: boolean; error?: string };
+
     if (provider === "openai") {
-      return this.testOpenAIKey(apiKey);
+      result = await this.testOpenAIKey(apiKey, model);
+    } else if (provider === "custom") {
+      result = await this.testCustomKey(apiKey, baseUrl, model);
     } else if (provider === "gemini") {
-      return this.testGeminiKey(apiKey);
+      result = await this.testGeminiKey(apiKey, model);
     } else if (provider === "anthropic") {
-      return this.testAnthropicKey(apiKey);
+      result = await this.testAnthropicKey(apiKey, model);
+    } else {
+      result = { valid: false, error: "Unknown API provider" };
     }
 
-    return { valid: false, error: "Unknown API provider" };
+    return {
+      ...result,
+      latency: Date.now() - startTime
+    };
   }
 
   /**
-   * Test OpenAI API key
+   * Test OpenAI API key and model access
    */
   private getErrorStatus(error: unknown): number | undefined {
     if (typeof error !== "object" || error === null) {
@@ -831,10 +928,24 @@ export class ConfigHelper extends EventEmitter {
     return undefined;
   }
 
-  private async testOpenAIKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
+  private async testOpenAIKey(apiKey: string, model?: string): Promise<{ valid: boolean, error?: string }> {
     try {
-      const openai = new OpenAI({ apiKey });
-      await openai.models.list();
+      const openai = new OpenAI({ apiKey: apiKey.trim() });
+      if (model && (model.startsWith("o1") || model.startsWith("o3"))) {
+        await openai.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: "hi" }],
+          max_completion_tokens: 5
+        });
+      } else if (model) {
+        await openai.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 5
+        });
+      } else {
+        await openai.models.list();
+      }
       return { valid: true };
     } catch (error: unknown) {
       runtimeLogger.error('OpenAI API key test failed:', error);
@@ -845,8 +956,10 @@ export class ConfigHelper extends EventEmitter {
 
       if (status === 401) {
         errorMessage = 'Invalid API key. Please check your OpenAI key and try again.';
+      } else if (status === 404) {
+        errorMessage = `Model '${model}' not found or not accessible on this OpenAI account.`;
       } else if (status === 429) {
-        errorMessage = 'Rate limit exceeded. Your OpenAI API key has reached its request limit or has insufficient quota.';
+        errorMessage = 'Rate limit exceeded. Your OpenAI API key has reached its limit or has insufficient balance.';
       } else if (status === 500) {
         errorMessage = 'OpenAI server error. Please try again later.';
       } else if (errorText) {
@@ -858,21 +971,70 @@ export class ConfigHelper extends EventEmitter {
   }
 
   /**
+   * Test Custom / OpenAI-compatible endpoint (Ollama, OpenRouter, DeepSeek, Groq)
+   */
+  private async testCustomKey(apiKey?: string, baseUrl?: string, model?: string): Promise<{ valid: boolean, error?: string }> {
+    try {
+      const finalBaseUrl = baseUrl?.trim() || "https://openrouter.ai/api/v1";
+      const finalKey = apiKey?.trim() || "dummy-key";
+      const openai = new OpenAI({
+        apiKey: finalKey,
+        baseURL: finalBaseUrl,
+        timeout: 10000
+      });
+
+      if (model) {
+        await openai.chat.completions.create({
+          model,
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 5
+        });
+      } else {
+        await openai.models.list();
+      }
+      return { valid: true };
+    } catch (error: unknown) {
+      runtimeLogger.error('Custom endpoint test failed:', error);
+      let errorMessage = 'Unable to connect to custom API endpoint';
+      const status = this.getErrorStatus(error);
+      const errorText = this.getErrorMessage(error);
+      const code = this.getErrorCode(error);
+
+      if (status === 401) {
+        errorMessage = 'Invalid API key for custom endpoint.';
+      } else if (status === 404) {
+        errorMessage = `Endpoint or model '${model || ""}' not found on server. Check Base URL and Model name.`;
+      } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
+        errorMessage = 'Connection refused. Ensure local service (Ollama / LM Studio) is running and Base URL is correct.';
+      } else if (errorText) {
+        errorMessage = `Error: ${errorText}`;
+      }
+
+      return { valid: false, error: errorMessage };
+    }
+  }
+
+  /**
    * Test Gemini API key by making an actual API call
    */
-  private async testGeminiKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
+  private async testGeminiKey(apiKey: string, model?: string): Promise<{ valid: boolean, error?: string }> {
     try {
-      if (!apiKey || apiKey.trim().length < 20) {
+      if (!apiKey || apiKey.trim().length < 10) {
         return { valid: false, error: 'Invalid Gemini API key format.' };
       }
 
-      // Make an actual API call to verify the key works
-      const response = await axios.get(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`,
+      const targetModel = model || 'gemini-3-flash-preview';
+      // Make a minimal API call to verify the key and model
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`,
+        {
+          contents: [{ parts: [{ text: "hi" }] }],
+          generationConfig: { maxOutputTokens: 5 }
+        },
         { timeout: 10000 }
       );
 
-      if (response.status === 200 && response.data?.models) {
+      if (response.status === 200) {
         return { valid: true };
       }
 
@@ -886,7 +1048,9 @@ export class ConfigHelper extends EventEmitter {
       const errorText = this.getErrorMessage(error);
 
       if (status === 400 || status === 403) {
-        errorMessage = 'Invalid Gemini API key. Please check your key and try again.';
+        errorMessage = 'Invalid Gemini API key or model permissions. Please check your key.';
+      } else if (status === 404) {
+        errorMessage = `Gemini model '${model}' not found or deprecated.`;
       } else if (status === 429) {
         errorMessage = 'Gemini API rate limit exceeded. Please try again later.';
       } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
@@ -902,19 +1066,18 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Test Anthropic API key by making an actual API call
    */
-  private async testAnthropicKey(apiKey: string): Promise<{ valid: boolean, error?: string }> {
+  private async testAnthropicKey(apiKey: string, model?: string): Promise<{ valid: boolean, error?: string }> {
     try {
-      if (!apiKey || !/^sk-ant-[a-zA-Z0-9-_]{32,}$/.test(apiKey.trim())) {
+      if (!apiKey || !/^sk-ant-[a-zA-Z0-9_-]{20,}$/.test(apiKey.trim())) {
         return { valid: false, error: 'Invalid Anthropic API key format. Keys should start with sk-ant-' };
       }
 
       const client = new Anthropic({ apiKey: apiKey.trim(), timeout: 10000 });
+      const targetModel = model || 'claude-3-5-haiku-20241022';
 
-      // Make a minimal API call to verify the key works
-      // Using a very short prompt to minimize token usage
       await client.messages.create({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 1,
+        model: targetModel,
+        max_tokens: 5,
         messages: [{ role: 'user', content: 'Hi' }]
       });
 
@@ -928,10 +1091,11 @@ export class ConfigHelper extends EventEmitter {
 
       if (status === 401) {
         errorMessage = 'Invalid Anthropic API key. Please check your key and try again.';
+      } else if (status === 404) {
+        errorMessage = `Anthropic model '${model}' not found or not available.`;
       } else if (status === 429) {
         errorMessage = 'Anthropic API rate limit exceeded. Please try again later.';
       } else if (status === 400) {
-        // Bad request but key is valid
         return { valid: true };
       } else if (code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
         errorMessage = 'Unable to connect to Anthropic API. Check your internet connection.';
@@ -946,3 +1110,4 @@ export class ConfigHelper extends EventEmitter {
 
 // Export a singleton instance
 export const configHelper = new ConfigHelper();
+

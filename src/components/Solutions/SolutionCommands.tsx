@@ -266,7 +266,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span className="truncate">Toggle Window</span>
-                          <div className="flex gap-1 flex-shrink-0">
+                          <div className="flex gap-1 shrink-0">
                             <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] leading-none">
                               {COMMAND_KEY}
                             </span>
@@ -312,7 +312,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                           >
                             <div className="flex items-center justify-between">
                               <span className="truncate">Take Screenshot</span>
-                              <div className="flex gap-1 flex-shrink-0">
+                              <div className="flex gap-1 shrink-0">
                                 <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] leading-none">
                                   {COMMAND_KEY}
                                 </span>
@@ -369,7 +369,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                             >
                               <div className="flex items-center justify-between">
                                 <span className="truncate">Debug</span>
-                                <div className="flex gap-1 flex-shrink-0">
+                                <div className="flex gap-1 shrink-0">
                                   <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] leading-none">
                                     {COMMAND_KEY}
                                   </span>
@@ -406,7 +406,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span className="truncate">Start Over</span>
-                          <div className="flex gap-1 flex-shrink-0">
+                          <div className="flex gap-1 shrink-0">
                             <span className="bg-white/20 px-1.5 py-0.5 rounded text-[10px] leading-none">
                               {COMMAND_KEY}
                             </span>

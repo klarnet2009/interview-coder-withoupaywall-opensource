@@ -175,7 +175,7 @@ describe('Stripe Routes Integration Tests', () => {
             metadata: { userId: 'webhook-user', packageId: 'credits_50' },
           },
         },
-      } as any)
+      } as never)
 
       const payload = JSON.stringify({
         type: 'checkout.session.completed',

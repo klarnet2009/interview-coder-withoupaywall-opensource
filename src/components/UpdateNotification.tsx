@@ -7,6 +7,7 @@ export const UpdateNotification: React.FC = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false)
   const [updateDownloaded, setUpdateDownloaded] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
   const { showToast } = useToast()
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export const UpdateNotification: React.FC = () => {
       (info: unknown) => {
         console.log("UpdateNotification: Update available received", info)
         setUpdateAvailable(true)
+        setDismissed(false)
       }
     )
 
@@ -24,6 +26,7 @@ export const UpdateNotification: React.FC = () => {
         console.log("UpdateNotification: Update downloaded received", info)
         setUpdateDownloaded(true)
         setIsDownloading(false)
+        setDismissed(false)
       }
     )
 
@@ -50,45 +53,50 @@ export const UpdateNotification: React.FC = () => {
     window.electronAPI.installUpdate()
   }
 
-  console.log("UpdateNotification: Render state", {
-    updateAvailable,
-    updateDownloaded,
-    isDownloading
-  })
-  if (!updateAvailable && !updateDownloaded) return null
+  const handleDismiss = () => {
+    setDismissed(true)
+  }
+
+  if (dismissed || (!updateAvailable && !updateDownloaded)) return null
 
   return (
-    <Dialog open={true}>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) setDismissed(true) }}>
       <DialogContent
-        className="bg-black/90 text-white border-white/20"
-        onPointerDownOutside={(e) => e.preventDefault()}
+        className="bg-zinc-950/95 text-white border-white/20 p-5 rounded-2xl shadow-2xl backdrop-blur-xl max-w-sm"
       >
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-white mb-2">
             {updateDownloaded
               ? "Update Ready to Install"
               : "A New Version is Available"}
           </h2>
-          <p className="text-sm text-white/70 mb-6">
+          <p className="text-xs text-white/70 mb-5 leading-relaxed">
             {updateDownloaded
-              ? "The update has been downloaded and will be installed when you restart the app."
-              : "A new version of Interview Coder is available. Please update to continue using the app."}
+              ? "The update has been downloaded and is ready to install. Restart the app whenever you're ready."
+              : "A new version of Interview Coder is available with improvements and fixes."}
           </p>
-          <div className="flex justify-end gap-2">
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleDismiss}
+              className="text-xs text-white/50 hover:text-white hover:bg-white/10"
+            >
+              Remind Me Later
+            </Button>
             {updateDownloaded ? (
               <Button
                 variant="outline"
                 onClick={handleInstallUpdate}
-                className="border-white/20 hover:bg-white/10"
+                className="text-xs bg-white text-black hover:bg-white/90 border-transparent font-medium"
               >
-                Restart and Install
+                Restart & Install
               </Button>
             ) : (
               <Button
                 variant="outline"
                 onClick={handleStartUpdate}
                 disabled={isDownloading}
-                className="border-white/20 hover:bg-white/10"
+                className="text-xs bg-white text-black hover:bg-white/90 border-transparent disabled:opacity-50 font-medium"
               >
                 {isDownloading ? "Downloading..." : "Download Update"}
               </Button>
@@ -99,3 +107,5 @@ export const UpdateNotification: React.FC = () => {
     </Dialog>
   )
 }
+
+export default UpdateNotification
