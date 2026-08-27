@@ -5,11 +5,12 @@
  */
 import https from "https";
 import { createScopedLogger } from "../logger";
+import { GEMINI_MODELS } from "../constants/geminiModels";
 
 const logger = createScopedLogger("profile-extractor");
 
 const API_HOST = "generativelanguage.googleapis.com";
-const MODEL = "gemini-2.0-flash";
+const MODEL: string = GEMINI_MODELS.PROFILE;
 
 interface ExtractedProfile {
     name?: string;

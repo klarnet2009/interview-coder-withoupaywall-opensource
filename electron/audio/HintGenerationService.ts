@@ -11,8 +11,9 @@ import { EventEmitter } from 'events';
 import log from 'electron-log';
 import https from 'https';
 import { ClientRequest, IncomingMessage } from 'http';
+import { GEMINI_MODELS } from '../constants/geminiModels';
 
-const HINT_MODEL = 'gemini-3-flash-preview';
+const HINT_MODEL: string = GEMINI_MODELS.HINT;
 const API_BASE_HOST = 'generativelanguage.googleapis.com';
 
 interface ConversationTurn {

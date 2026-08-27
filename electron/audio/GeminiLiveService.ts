@@ -6,6 +6,7 @@
 import { EventEmitter } from 'events';
 import log from 'electron-log';
 import WebSocket from 'ws';
+import { GEMINI_MODELS } from '../constants/geminiModels';
 
 // Types for Gemini Live API messages
 export interface GeminiLiveConfig {
@@ -50,11 +51,14 @@ export interface GeminiLiveMessage {
     };
 }
 
-// Model for Live API (speech recognition + text response)
-// gemini-live-2.5-flash-preview supports TEXT response modality natively
-const DEFAULT_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
-// Model for response generation (will be used separately)
-export const RESPONSE_MODEL = 'gemini-3-flash-preview';
+// Model for the Live API BidiGenerateContent websocket below.
+// The Live socket accepts a narrower, separately-versioned model family than the
+// generateContent REST endpoint — dropping a Flash generateContent id in here
+// would break the connection. Check the current Live model list at
+// https://ai.google.dev/gemini-api/docs/live before changing this.
+const DEFAULT_MODEL = GEMINI_MODELS.LIVE;
+// Model for response generation over generateContent (kept exported for downstream use).
+export const RESPONSE_MODEL: string = GEMINI_MODELS.DEFAULT;
 const WEBSOCKET_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
 export class GeminiLiveService extends EventEmitter {

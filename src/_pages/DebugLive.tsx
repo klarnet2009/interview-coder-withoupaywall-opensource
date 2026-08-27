@@ -4,6 +4,7 @@ import {
     Settings, Monitor, Terminal, Activity, ArrowRight, Eye, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { GEMINI_MODELS } from '../../electron/constants/geminiModels';
 
 type ListeningState =
     | 'idle'
@@ -35,7 +36,9 @@ interface LogEntry {
     message: string;
 }
 
-const DEFAULT_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+// Live API websocket model — same family constraint as GeminiLiveService (see
+// electron/constants/geminiModels.ts). Not interchangeable with generateContent ids.
+const DEFAULT_MODEL: string = GEMINI_MODELS.LIVE;
 
 export const DebugLive: React.FC = () => {
     const navigate = useNavigate();

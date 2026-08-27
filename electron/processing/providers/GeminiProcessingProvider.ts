@@ -1,4 +1,5 @@
 import axios from "axios"
+import { resolveGeminiModelId } from "../../constants/geminiModels"
 import type {
   ExtractProblemRequest,
   GenerateDebugRequest,
@@ -74,7 +75,7 @@ export class GeminiProcessingProvider implements ProcessingProviderStrategy {
       ]
 
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${request.model || "gemini-3-flash-preview"}:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${resolveGeminiModelId(request.model)}:generateContent?key=${this.apiKey}`,
         {
           contents: geminiMessages,
           generationConfig: {
@@ -134,7 +135,7 @@ export class GeminiProcessingProvider implements ProcessingProviderStrategy {
       ]
 
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${request.model || "gemini-3-flash-preview"}:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${resolveGeminiModelId(request.model)}:generateContent?key=${this.apiKey}`,
         {
           contents: geminiMessages,
           generationConfig: {
@@ -187,7 +188,7 @@ export class GeminiProcessingProvider implements ProcessingProviderStrategy {
       ]
 
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${request.model || "gemini-3-flash-preview"}:generateContent?key=${this.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${resolveGeminiModelId(request.model)}:generateContent?key=${this.apiKey}`,
         {
           contents: geminiMessages,
           generationConfig: {

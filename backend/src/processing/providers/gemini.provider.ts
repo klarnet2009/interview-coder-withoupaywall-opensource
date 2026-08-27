@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { resolveGeminiModelId } from './gemini.models'
 import type {
   ExtractProblemRequest,
   GenerateDebugRequest,
@@ -64,7 +65,7 @@ export class GeminiProcessingProvider implements ProcessingProvider {
     }
 
     try {
-      const model = request.model || 'gemini-3-flash-preview'
+      const model = resolveGeminiModelId(request.model)
       const geminiMessages: GeminiMessage[] = [
         {
           role: 'user',
@@ -132,7 +133,7 @@ export class GeminiProcessingProvider implements ProcessingProvider {
     }
 
     try {
-      const model = request.model || 'gemini-3-flash-preview'
+      const model = resolveGeminiModelId(request.model)
       const geminiMessages: GeminiMessage[] = [
         {
           role: 'user',
@@ -182,7 +183,7 @@ export class GeminiProcessingProvider implements ProcessingProvider {
     }
 
     try {
-      const model = request.model || 'gemini-3-flash-preview'
+      const model = resolveGeminiModelId(request.model)
       const geminiMessages: GeminiMessage[] = [
         {
           role: 'user',

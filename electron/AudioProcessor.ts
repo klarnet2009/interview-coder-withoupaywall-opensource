@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import { configHelper } from './ConfigHelper';
+import { GEMINI_MODELS } from './constants/geminiModels';
 import log from 'electron-log';
 
 export interface TranscriptionResult {
@@ -29,7 +30,7 @@ export class AudioProcessor {
     constructor(config?: Partial<AudioProcessorConfig>) {
         const loadedConfig = configHelper.loadConfig();
         this.apiKey = config?.apiKey || loadedConfig.apiKey || '';
-        this.model = config?.model || 'gemini-3-flash-preview';
+        this.model = config?.model || GEMINI_MODELS.AUDIO;
     }
 
     /**
@@ -53,8 +54,7 @@ export class AudioProcessor {
             // Sanitize MIME type (remove codecs)
             const cleanMimeType = mimeType.split(';')[0].trim();
 
-            // Fallback to stable model for debugging if Gemini 3 fails
-            const audioModel = 'gemini-3-flash-preview';
+            const audioModel = GEMINI_MODELS.AUDIO;
 
             log.info(`Transcribing audio: ${audioBuffer.length} bytes, original mime: ${mimeType}, sending: ${cleanMimeType}`);
             log.info(`Using model: ${audioModel}, API key prefix: ${this.apiKey.substring(0, 8)}...`);
