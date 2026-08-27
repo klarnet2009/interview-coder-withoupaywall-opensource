@@ -101,8 +101,14 @@ Recent decisions affecting current work:
 - API keys are currently stored locally in plain text (acknowledged tech debt) — Phase 04 replaces this with backend auth
 - ProcessingProviderOrchestrator needs a new backend-provider that replaces direct API calls (being addressed in Plan 04-02)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260827-rzp | Update Gemini model IDs to current generation and centralize them into a single constants module | 2026-08-27 | 2f461f1 | Needs Review | [260827-rzp-update-gemini-model-ids-to-current-gener](./quick/260827-rzp-update-gemini-model-ids-to-current-gener/) |
+
 ## Session Continuity
 
-Last session: 2026-04-11T20:21:00Z
-Stopped at: Phase 04 plans created, ready to execute 04-01
+Last session: 2026-08-27T17:35:00Z
+Stopped at: Quick task 260827-rzp complete (Gemini model ids modernized); Phase 04 plans still pending execution
 Resume file: None
