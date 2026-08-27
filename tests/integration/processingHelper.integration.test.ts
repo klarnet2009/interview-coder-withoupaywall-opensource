@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { BrowserWindow } from "electron"
 import type { IProcessingHelperDeps } from "../../electron/main"
+import { GEMINI_MODELS } from "../../electron/constants/geminiModels"
 import { ProcessingHelper } from "../../electron/ProcessingHelper"
 import { ProcessingProviderOrchestrator } from "../../electron/processing/ProcessingProviderOrchestrator"
 import type { ScreenshotHelper } from "../../electron/ScreenshotHelper"
@@ -20,9 +21,9 @@ const mockConfigHelper = vi.hoisted(() => ({
   loadConfig: vi.fn(() => ({
     apiProvider: "gemini" as const,
     apiKey: "test-key",
-    extractionModel: "gemini-3-flash-preview",
-    solutionModel: "gemini-3-flash-preview",
-    debuggingModel: "gemini-3-flash-preview",
+    extractionModel: GEMINI_MODELS.EXTRACTION,
+    solutionModel: GEMINI_MODELS.SOLUTION,
+    debuggingModel: GEMINI_MODELS.DEBUG,
     language: "python"
   })),
   on: vi.fn()

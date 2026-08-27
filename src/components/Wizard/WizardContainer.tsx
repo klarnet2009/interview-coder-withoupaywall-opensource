@@ -17,6 +17,7 @@ import { StepDisplay } from './WizardSteps/StepDisplay';
 import { StepTest } from './WizardSteps/StepTest';
 import { StepReady } from './WizardSteps/StepReady';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { GEMINI_MODELS } from '../../../electron/constants/geminiModels';
 
 interface WizardContainerProps {
   initialMode?: WizardMode;
@@ -48,9 +49,9 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
   const [config, setConfig] = useState<Partial<AppConfig>>({
     apiProvider: 'gemini',
     apiKey: '',
-    extractionModel: 'gemini-3-flash-preview',
-    solutionModel: 'gemini-3-flash-preview',
-    debuggingModel: 'gemini-3-flash-preview',
+    extractionModel: GEMINI_MODELS.EXTRACTION,
+    solutionModel: GEMINI_MODELS.SOLUTION,
+    debuggingModel: GEMINI_MODELS.DEBUG,
     language: 'python',
     opacity: 1.0,
     wizardCompleted: false,

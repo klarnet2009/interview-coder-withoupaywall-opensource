@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "../../contexts/toast";
 import { AudioSettings } from "./AudioSettings";
+import { GEMINI_MODELS, GEMINI_SELECTABLE_MODELS } from "../../../electron/constants/geminiModels";
 
 type APIProvider = "openai" | "gemini" | "anthropic";
 
 const PROVIDER_DEFAULTS: Record<APIProvider, { model: string; label: string; hint: string }> = {
     openai: { model: "gpt-4o", label: "OpenAI", hint: "sk-..." },
-    gemini: { model: "gemini-3-flash-preview", label: "Gemini", hint: "AI..." },
+    gemini: { model: GEMINI_MODELS.DEFAULT, label: "Gemini", hint: "AI..." },
     anthropic: { model: "claude-3-7-sonnet-20250219", label: "Claude", hint: "sk-ant-..." },
 };
 
@@ -15,10 +16,7 @@ const MODELS: Record<APIProvider, { id: string; name: string }[]> = {
         { id: "gpt-4o", name: "GPT-4o" },
         { id: "gpt-4o-mini", name: "GPT-4o Mini" },
     ],
-    gemini: [
-        { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
-        { id: "gemini-3-pro-preview", name: "Gemini 3 Pro" },
-    ],
+    gemini: GEMINI_SELECTABLE_MODELS.map((model) => ({ id: model.id, name: model.name })),
     anthropic: [
         { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet" },

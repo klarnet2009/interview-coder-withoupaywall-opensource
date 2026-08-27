@@ -4,6 +4,8 @@ import fs from "node:fs"
 import path from "node:path"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { GEMINI_MODELS } from "../../electron/constants/geminiModels"
+
 const mocks = vi.hoisted(() => ({
   ipcHandle: vi.fn(),
   openExternal: vi.fn(),
@@ -15,9 +17,9 @@ const mockConfigHelper = vi.hoisted(() => ({
   loadConfig: vi.fn(() => ({
     apiKey: "test-key",
     apiProvider: "gemini",
-    extractionModel: "gemini-3-flash-preview",
-    solutionModel: "gemini-3-flash-preview",
-    debuggingModel: "gemini-3-flash-preview",
+    extractionModel: GEMINI_MODELS.EXTRACTION,
+    solutionModel: GEMINI_MODELS.SOLUTION,
+    debuggingModel: GEMINI_MODELS.DEBUG,
     language: "python",
     interviewPreferences: {
       mode: "coding",

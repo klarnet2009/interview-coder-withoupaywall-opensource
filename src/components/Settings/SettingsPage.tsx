@@ -4,13 +4,14 @@ import { useToast } from "../../contexts/toast";
 import { AudioSettings } from "./AudioSettings";
 import { ProfileManager } from "../Profile/ProfileManager";
 import { UserProfile } from "../../types";
+import { GEMINI_MODELS, GEMINI_SELECTABLE_MODELS } from "../../../electron/constants/geminiModels";
 
 type APIProvider = "openai" | "gemini" | "anthropic" | "custom";
 
 type SettingsSection = "api" | "audio" | "language" | "mode" | "profile" | "style" | "window" | "shortcuts" | "debug";
 
 const PROVIDER_META: Record<APIProvider, { model: string; label: string; hint: string }> = {
-    gemini: { model: "gemini-3-flash-preview", label: "Gemini", hint: "AIzaSy..." },
+    gemini: { model: GEMINI_MODELS.DEFAULT, label: "Gemini", hint: "AIzaSy..." },
     openai: { model: "gpt-4o", label: "OpenAI", hint: "sk-..." },
     anthropic: { model: "claude-3-7-sonnet-20250219", label: "Claude", hint: "sk-ant-..." },
     custom: { model: "deepseek/deepseek-r1", label: "Custom / Ollama", hint: "sk-or-... or token" },
@@ -18,11 +19,7 @@ const PROVIDER_META: Record<APIProvider, { model: string; label: string; hint: s
 
 const MODELS: Record<APIProvider, { id: string; name: string }[]> = {
     gemini: [
-        { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
-        { id: "gemini-3-pro-preview", name: "Gemini 3 Pro" },
-        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-        { id: "gemini-2.0-pro-exp-02-05", name: "Gemini 2.0 Pro Exp" },
-        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+        ...GEMINI_SELECTABLE_MODELS.map((model) => ({ id: model.id, name: model.name })),
         { id: "custom", name: "Custom Model..." },
     ],
     openai: [
@@ -132,9 +129,11 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     const [apiKey, setApiKey] = useState("");
     const [apiProvider, setApiProvider] = useState<APIProvider>("gemini");
     const [customBaseUrl, setCustomBaseUrl] = useState("https://openrouter.ai/api/v1");
-    const [extractionModel, setExtractionModel] = useState("gemini-3-flash-preview");
-    const [solutionModel, setSolutionModel] = useState("gemini-3-flash-preview");
-    const [debuggingModel, setDebuggingModel] = useState("gemini-3-flash-preview");
+    // Explicit <string>: GEMINI_MODELS is `as const`, so inference would otherwise
+    // narrow these to a single literal and reject "custom" / user-entered ids.
+    const [extractionModel, setExtractionModel] = useState<string>(GEMINI_MODELS.EXTRACTION);
+    const [solutionModel, setSolutionModel] = useState<string>(GEMINI_MODELS.SOLUTION);
+    const [debuggingModel, setDebuggingModel] = useState<string>(GEMINI_MODELS.DEBUG);
     const [customExtractionModel, setCustomExtractionModel] = useState("");
     const [customSolutionModel, setCustomSolutionModel] = useState("");
     const [customDebuggingModel, setCustomDebuggingModel] = useState("");
@@ -1029,7 +1028,7 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                     <div className="bg-white/5 rounded-lg p-3 border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs font-mono bg-green-500/20 text-green-300 px-2 py-0.5 rounded">Hint Generation Prompt</span>
-                            <span className="text-[10px] text-white/30">(gemini-3-flash)</span>
+                            <span className="text-[10px] text-white/30">({GEMINI_MODELS.HINT})</span>
                         </div>
                         <pre className="text-xs text-white/60 whitespace-pre-wrap font-mono leading-relaxed max-h-[300px] overflow-y-auto">
                             {promptPreview.hintGenerationPrompt}

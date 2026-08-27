@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Check, ExternalLink, ShieldCheck, Sparkles, CreditCard, Zap } from 'lucide-react';
 import { StepProps, APIProvider, PROVIDERS } from '../../../types';
+import { GEMINI_MODELS } from '../../../../electron/constants/geminiModels';
 
 interface StepProviderProps extends StepProps {
   setCanProceed: (can: boolean) => void;
@@ -44,15 +45,15 @@ export const StepProvider: React.FC<StepProviderProps> = ({
         extractionModel: providerId === 'openai' ? 'gpt-4o' :
           providerId === 'anthropic' ? 'claude-3-7-sonnet-20250219' :
             providerId === 'custom' ? 'deepseek/deepseek-r1' :
-              'gemini-3-flash-preview',
+              GEMINI_MODELS.EXTRACTION,
         solutionModel: providerId === 'openai' ? 'gpt-4o' :
           providerId === 'anthropic' ? 'claude-3-7-sonnet-20250219' :
             providerId === 'custom' ? 'deepseek/deepseek-r1' :
-              'gemini-3-flash-preview',
+              GEMINI_MODELS.SOLUTION,
         debuggingModel: providerId === 'openai' ? 'gpt-4o' :
           providerId === 'anthropic' ? 'claude-3-7-sonnet-20250219' :
             providerId === 'custom' ? 'deepseek/deepseek-r1' :
-              'gemini-3-flash-preview',
+              GEMINI_MODELS.DEBUG,
       });
     }
   };
