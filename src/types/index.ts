@@ -4,6 +4,7 @@
  */
 
 import type { ComponentType } from 'react';
+import { GEMINI_MODELS } from '../../electron/constants/geminiModels';
 
 // ============================================================================
 // Wizard Types
@@ -278,9 +279,9 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   apiKey: '',
   apiProvider: 'gemini',
-  extractionModel: 'gemini-3-flash-preview',
-  solutionModel: 'gemini-3-flash-preview',
-  debuggingModel: 'gemini-3-flash-preview',
+  extractionModel: GEMINI_MODELS.EXTRACTION,
+  solutionModel: GEMINI_MODELS.SOLUTION,
+  debuggingModel: GEMINI_MODELS.DEBUG,
   language: 'python',
   opacity: 1.0,
 

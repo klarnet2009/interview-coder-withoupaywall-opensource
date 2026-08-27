@@ -9,6 +9,7 @@ import { OpenAI } from "openai"
 // SecureStorage removed — API key is now stored in plain text in config.json
 // import { secureStorage } from "./SecureStorage"
 import { createScopedLogger } from "./logger"
+import { GEMINI_MODELS, resolveGeminiModelId } from "./constants/geminiModels"
 
 const runtimeLogger = createScopedLogger("config")
 
@@ -155,9 +156,9 @@ export class ConfigHelper extends EventEmitter {
     temperature: 0.2,
     reasoningEffort: "medium",
     maxTokens: 4000,
-    extractionModel: "gemini-3-flash-preview",
-    solutionModel: "gemini-3-flash-preview",
-    debuggingModel: "gemini-3-flash-preview",
+    extractionModel: GEMINI_MODELS.EXTRACTION,
+    solutionModel: GEMINI_MODELS.SOLUTION,
+    debuggingModel: GEMINI_MODELS.DEBUG,
     language: "python",
     opacity: 1.0,
 
@@ -234,9 +235,14 @@ export class ConfigHelper extends EventEmitter {
    * Validate and sanitize model selection to ensure non-empty model names
    */
   private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic" | "custom"): string {
+    // Gemini is the migration chokepoint: resolveGeminiModelId runs on EVERY gemini
+    // value (not just empty ones) so retired ids persisted in config.json are remapped
+    // forward on the next load/save, and unsafe ids never reach a URL path segment.
+    if (provider === "gemini") {
+      return resolveGeminiModelId(model);
+    }
     if (!model || typeof model !== "string" || !model.trim()) {
       if (provider === "openai") return "gpt-4o";
-      if (provider === "gemini") return "gemini-3-flash-preview";
       if (provider === "anthropic") return "claude-3-7-sonnet-20250219";
       return "deepseek/deepseek-r1";
     }
@@ -260,9 +266,9 @@ export class ConfigHelper extends EventEmitter {
         // Preserve existing values
         apiKey: config.apiKey || "",
         apiProvider: config.apiProvider || "gemini",
-        extractionModel: config.extractionModel || "gemini-3-flash-preview",
-        solutionModel: config.solutionModel || "gemini-3-flash-preview",
-        debuggingModel: config.debuggingModel || "gemini-3-flash-preview",
+        extractionModel: config.extractionModel || GEMINI_MODELS.EXTRACTION,
+        solutionModel: config.solutionModel || GEMINI_MODELS.SOLUTION,
+        debuggingModel: config.debuggingModel || GEMINI_MODELS.DEBUG,
         language: config.language || "python",
         opacity: config.opacity !== undefined ? config.opacity : 1.0,
         // Mark wizard as completed for existing users
@@ -461,9 +467,9 @@ export class ConfigHelper extends EventEmitter {
           nextUpdates.solutionModel = "claude-3-7-sonnet-20250219";
           nextUpdates.debuggingModel = "claude-3-7-sonnet-20250219";
         } else {
-          nextUpdates.extractionModel = "gemini-3-flash-preview";
-          nextUpdates.solutionModel = "gemini-3-flash-preview";
-          nextUpdates.debuggingModel = "gemini-3-flash-preview";
+          nextUpdates.extractionModel = GEMINI_MODELS.EXTRACTION;
+          nextUpdates.solutionModel = GEMINI_MODELS.SOLUTION;
+          nextUpdates.debuggingModel = GEMINI_MODELS.DEBUG;
         }
       }
 
@@ -1023,7 +1029,7 @@ export class ConfigHelper extends EventEmitter {
         return { valid: false, error: 'Invalid Gemini API key format.' };
       }
 
-      const targetModel = model || 'gemini-3-flash-preview';
+      const targetModel = resolveGeminiModelId(model);
       // Make a minimal API call to verify the key and model
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`,
