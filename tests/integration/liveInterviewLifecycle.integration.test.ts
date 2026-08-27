@@ -116,4 +116,50 @@ describe("LiveInterviewService lifecycle integration", () => {
     service.receiveAudio(chunk, 0.2)
     expect(service.getStatus().state).toBe("listening")
   })
+
+  it("throttles audio-level-only status emission", async () => {
+    const service = new LiveInterviewService({ apiKey: "test-key" })
+    await service.start()
+
+    const statusEvents: unknown[] = []
+    service.on("status", (status: unknown) => {
+      statusEvents.push(status)
+    })
+
+    const chunk = Buffer.from("pcm").toString("base64")
+    for (let i = 0; i < 50; i++) {
+      service.receiveAudio(chunk, 0.2)
+    }
+
+    expect(statusEvents.length).toBeLessThanOrEqual(2)
+  })
+
+  it("emits immediately on a state transition even while the time gate is closed", async () => {
+    const service = new LiveInterviewService({ apiKey: "test-key" })
+    await service.start()
+
+    const chunk = Buffer.from("pcm").toString("base64")
+
+    // Arm the silence timer, then let it fire so the state becomes no_signal.
+    // The timer callback emits directly and deliberately does not touch the
+    // throttle timestamp.
+    service.receiveAudio(chunk, 0.0)
+    vi.advanceTimersByTime(4000)
+    expect(service.getStatus().state).toBe("no_signal")
+
+    // Refresh the throttle timestamp to the current mocked clock, so the 100ms
+    // time gate is closed at the instant of the next call.
+    service.receiveAudio(chunk, 0.0)
+
+    const statusEvents: unknown[] = []
+    service.on("status", (status: unknown) => {
+      statusEvents.push(status)
+    })
+
+    // No clock advance: only the state-change branch can publish this event.
+    service.receiveAudio(chunk, 0.2)
+
+    expect(service.getStatus().state).toBe("listening")
+    expect(statusEvents).toHaveLength(1)
+  })
 })

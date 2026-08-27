@@ -52,6 +52,7 @@ export class LiveInterviewService extends EventEmitter {
     private hintTriggerTimeout: ReturnType<typeof setTimeout> | null = null;
     private forceHintTimeout: ReturnType<typeof setTimeout> | null = null;
     private lastTranscriptTime: number = 0;
+    private lastStatusEmitAt: number = 0;
     private lastHintTranscript: string = '';
     private pendingHint: boolean = false;
 
@@ -66,6 +67,9 @@ export class LiveInterviewService extends EventEmitter {
     private static readonly HINT_TRIGGER_SILENCE_MS = 1500;
     // Hard fallback if turnComplete/silence trigger missed
     private static readonly FORCE_HINT_FALLBACK_MS = 3200;
+    // Minimum spacing between status emissions driven purely by a new audio
+    // level. A state transition inside receiveAudio bypasses this entirely.
+    private static readonly STATUS_EMIT_INTERVAL_MS = 100;
     // RMS level below which an incoming audio frame counts as silence.
     // Feeds the no_signal indicator (see SILENCE_NO_SIGNAL_MS above).
     private static readonly AUDIO_SILENCE_LEVEL = 0.01;
@@ -329,6 +333,9 @@ export class LiveInterviewService extends EventEmitter {
      * @param level - Audio level (0-1)
      */
     public receiveAudio(pcmBase64: string, level: number): void {
+        // Captured before any silence handling can mutate it, so the throttle
+        // below can tell an audio-level-only update from a state transition.
+        const stateOnEntry = this.state;
         this.audioLevel = level;
 
         // Periodic audio level debug log (every 3s)
@@ -368,7 +375,15 @@ export class LiveInterviewService extends EventEmitter {
             }
         }
 
-        this.emitStatus();
+        // Audio arrives ~33x/sec, so an unconditional emit here floods the
+        // renderer. Throttle level-only updates to 10Hz, but always emit on a
+        // state transition: the silence-recovery path above calls setState
+        // without emitting, so this branch is its only publisher.
+        const stateChanged = this.state !== stateOnEntry;
+        if (stateChanged || now - this.lastStatusEmitAt >= LiveInterviewService.STATUS_EMIT_INTERVAL_MS) {
+            this.lastStatusEmitAt = now;
+            this.emitStatus();
+        }
     }
 
     /**
@@ -416,6 +431,7 @@ export class LiveInterviewService extends EventEmitter {
         this.lastHintTranscript = '';
         this.pendingHint = false;
         this.lastTranscriptTime = 0;
+        this.lastStatusEmitAt = 0;
         this.audioLevel = 0;
         this.setState('idle');
     }
