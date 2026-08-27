@@ -73,6 +73,27 @@ export class GeminiLiveService extends EventEmitter {
     private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     private static readonly MAX_TRANSCRIPT_LENGTH = 100_000;
 
+    /**
+     * How long the Live API must observe continuous silence before it closes the
+     * current turn and emits `turnComplete`. Widened from 500ms so a normal
+     * 0.7-1.5s thinking pause no longer splits one sentence into two turns.
+     *
+     * MUST stay strictly below `LiveInterviewService.HINT_TRIGGER_SILENCE_MS`
+     * (1500ms). That constant is the *fallback* hint trigger for a missed
+     * `turnComplete`; if this window ever meets or exceeds it, the fallback
+     * silently becomes the primary trigger and hint quality changes with no
+     * error. `tests/unit/geminiLiveSetup.test.ts` asserts the invariant.
+     */
+    public static readonly VAD_SILENCE_DURATION_MS = 1200;
+
+    /**
+     * How much look-back audio the Live API prepends at detected speech onset.
+     * Widened from 100ms so the first syllable survives `START_SENSITIVITY_LOW`,
+     * a deliberately late detector whose own lag has to be absorbed on top of
+     * the syllable itself.
+     */
+    public static readonly VAD_PREFIX_PADDING_MS = 400;
+
     constructor(config: GeminiLiveConfig) {
         super();
         this.config = {
@@ -210,8 +231,8 @@ Keep your responses to 1-2 words maximum.`;
                         disabled: false,
                         startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
                         endOfSpeechSensitivity: 'END_SENSITIVITY_LOW',
-                        prefixPaddingMs: 100,
-                        silenceDurationMs: 500
+                        prefixPaddingMs: GeminiLiveService.VAD_PREFIX_PADDING_MS,
+                        silenceDurationMs: GeminiLiveService.VAD_SILENCE_DURATION_MS
                     },
                     activityHandling: 'NO_INTERRUPTION'
                 },
@@ -421,6 +442,10 @@ Keep your responses to 1-2 words maximum.`;
      * "Explicit activity control is not supported when automatic activity
      * detection is enabled."  The API handles end-of-speech detection
      * automatically, so this method is intentionally a no-op.
+     *
+     * It now has ZERO callers anywhere in `electron/` or `src/`, and must stay
+     * that way. It is retained only as the record of why explicit activity
+     * control is forbidden here — do not give it a body, and do not call it.
      */
     public endTurn(): void {
         // Automatic activity detection is enabled — no-op.
