@@ -53,7 +53,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
       </div>
 
       {/* Content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-7 pb-6 flex flex-col">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-7 pb-12 flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-[22px] font-semibold text-white tracking-tight">

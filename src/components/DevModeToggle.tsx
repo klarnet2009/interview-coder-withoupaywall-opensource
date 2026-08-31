@@ -38,7 +38,7 @@ export const DevModeToggle: React.FC = () => {
 
     return (
         <div
-            className="fixed bottom-3 left-1/2 -translate-x-1/2 z-9999 flex items-center gap-1"
+            className="fixed bottom-3 right-3 z-40 flex flex-row-reverse items-center gap-1"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
         >
             {/* Main bug icon */}

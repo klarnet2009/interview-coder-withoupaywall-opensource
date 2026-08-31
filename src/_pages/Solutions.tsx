@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { Copy, Check, ChevronDown } from "lucide-react"
 
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
@@ -9,6 +10,7 @@ import { UnifiedInput } from "../components/Input/UnifiedInput"
 import { ProblemStatementData } from "../types/solutions"
 import SolutionCommands from "../components/Solutions/SolutionCommands"
 import { SessionHistory } from "../components/Sessions"
+import { ConfirmDialog } from "../components/ui/confirm-dialog"
 import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
@@ -342,6 +344,7 @@ const Solutions: React.FC<SolutionsProps> = ({
   setLanguage
 }) => {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
   const contentRef = useRef<HTMLDivElement>(null)
 
   const [debugProcessing, setDebugProcessing] = useState(false)
@@ -368,6 +371,12 @@ const Solutions: React.FC<SolutionsProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [sessionHistory, setSessionHistory] = useState<Session[]>([])
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
+
+  // Session history deletions are irreversible, so both route through a
+  // confirmation. Screenshot deletion deliberately does not — see the
+  // quick-260831-wf4 summary for the frequency trade behind that asymmetry.
+  const [isClearHistoryConfirmOpen, setIsClearHistoryConfirmOpen] = useState(false)
+  const [pendingDeleteSessionId, setPendingDeleteSessionId] = useState<string | null>(null)
 
   interface Screenshot {
     id: string
@@ -736,7 +745,17 @@ const Solutions: React.FC<SolutionsProps> = ({
     await loadSessionHistory()
   }
 
-  const handleDeleteSession = async (sessionId: string) => {
+  const requestDeleteSession = (sessionId: string) => {
+    setPendingDeleteSessionId(sessionId)
+  }
+
+  const requestClearHistory = () => {
+    setIsClearHistoryConfirmOpen(true)
+  }
+
+  const confirmDeleteSession = async () => {
+    const sessionId = pendingDeleteSessionId
+    if (!sessionId) return
     const result = await window.electronAPI.deleteSessionHistoryItem(sessionId)
     if (!result.success) {
       showToast("Error", "Failed to delete session.", "error")
@@ -745,7 +764,7 @@ const Solutions: React.FC<SolutionsProps> = ({
     await loadSessionHistory()
   }
 
-  const handleClearHistory = async () => {
+  const confirmClearHistory = async () => {
     const result = await window.electronAPI.clearSessionHistory()
     if (!result.success) {
       showToast("Error", "Failed to clear session history.", "error")
@@ -959,11 +978,33 @@ const Solutions: React.FC<SolutionsProps> = ({
               isLoading={isHistoryLoading}
               onClose={() => setIsHistoryOpen(false)}
               sessions={sessionHistory}
-              onDeleteSession={handleDeleteSession}
+              onDeleteSession={requestDeleteSession}
               onExportSession={handleExportSession}
               onUseSnippet={handleUseSnippet}
-              onClearHistory={handleClearHistory}
+              onClearHistory={requestClearHistory}
               onRefresh={loadSessionHistory}
+            />
+
+            <ConfirmDialog
+              open={pendingDeleteSessionId !== null}
+              onOpenChange={(open) => {
+                if (!open) setPendingDeleteSessionId(null)
+              }}
+              title={t("confirm.deleteSession.title")}
+              description={t("confirm.deleteSession.description")}
+              confirmLabel={t("confirm.deleteSession.confirmLabel")}
+              onConfirm={confirmDeleteSession}
+              destructive
+            />
+
+            <ConfirmDialog
+              open={isClearHistoryConfirmOpen}
+              onOpenChange={setIsClearHistoryConfirmOpen}
+              title={t("confirm.clearHistory.title")}
+              description={t("confirm.clearHistory.description")}
+              confirmLabel={t("confirm.clearHistory.confirmLabel")}
+              onConfirm={confirmClearHistory}
+              destructive
             />
           </div>
         </div>
