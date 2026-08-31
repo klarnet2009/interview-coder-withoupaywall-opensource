@@ -80,7 +80,13 @@
             "cancel": "Cancel",
             "save": "Save",
             "saving": "Saving...",
-            "quit": "Quit"
+            "quit": "Quit",
+            "guidedSetup": "Guided setup"
+        },
+        "apiKeyRequired": {
+            "heading": "API key required",
+            "body": "Save stays disabled until you paste an API key for the selected provider. Get a key, or run the guided setup.",
+            "getKey": "Get an API key"
         },
         "shortcuts": {
             "title": "Keyboard Shortcuts",
@@ -321,6 +327,26 @@
         "tryAgain": "Try Again",
         "clearCacheAndReload": "Clear Cache & Reload",
         "reloadApp": "Reload App"
+    },
+    "confirm": {
+        "cancel": "Cancel",
+        "keyEscape": "Esc",
+        "keyEnter": "Enter",
+        "quit": {
+            "title": "Quit Interview Coder?",
+            "description": "The app closes immediately. An interview session in progress and any unsaved settings will be lost.",
+            "confirmLabel": "Quit"
+        },
+        "clearHistory": {
+            "title": "Clear all session history?",
+            "description": "Every saved session and its snippets will be permanently deleted. This cannot be undone.",
+            "confirmLabel": "Clear all"
+        },
+        "deleteSession": {
+            "title": "Delete this session?",
+            "description": "This session and its saved snippets will be permanently deleted. This cannot be undone.",
+            "confirmLabel": "Delete"
+        }
     },
     "common": {
         "loading": "Loading...",
