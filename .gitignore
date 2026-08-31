@@ -22,3 +22,5 @@ scripts/manual-notarize.js
 .worktrees/
 .security-key
 logs/security/
+tsconfig.node.tsbuildinfo
+*.tsbuildinfo
