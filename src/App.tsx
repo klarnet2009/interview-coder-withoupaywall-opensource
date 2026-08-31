@@ -341,6 +341,13 @@ function App() {
     setIsSettingsOpen(open);
   }, []);
 
+  // The wizard is otherwise only ever opened when it has never been completed,
+  // so a user who finished or skipped it without a key had no way back in.
+  const handleOpenWizard = useCallback(() => {
+    setIsSettingsOpen(false);
+    setShowWizard(true);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -365,7 +372,10 @@ function App() {
                   )}
                   {isInitialized ? (
                     isSettingsOpen ? (
-                      <SettingsPage onClose={() => handleCloseSettings(false)} />
+                      <SettingsPage
+                        onClose={() => handleCloseSettings(false)}
+                        onOpenWizard={handleOpenWizard}
+                      />
                     ) : showWizard ? (
                       <WizardContainer
                         initialMode="quick"

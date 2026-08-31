@@ -5,6 +5,7 @@ import { AudioSettings } from "./AudioSettings";
 import { ProfileManager } from "../Profile/ProfileManager";
 import { UserProfile } from "../../types";
 import { GEMINI_MODELS, GEMINI_SELECTABLE_MODELS } from "../../../electron/constants/geminiModels";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 
 type APIProvider = "openai" | "gemini" | "anthropic" | "custom";
 
@@ -55,6 +56,9 @@ const PROVIDER_LINKS: Record<APIProvider, { signup: string; keys: string }> = {
     anthropic: { signup: "https://console.anthropic.com/signup", keys: "https://console.anthropic.com/settings/keys" },
     custom: { signup: "https://openrouter.ai/signup", keys: "https://openrouter.ai/keys" },
 };
+
+/** The provider's own API-key page — surfaced wherever a missing key blocks the user. */
+const apiKeyPageFor = (provider: APIProvider) => PROVIDER_LINKS[provider].keys;
 
 
 const SECTIONS: { id: SettingsSection; icon: string }[] = [
@@ -116,9 +120,14 @@ const INTERVIEW_FOCUS = [
 
 export interface SettingsPageProps {
     onClose: () => void;
+    /**
+     * Re-enters the setup wizard. Without this the wizard is unreachable once
+     * wizardCompleted is true, which leaves a keyless user with no forward path.
+     */
+    onOpenWizard?: () => void;
 }
 
-export function SettingsPage({ onClose }: SettingsPageProps) {
+export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
     const { t, i18n } = useTranslation();
     const { showToast } = useToast();
     const contentRef = useRef<HTMLDivElement>(null);
@@ -128,6 +137,11 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
     // API state
     const [apiKey, setApiKey] = useState("");
     const [apiProvider, setApiProvider] = useState<APIProvider>("gemini");
+
+    // Quit is destructive mid-interview, so the IPC lives behind a confirmation
+    // and has no other reachable call site in this file.
+    const [isQuitConfirmOpen, setIsQuitConfirmOpen] = useState(false);
+    const confirmQuit = () => { window.electronAPI.quitApp(); };
     const [customBaseUrl, setCustomBaseUrl] = useState("https://openrouter.ai/api/v1");
     // Explicit <string>: GEMINI_MODELS is `as const`, so inference would otherwise
     // narrow these to a single literal and reject "custom" / user-entered ids.
@@ -1114,30 +1128,63 @@ export function SettingsPage({ onClose }: SettingsPageProps) {
                 </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-5 py-3 border-t border-white/8 flex items-center justify-between shrink-0">
-                <button
-                    onClick={onClose}
-                    className="px-3 py-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
-                >
-                    {t("settings.actions.cancel")}
-                </button>
-                <div className="flex gap-2">
+            {/* Footer — Quit is isolated on the left; the two safe actions sit together on the right */}
+            <div className="px-5 py-3 border-t border-white/8 shrink-0 space-y-2">
+                {!apiKey && (
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[11px] text-amber-300/70">
+                        <span className="font-medium text-amber-300/90">{t("settings.apiKeyRequired.heading")}</span>
+                        <span>{t("settings.apiKeyRequired.body")}</span>
+                        <button
+                            onClick={() => openLink(apiKeyPageFor(apiProvider))}
+                            className="text-blue-400 hover:underline"
+                        >
+                            {t("settings.apiKeyRequired.getKey")}
+                        </button>
+                        {onOpenWizard && (
+                            <button
+                                onClick={onOpenWizard}
+                                className="px-2 py-0.5 rounded-md border border-white/15 text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                                {t("settings.actions.guidedSetup")}
+                            </button>
+                        )}
+                    </div>
+                )}
+                <div className="flex items-center justify-between">
                     <button
-                        onClick={() => window.electronAPI.quitApp()}
+                        onClick={() => setIsQuitConfirmOpen(true)}
                         className="px-3 py-1.5 text-xs text-red-400/60 hover:text-red-400 transition-colors"
                     >
                         {t("settings.actions.quit")}
                     </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={isLoading || !apiKey}
-                        className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                    >
-                        {isLoading ? t("settings.actions.saving") : t("settings.actions.save")}
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={onClose}
+                            className="px-3 py-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
+                        >
+                            {t("settings.actions.cancel")}
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={isLoading || !apiKey}
+                            title={!apiKey ? t("settings.apiKeyRequired.body") : undefined}
+                            className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isLoading ? t("settings.actions.saving") : t("settings.actions.save")}
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={isQuitConfirmOpen}
+                onOpenChange={setIsQuitConfirmOpen}
+                title={t("confirm.quit.title")}
+                description={t("confirm.quit.description")}
+                confirmLabel={t("confirm.quit.confirmLabel")}
+                onConfirm={confirmQuit}
+                destructive
+            />
         </div>
     );
 }
