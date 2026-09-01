@@ -145,9 +145,6 @@ export interface ElectronAPI {
   onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void;
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => () => void;
 
-  // Audio sources for application selection
-  getAudioSources: () => Promise<{ id: string; name: string; appIcon: string | null }[]>;
-
   // Audio processing
   testAudio: (audioData: { buffer: number[]; mimeType: string; apiKey?: string }) => Promise<{ success: boolean; transcript?: string; error?: string }>;
   transcribeAudio: (audioData: { buffer: number[]; mimeType: string }) => Promise<{ success: boolean; text?: string; timestamp?: number; error?: string }>;

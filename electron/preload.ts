@@ -253,10 +253,6 @@ const electronAPI = {
   isWizardCompleted: () =>
     ipcRenderer.invoke("is-wizard-completed"),
 
-  // Audio sources for application selection
-  getAudioSources: () =>
-    ipcRenderer.invoke("get-audio-sources"),
-
   // Audio processing APIs
   testAudio: (audioData: { buffer: number[]; mimeType: string }) =>
     ipcRenderer.invoke("test-audio", audioData),

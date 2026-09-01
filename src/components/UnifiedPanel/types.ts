@@ -1,3 +1,4 @@
+import type { AudioSource } from "../../../electron/constants/audioSource"
 import type { Screenshot } from "../../types/screenshots"
 
 export type ListeningState =
@@ -9,13 +10,8 @@ export type ListeningState =
   | "generating"
   | "error"
 
-export type AudioSourceType = "system" | "microphone" | "application"
-
-export interface AudioAppSource {
-  id: string
-  name: string
-  appIcon: string | null
-}
+/** Panel-local alias for the shared union. See electron/constants/audioSource.ts. */
+export type AudioSourceType = AudioSource
 
 export type NoticeCode =
   | "no_screenshots"

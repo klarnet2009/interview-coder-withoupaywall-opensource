@@ -69,9 +69,13 @@ export const StepTest: React.FC<StepTestProps> = ({
       }
 
       const audioConfigured = !!data.audioConfig?.source;
-      const audioSourceReady =
-        data.audioConfig?.source !== 'application' ||
-        !!data.audioConfig?.applicationName;
+      /*
+       * Both clauses of the former guard became vacuous when per-application capture
+       * was removed: there is no application source to exclude and no application name
+       * to require. Wizard readiness now rests on audioConfigured alone. Intended
+       * semantic change, not a dropped check.
+       */
+      const audioSourceReady = true;
 
       const readiness: ReadinessCheck = {
         apiKeyPresent,

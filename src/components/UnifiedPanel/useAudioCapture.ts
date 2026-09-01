@@ -17,10 +17,7 @@ interface UseAudioCaptureParams {
 
 interface UseAudioCaptureResult {
   localAudioLevel: number
-  startAudioCapture: (
-    source: AudioSourceType,
-    appSourceId?: string
-  ) => Promise<void>
+  startAudioCapture: (source: AudioSourceType) => Promise<void>
   stopAudioCapture: () => Promise<void>
 }
 
@@ -52,7 +49,7 @@ export function useAudioCapture({
   }, [])
 
   const startAudioCapture = useCallback(
-    async (source: AudioSourceType, appSourceId?: string) => {
+    async (source: AudioSourceType) => {
       // Fresh throttle per session, so a new capture never inherits a stale
       // timestamp from the previous one.
       levelThrottleRef.current = createAudioLevelThrottle()
@@ -60,27 +57,14 @@ export function useAudioCapture({
       try {
         let stream: MediaStream
 
-        if (source === "application" && appSourceId) {
-          const desktopCaptureConstraints: MediaStreamConstraints = {
-            audio: {
-              mandatory: {
-                chromeMediaSource: "desktop",
-                chromeMediaSourceId: appSourceId
-              }
-            } as unknown as MediaTrackConstraints,
-            video: {
-              mandatory: {
-                chromeMediaSource: "desktop",
-                chromeMediaSourceId: appSourceId
-              }
-            } as unknown as MediaTrackConstraints
-          }
-          stream = await navigator.mediaDevices.getUserMedia(desktopCaptureConstraints)
-          stream.getVideoTracks().forEach((track) => track.stop())
-          if (stream.getAudioTracks().length === 0) {
-            throw new Error("No audio track detected from the selected application.")
-          }
-        } else if (source === "system") {
+        /*
+         * System audio acquires through getDisplayMedia, which raises the Windows
+         * share picker once per session. That prompt is the accepted cost of removing
+         * the per-application path: that path started silently, but it named one
+         * application while capturing the whole desktop. See
+         * electron/constants/audioSource.ts.
+         */
+        if (source === "system") {
           stream = await navigator.mediaDevices.getDisplayMedia({
             video: true,
             audio: true
@@ -102,7 +86,7 @@ export function useAudioCapture({
 
         mediaStreamRef.current = stream
 
-        const useNativeRate = source === "system" || source === "application"
+        const useNativeRate = source === "system"
         const contextSampleRate = useNativeRate ? undefined : 16000
         audioContextRef.current = new AudioContext(
           contextSampleRate ? { sampleRate: contextSampleRate } : {}

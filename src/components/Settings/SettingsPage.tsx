@@ -5,6 +5,7 @@ import { AudioSettings } from "./AudioSettings";
 import { ProfileManager } from "../Profile/ProfileManager";
 import { UserProfile } from "../../types";
 import { GEMINI_MODELS, GEMINI_SELECTABLE_MODELS } from "../../../electron/constants/geminiModels";
+import { normalizeAudioSource, type AudioSource } from "../../../electron/constants/audioSource";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 
 type APIProvider = "openai" | "gemini" | "anthropic" | "custom";
@@ -158,8 +159,7 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
     const [testDetails, setTestDetails] = useState<{ responseTime?: number; error?: string }>({});
 
     // Audio state
-    const [audioSource, setAudioSource] = useState<'microphone' | 'system' | 'application'>('system');
-    const [applicationName, setApplicationName] = useState('');
+    const [audioSource, setAudioSource] = useState<AudioSource>('system');
 
     // Language state
     const [recognitionLang, setRecognitionLang] = useState("auto");
@@ -222,8 +222,9 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
                 if (config.debuggingModel) setDebuggingModel(config.debuggingModel as string);
                 if (config.audioConfig) {
                     const ac = config.audioConfig as Record<string, unknown>;
-                    if (ac.source) setAudioSource(ac.source as 'microphone' | 'system' | 'application');
-                    if (ac.applicationName) setApplicationName(ac.applicationName as string);
+                    // Normalized rather than cast: a config.json written before the
+                    // per-application source was removed still names it.
+                    setAudioSource(normalizeAudioSource(ac.source));
                 }
                 if (config.recognitionLanguage) setRecognitionLang(config.recognitionLanguage as string);
                 if (config.interfaceLanguage) {
@@ -413,7 +414,6 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
                 maxTokens,
                 audioConfig: {
                     source: audioSource,
-                    applicationName: audioSource === 'application' ? applicationName : undefined,
                     autoStart: true,
                     testCompleted: true,
                 },
@@ -673,10 +673,8 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
     const renderAudio = () => (
         <AudioSettings
             audioSource={audioSource}
-            applicationName={applicationName}
             apiKey={apiKey}
             onAudioSourceChange={setAudioSource}
-            onApplicationChange={setApplicationName}
         />
     );
 

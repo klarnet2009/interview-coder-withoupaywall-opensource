@@ -10,6 +10,7 @@ import { OpenAI } from "openai"
 // import { secureStorage } from "./SecureStorage"
 import { createScopedLogger } from "./logger"
 import { GEMINI_MODELS, resolveGeminiModelId } from "./constants/geminiModels"
+import { normalizeAudioSource, type AudioSource } from "./constants/audioSource"
 
 const runtimeLogger = createScopedLogger("config")
 
@@ -74,8 +75,7 @@ interface InterviewPreferences {
 }
 
 interface AudioConfig {
-  source: 'microphone' | 'system' | 'application';
-  applicationName?: string;
+  source: AudioSource;
   autoStart: boolean;
   testCompleted: boolean;
 }
@@ -282,6 +282,10 @@ export class ConfigHelper extends EventEmitter {
     }
     if (!config.audioConfig) {
       config.audioConfig = this.defaultConfig.audioConfig;
+    } else {
+      // A config.json written before per-application capture was removed still names
+      // it. Repair it here so the main process never hands a removed value onward.
+      config.audioConfig.source = normalizeAudioSource(config.audioConfig.source);
     }
     if (!config.displayConfig) {
       config.displayConfig = this.defaultConfig.displayConfig;
@@ -737,7 +741,8 @@ export class ConfigHelper extends EventEmitter {
    */
   public getAudioConfig(): AudioConfig {
     const config = this.loadConfig();
-    return config.audioConfig || this.defaultConfig.audioConfig;
+    const audioConfig = config.audioConfig || this.defaultConfig.audioConfig;
+    return { ...audioConfig, source: normalizeAudioSource(audioConfig.source) };
   }
 
   /**

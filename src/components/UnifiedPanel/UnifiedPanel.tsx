@@ -36,7 +36,6 @@ import { useUnifiedPanelSubscriptions } from "./useUnifiedPanelSubscriptions";
 import { useUnifiedPanelUiEffects } from "./useUnifiedPanelUiEffects";
 import type {
   ActionNotice,
-  AudioAppSource,
   AudioSourceType,
   LiveInterviewStatus,
   RuntimePreferences,
@@ -75,10 +74,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
   const [debugMode, setDebugMode] = useState(false);
   const [preferredAudioSource, setPreferredAudioSource] =
     useState<AudioSourceType>("system");
-  const [selectedAppSource, setSelectedAppSource] = useState<AudioAppSource | null>(null);
-  const [availableApps, setAvailableApps] = useState<AudioAppSource[]>([]);
-  const [isLoadingApps, setIsLoadingApps] = useState(false);
-  const [appSearchQuery, setAppSearchQuery] = useState("");
   const [runtimePreferences, setRuntimePreferences] = useState<RuntimePreferences>({
     interviewMode: "coding",
     answerStyle: "structured",
@@ -130,21 +125,13 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       try {
         const config = await window.electronAPI.getConfig();
         const typedConfig = config as {
-          audioConfig?: { source?: string; applicationId?: string; applicationName?: string };
+          audioConfig?: { source?: string };
           interviewPreferences?: { mode?: string; answerStyle?: string };
           displayConfig?: { mode?: string };
         };
-        const preferred = toRuntimeAudioSource(
-          typedConfig.audioConfig?.source
-        );
-        setPreferredAudioSource(preferred);
-        if (preferred === "application" && typedConfig.audioConfig?.applicationId) {
-          setSelectedAppSource({
-            id: typedConfig.audioConfig.applicationId,
-            name: typedConfig.audioConfig.applicationName || "App",
-            appIcon: null // Icon will be refreshed when dropdown opens
-          });
-        }
+        // A config.json still naming the removed per-application source normalizes to
+        // system audio here, matching what ConfigHelper does in the main process.
+        setPreferredAudioSource(toRuntimeAudioSource(typedConfig.audioConfig?.source));
         setRuntimePreferences({
           interviewMode: typedConfig.interviewPreferences?.mode || "coding",
           answerStyle: typedConfig.interviewPreferences?.answerStyle || "structured",
@@ -156,18 +143,6 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     };
 
     loadPreferredSource();
-  }, []);
-
-  const fetchAudioApps = useCallback(async () => {
-    setIsLoadingApps(true);
-    try {
-      const sources = await window.electronAPI.getAudioSources();
-      setAvailableApps(sources);
-    } catch (err) {
-      console.error("Failed to fetch audio sources:", err);
-    } finally {
-      setIsLoadingApps(false);
-    }
   }, []);
 
   const fetchCaptureSources = useCallback(async () => {
@@ -182,12 +157,10 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     }
   }, []);
 
-  const handleSourceSelect = async (source: AudioSourceType, appSource?: AudioAppSource) => {
+  const handleSourceSelect = async (source: AudioSourceType) => {
     setShowAudioDropdown(false);
     setError(null);
     setPreferredAudioSource(source);
-    if (appSource) setSelectedAppSource(appSource);
-    if (source !== "application") setSelectedAppSource(null);
 
     try {
       const config = await window.electronAPI.getConfig();
@@ -195,9 +168,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       await window.electronAPI.updateConfig({
         audioConfig: {
           ...(current.audioConfig || {}),
-          source,
-          applicationId: appSource?.id,
-          applicationName: appSource?.name
+          source
         }
       });
     } catch (configError) {
@@ -206,7 +177,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
     // Start audio capture only — Gemini processing is started separately via startInterview
     try {
-      await startAudioCapture(source, appSource?.id);
+      await startAudioCapture(source);
       setIsCapturing(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to start audio capture";
@@ -738,7 +709,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             <button
               onClick={async () => {
                 if (!isCapturing) {
-                  await handleSourceSelect(preferredAudioSource, selectedAppSource || undefined);
+                  await handleSourceSelect(preferredAudioSource);
                 }
                 await startInterview();
               }}
@@ -757,17 +728,11 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
           <AudioSourceSelector
             showAudioDropdown={showAudioDropdown}
             setShowAudioDropdown={setShowAudioDropdown}
-            fetchAudioApps={fetchAudioApps}
             isCapturing={isCapturing}
             isActive={isActive}
             localAudioLevel={localAudioLevel}
             preferredAudioSource={preferredAudioSource}
-            selectedAppSource={selectedAppSource}
             audioDropdownRef={audioDropdownRef}
-            availableApps={availableApps}
-            isLoadingApps={isLoadingApps}
-            appSearchQuery={appSearchQuery}
-            setAppSearchQuery={setAppSearchQuery}
             handleSourceSelect={handleSourceSelect}
           />
         </div>

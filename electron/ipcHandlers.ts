@@ -74,7 +74,6 @@ const REQUIRED_PRELOAD_INVOKE_CHANNELS = [
   "wizard-complete",
   "wizard-reset",
   "is-wizard-completed",
-  "get-audio-sources",
   "test-audio",
   "transcribe-audio",
   "generate-hints",
@@ -217,25 +216,6 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
 
   registerHandle("is-wizard-completed", () => {
     return configHelper.isWizardCompleted();
-  })
-
-  // Audio sources handler
-  registerHandle("get-audio-sources", async () => {
-    try {
-      const sources = await desktopCapturer.getSources({
-        types: ['window'],
-        thumbnailSize: { width: 32, height: 32 }
-      });
-
-      return sources.map(source => ({
-        id: source.id,
-        name: source.name,
-        appIcon: source.appIcon?.toDataURL() || null
-      }));
-    } catch (error) {
-      logger.error("Error getting audio sources:", error);
-      return [];
-    }
   })
 
   // Audio test handler - tests audio recognition with Gemini

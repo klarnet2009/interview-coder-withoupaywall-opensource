@@ -5,6 +5,7 @@
 
 import type { ComponentType } from 'react';
 import { GEMINI_MODELS } from '../../electron/constants/geminiModels';
+import type { AudioSource as SharedAudioSource } from '../../electron/constants/audioSource';
 
 // ============================================================================
 // Wizard Types
@@ -193,11 +194,15 @@ export interface InterviewPreferences {
 // Audio Types
 // ============================================================================
 
-export type AudioSource = 'microphone' | 'system' | 'application';
+/**
+ * Re-declared from the shared union so this module keeps exporting `AudioSource`
+ * under its established name. The members live in `electron/constants/audioSource.ts`,
+ * which also records why there is no per-application member.
+ */
+export type AudioSource = SharedAudioSource;
 
 export interface AudioConfig {
   source: AudioSource;
-  applicationName?: string;
   autoStart: boolean;
   testCompleted: boolean;
 }

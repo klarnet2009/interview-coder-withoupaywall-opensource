@@ -1,3 +1,4 @@
+import { normalizeAudioSource } from "../../../electron/constants/audioSource"
 import type {
   ActionNotice,
   AudioSourceType,
@@ -42,11 +43,13 @@ export const stateLane: ListeningState[] = [
   "generating"
 ]
 
-export const toRuntimeAudioSource = (value: unknown): AudioSourceType => {
-  if (value === "microphone") return "microphone"
-  if (value === "application") return "application"
-  return "system"
-}
+/**
+ * Thin alias over the shared normalizer. Kept as a named export because call sites
+ * read better with it, but the coercion rules — including the migration of a removed
+ * per-application selection to system audio — live in one place only.
+ */
+export const toRuntimeAudioSource = (value: unknown): AudioSourceType =>
+  normalizeAudioSource(value)
 
 export const isPermissionError = (value: string) => {
   const normalized = value.toLowerCase()

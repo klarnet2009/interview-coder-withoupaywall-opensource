@@ -146,17 +146,11 @@ function renderAudioSourceSelector(open: boolean) {
         <AudioSourceSelector
             showAudioDropdown={open}
             setShowAudioDropdown={vi.fn()}
-            fetchAudioApps={vi.fn()}
             isCapturing={false}
             isActive={false}
             localAudioLevel={0}
             preferredAudioSource="system"
-            selectedAppSource={null}
             audioDropdownRef={{ current: null }}
-            availableApps={[]}
-            isLoadingApps={false}
-            appSearchQuery=""
-            setAppSearchQuery={vi.fn()}
             handleSourceSelect={vi.fn()}
         />
     )
@@ -178,15 +172,18 @@ function renderResponseSection(collapsed: boolean) {
 }
 
 describe('AudioSourceSelector', () => {
-    it('names the refresh control from the en locale', () => {
+    /*
+     * The two refresh-control assertions that used to open this block are gone with
+     * their control: quick-260901-ubp removed the per-application window list, which
+     * was the only thing the refresh button refreshed. Its a11y keys are retained in
+     * the locale files and recorded in i18nParity's RETIRED_UNUSED_KEYS.
+     */
+    it('offers exactly the two surviving sources and no window list', () => {
         renderAudioSourceSelector(true)
-        expect(screen.getByRole('button', { name: 'Refresh application list' })).toBeTruthy()
-    })
-
-    it('names the refresh control from the ru locale', async () => {
-        renderAudioSourceSelector(true)
-        await setLocale('ru')
-        expect(screen.getByRole('button', { name: 'Обновить список приложений' })).toBeTruthy()
+        expect(screen.getByText('System Audio')).toBeTruthy()
+        expect(screen.getByText('Microphone')).toBeTruthy()
+        expect(screen.queryByText('Applications')).toBeNull()
+        expect(screen.queryByRole('textbox')).toBeNull()
     })
 
     it('reports the source trigger as a collapsed listbox popup', () => {
@@ -302,11 +299,33 @@ describe('a11y key resolution', () => {
         expect(referencedA11yKeys().length).toBeGreaterThan(0)
     })
 
-    it('still references at least the 33 label keys this pass introduced', () => {
+    /**
+     * quick-260831-xan introduced 33 label keys and this floor guarded all of them.
+     * quick-260901-ubp removed per-application audio capture, which deleted the only
+     * two controls those labels named — the audio-source refresh button and the
+     * Settings window-list refresh button. 31 is therefore the correct floor now.
+     *
+     * The count alone would let any future label deletion hide behind this drop, so
+     * the departed keys are named below: the floor may only fall for controls that
+     * genuinely no longer exist, and a reviewer can see which ones those were.
+     */
+    const REMOVED_WITH_APPLICATION_AUDIO = [
+        'a11y.label.refreshAudioSources',
+        'a11y.label.refreshWindows'
+    ]
+
+    it('still references at least the 31 label keys whose controls still exist', () => {
         const labelKeys = referencedA11yKeys().filter((key) =>
             key.startsWith('a11y.label.')
         )
-        expect(labelKeys.length).toBeGreaterThanOrEqual(33)
+        expect(labelKeys.length).toBeGreaterThanOrEqual(31)
+    })
+
+    it('lost exactly the two labels whose controls the audio removal deleted', () => {
+        const labelKeys = referencedA11yKeys()
+        for (const key of REMOVED_WITH_APPLICATION_AUDIO) {
+            expect(labelKeys, `${key} should have no referencing control left`).not.toContain(key)
+        }
     })
 
     it('resolves every referenced a11y key to a non-empty string in both locales', () => {

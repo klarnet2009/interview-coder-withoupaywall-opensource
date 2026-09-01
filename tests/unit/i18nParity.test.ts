@@ -99,6 +99,33 @@ const XAN_ANNOUNCE_KEYS = [
     'a11y.announce.interviewer'
 ]
 
+/**
+ * Keys orphaned by quick-260901-ubp, which removed per-application audio capture from
+ * every surface that offered it. Each of these has ZERO remaining references in
+ * `src/` and `electron/` — measured, not assumed.
+ *
+ * They are RETAINED rather than deleted, deliberately. Two of them
+ * (`a11y.label.refreshAudioSources`, `a11y.label.refreshWindows`) are asserted by name
+ * in XAN_LABEL_KEYS above, and deleting all ten would drop both locales to 310 keys,
+ * under MIN_KEYS. Removing them would break two standing gates for no user benefit.
+ *
+ * So this array converts silent dead weight into recorded debt with its own gate: the
+ * keys stay, and this list is where a future locale-pruning pass starts — which must
+ * also retire the XAN_LABEL_KEYS entries and lower MIN_KEYS in the same change.
+ */
+const RETIRED_UNUSED_KEYS = [
+    'settings.audio.application',
+    'settings.audio.applicationDesc',
+    'settings.audio.selectApp',
+    'settings.audio.refreshList',
+    'settings.audio.searchApps',
+    'settings.audio.noMatches',
+    'settings.audio.noApps',
+    'settings.audio.selected',
+    'a11y.label.refreshAudioSources',
+    'a11y.label.refreshWindows'
+]
+
 function flatten(value: unknown, prefix = ''): string[] {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
         return [prefix]
@@ -154,6 +181,16 @@ describe('i18n locale parity', () => {
 
     it.each(XAN_ANNOUNCE_KEYS)('ru.json defines %s', (key) => {
         expect(ruKeys).toContain(key)
+    })
+
+    it('en.json retains every key orphaned by the per-application audio removal', () => {
+        const missing = RETIRED_UNUSED_KEYS.filter((key) => !enKeys.includes(key))
+        expect(missing, `retired-but-retained keys deleted from en.json: ${missing.join(', ')}`).toEqual([])
+    })
+
+    it('ru.json retains every key orphaned by the per-application audio removal', () => {
+        const missing = RETIRED_UNUSED_KEYS.filter((key) => !ruKeys.includes(key))
+        expect(missing, `retired-but-retained keys deleted from ru.json: ${missing.join(', ')}`).toEqual([])
     })
 
     it('no locale value is an empty string', () => {
