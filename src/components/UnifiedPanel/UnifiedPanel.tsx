@@ -14,6 +14,7 @@ import {
   Monitor,
   Search
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import ScreenshotQueue from "../Queue/ScreenshotQueue";
 import { useToast } from "../../contexts/toast";
 import { COMMAND_KEY } from "../../utils/platform";
@@ -51,6 +52,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
   onTooltipVisibilityChange
 }) => {
   const { showToast } = useToast();
+  const { t } = useTranslation();
   void currentLanguage;
   void setLanguage;
 
@@ -109,6 +111,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
   useUnifiedPanelUiEffects({
     isTooltipVisible,
+    setIsTooltipVisible,
     tooltipRef,
     onTooltipVisibilityChange,
     showAudioDropdown,
@@ -455,6 +458,9 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
             <div className="relative">
               <button
                 onClick={() => setIsTooltipVisible(!isTooltipVisible)}
+                aria-label={t('a11y.label.openSettings')}
+                aria-haspopup="menu"
+                aria-expanded={isTooltipVisible}
                 className={`p-2 rounded-md transition-colors ${isTooltipVisible
                   ? "bg-white/15 text-white"
                   : "hover:bg-white/10 text-white/60 hover:text-white/90"
@@ -465,6 +471,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
               {isTooltipVisible && (
                 <div
+                  role="menu"
                   className="absolute right-0 top-full mt-1 w-52 py-1 rounded-lg border border-white/10 bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl z-50"
                   onMouseLeave={() => setIsTooltipVisible(false)}
                 >
@@ -487,6 +494,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
                   {/* Settings */}
                   <button
+                    role="menuitem"
                     className="w-full px-3 py-1.5 flex items-center gap-2 text-[12px] text-white/75 hover:bg-white/8 hover:text-white transition-colors text-left"
                     onClick={() => { window.electronAPI.openSettingsPortal(); setIsTooltipVisible(false); }}
                   >
@@ -496,6 +504,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
 
                   {/* Log Out */}
                   <button
+                    role="menuitem"
                     onClick={() => { handleSignOut(); setIsTooltipVisible(false); }}
                     className="w-full px-3 py-1.5 flex items-center gap-2 text-[12px] text-red-400/80 hover:bg-red-500/10 hover:text-red-300 transition-colors text-left"
                   >

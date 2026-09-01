@@ -17,7 +17,7 @@ import ru from '../../src/i18n/locales/ru.json'
  * work; that task added 16. The threshold is deliberately the post-task number
  * so deleting the new keys from BOTH files cannot quietly pass this gate.
  */
-const MIN_KEYS = 278
+const MIN_KEYS = 279
 
 /** Keys introduced by quick-260831-wf4. Asserted explicitly in both locales. */
 const WF4_KEYS = [

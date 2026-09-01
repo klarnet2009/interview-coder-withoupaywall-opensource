@@ -356,5 +356,10 @@
         "settingsSaved": "Настройки сохранены",
         "settingsLoadError": "Не удалось загрузить настройки",
         "settingsSaveError": "Не удалось сохранить"
+    },
+    "a11y": {
+        "label": {
+            "openSettings": "Открыть настройки"
+        }
     }
 }

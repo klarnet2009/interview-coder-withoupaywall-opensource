@@ -8,6 +8,7 @@ import {
 
 interface UseUnifiedPanelUiEffectsParams {
   isTooltipVisible: boolean
+  setIsTooltipVisible: Dispatch<SetStateAction<boolean>>
   tooltipRef: RefObject<HTMLDivElement | null>
   onTooltipVisibilityChange: (visible: boolean, height: number) => void
   showAudioDropdown: boolean
@@ -22,6 +23,7 @@ interface UseUnifiedPanelUiEffectsParams {
 
 export function useUnifiedPanelUiEffects({
   isTooltipVisible,
+  setIsTooltipVisible,
   tooltipRef,
   onTooltipVisibilityChange,
   showAudioDropdown,
@@ -67,6 +69,36 @@ export function useUnifiedPanelUiEffects({
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [audioDropdownRef, setShowAudioDropdown, showAudioDropdown, captureDropdownRef, setShowCaptureDropdown, showCaptureDropdown])
+
+  // Escape closes all three overlays. The mousedown handler above only covers
+  // the two dropdowns and only reacts to a pointer, which leaves the settings
+  // menu with no dismissal path at all for a keyboard user — the exact user
+  // this always-on-top overlay exists to serve.
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return
+      }
+      setIsTooltipVisible(false)
+      setShowAudioDropdown(false)
+      setShowCaptureDropdown(false)
+    }
+
+    if (isTooltipVisible || showAudioDropdown || showCaptureDropdown) {
+      document.addEventListener("keydown", handleEscape)
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [
+    isTooltipVisible,
+    setIsTooltipVisible,
+    showAudioDropdown,
+    setShowAudioDropdown,
+    showCaptureDropdown,
+    setShowCaptureDropdown
+  ])
 
   useEffect(() => {
     const prevResponse = prevResponseRef.current

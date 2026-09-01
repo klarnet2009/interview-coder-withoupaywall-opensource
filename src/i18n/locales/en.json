@@ -356,5 +356,10 @@
         "settingsSaved": "Settings saved",
         "settingsLoadError": "Failed to load settings",
         "settingsSaveError": "Failed to save"
+    },
+    "a11y": {
+        "label": {
+            "openSettings": "Open settings"
+        }
     }
 }

@@ -2,7 +2,8 @@
 
 @theme {
   --font-sans: Inter, system-ui, sans-serif;
-  --color-ring: rgba(255, 255, 255, 0.4);
+  --color-ring: rgba(255, 255, 255, 0.95);
+  --color-focus-halo: rgba(0, 0, 0, 0.9);
 
   --animate-in: in 0.2s ease-out;
   --animate-out: out 0.2s ease-in;
@@ -123,12 +124,6 @@
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentcolor);
-  }
-
-  /* Focus ring accessibility styles */
-  *:focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
   }
 }
 
@@ -255,4 +250,23 @@ option {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+  Focus indicator.
+
+  Deliberately unlayered. Tailwind orders `base` before `utilities`, and layer
+  order beats specificity outright, so a rule living inside `@layer base` loses
+  to every `focus:outline-none` and `focus-visible:ring-*` utility in the app.
+  Keeping this rule at top level is the entire reason it reaches the ~20 inputs
+  that suppress their own outline. Do not move it back into a layer.
+
+  Two-tone on purpose: a light core over a dark halo stays legible on the
+  near-black panel, the amber notice banner, and the blue and red action
+  buttons alike, none of which a single colour can serve.
+*/
+*:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-focus-halo);
 }
