@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ScreenshotQueue from "../Queue/ScreenshotQueue";
+import { LiveAnnouncer, announcementDelta, useSettledValue } from "../a11y";
 import { useToast } from "../../contexts/toast";
 import { COMMAND_KEY } from "../../utils/platform";
 import { ActionNoticeBanner } from "./ActionNoticeBanner";
@@ -419,6 +420,28 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
     );
   };
 
+  // Session state, settled so a connecting -> listening flap does not stutter.
+  const settledState = useSettledValue(status.state, 400);
+  const stateAnnouncement = t("a11y.announce.state", {
+    state: t(`a11y.state.${settledState}`)
+  });
+
+  // The transcript needs BOTH mechanisms. Settling alone still re-reads the
+  // whole accumulated transcript on each pause; the delta alone still fires on
+  // every partial-transcription update. Together they announce the new tail
+  // once, on a natural speech pause.
+  const settledTranscript = useSettledValue(status.transcript, 1500);
+  const lastAnnouncedRef = useRef("");
+  const [transcriptAnnouncement, setTranscriptAnnouncement] = useState("");
+
+  useEffect(() => {
+    const delta = announcementDelta(lastAnnouncedRef.current, settledTranscript);
+    lastAnnouncedRef.current = settledTranscript;
+    setTranscriptAnnouncement(
+      delta ? t("a11y.announce.interviewer", { text: delta }) : ""
+    );
+  }, [settledTranscript, t]);
+
   const isListeningActive = status.state !== "idle" && status.state !== "error";
   const isGenerating = status.state === "generating";
   const hasResponse = status.response.length > 0;
@@ -431,6 +454,9 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
       ? "bg-black/45 rounded-xl border border-white/10"
       : "bg-black/80 rounded-lg"
       }`}>
+      <LiveAnnouncer message={stateAnnouncement} />
+      <LiveAnnouncer message={transcriptAnnouncement} />
+
       <div className="px-3 py-3 border-b border-white/10 space-y-3">
         <div
           className="flex items-center justify-between gap-3 select-none"

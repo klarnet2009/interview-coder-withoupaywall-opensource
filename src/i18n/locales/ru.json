@@ -392,6 +392,19 @@
             "showApiKey": "Показать ключ API",
             "hideApiKey": "Скрыть ключ API",
             "opaqueMode": "Непрозрачный режим"
+        },
+        "state": {
+            "idle": "Готов",
+            "connecting": "Подключение",
+            "listening": "Идёт прослушивание",
+            "no_signal": "Нет аудиосигнала",
+            "transcribing": "Расшифровка речи",
+            "generating": "Генерация ответа",
+            "error": "Ошибка сессии"
+        },
+        "announce": {
+            "state": "Статус: {{state}}",
+            "interviewer": "Интервьюер сказал: {{text}}"
         }
     }
 }

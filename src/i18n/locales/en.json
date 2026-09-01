@@ -392,6 +392,19 @@
             "showApiKey": "Show API key",
             "hideApiKey": "Hide API key",
             "opaqueMode": "Opaque mode"
+        },
+        "state": {
+            "idle": "Ready",
+            "connecting": "Connecting",
+            "listening": "Listening",
+            "no_signal": "No audio signal",
+            "transcribing": "Transcribing",
+            "generating": "Generating answer",
+            "error": "Session error"
+        },
+        "announce": {
+            "state": "Status: {{state}}",
+            "interviewer": "Interviewer said: {{text}}"
         }
     }
 }

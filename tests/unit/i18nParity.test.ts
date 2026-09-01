@@ -15,10 +15,11 @@ import ru from '../../src/i18n/locales/ru.json'
 /**
  * Minimum key count. 262 keys existed before the quick-260831-wf4 confirmation
  * work; that task added 16, reaching 278. quick-260831-xan then added 33
- * accessible-name labels. The threshold is deliberately the post-task number
+ * accessible-name labels and 9 announcement strings. The threshold is
+ * deliberately the post-task number
  * so deleting the new keys from BOTH files cannot quietly pass this gate.
  */
-const MIN_KEYS = 311
+const MIN_KEYS = 320
 
 /** Keys introduced by quick-260831-wf4. Asserted explicitly in both locales. */
 const WF4_KEYS = [
@@ -81,6 +82,23 @@ const XAN_LABEL_KEYS = [
     'a11y.label.opaqueMode'
 ]
 
+/**
+ * Spoken state and announcement templates introduced by quick-260831-xan.
+ * The state keys are looked up through a template literal at the call site,
+ * so source scanning cannot enumerate them — this list is the only gate.
+ */
+const XAN_ANNOUNCE_KEYS = [
+    'a11y.state.idle',
+    'a11y.state.connecting',
+    'a11y.state.listening',
+    'a11y.state.no_signal',
+    'a11y.state.transcribing',
+    'a11y.state.generating',
+    'a11y.state.error',
+    'a11y.announce.state',
+    'a11y.announce.interviewer'
+]
+
 function flatten(value: unknown, prefix = ''): string[] {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
         return [prefix]
@@ -127,6 +145,14 @@ describe('i18n locale parity', () => {
     })
 
     it.each(XAN_LABEL_KEYS)('ru.json defines %s', (key) => {
+        expect(ruKeys).toContain(key)
+    })
+
+    it.each(XAN_ANNOUNCE_KEYS)('en.json defines %s', (key) => {
+        expect(enKeys).toContain(key)
+    })
+
+    it.each(XAN_ANNOUNCE_KEYS)('ru.json defines %s', (key) => {
         expect(ruKeys).toContain(key)
     })
 
