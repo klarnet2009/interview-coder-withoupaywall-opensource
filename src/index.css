@@ -68,10 +68,6 @@
   }
 }
 
-:root {
-  --color-ring: rgba(255, 255, 255, 0.4);
-}
-
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
