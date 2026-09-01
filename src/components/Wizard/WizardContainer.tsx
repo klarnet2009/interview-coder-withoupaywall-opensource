@@ -116,7 +116,7 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
 
 
   return (
-    <div ref={wizardRef} className="w-full h-screen bg-[#0a0a0a] flex flex-col rounded-2xl overflow-hidden">
+    <div ref={wizardRef} className="w-full h-screen bg-surface-base flex flex-col rounded-2xl overflow-hidden">
       <div className="flex flex-col flex-1 min-h-0">
         {/* Header — draggable region */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>

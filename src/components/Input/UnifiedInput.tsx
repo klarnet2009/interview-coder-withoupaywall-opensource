@@ -116,7 +116,7 @@ export const UnifiedInput: React.FC<UnifiedInputProps> = ({
   return (
     <div
       onPaste={handlePaste}
-      className={`bg-[#0d1117]/90 border border-white/10 rounded-xl overflow-hidden shadow-xl backdrop-blur-md ${className}`}
+      className={`bg-surface-code/90 border border-white/10 rounded-xl overflow-hidden shadow-xl backdrop-blur-md ${className}`}
     >
       {/* Header & Tabs */}
       <div className="flex items-center justify-between border-b border-white/10 px-3 bg-white/[0.02]">

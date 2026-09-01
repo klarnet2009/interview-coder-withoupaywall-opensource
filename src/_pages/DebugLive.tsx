@@ -209,9 +209,9 @@ export const DebugLive: React.FC = () => {
     }, [isActive, modelName, audioSource, spokenLanguage]);
 
     return (
-        <div className={`flex h-screen text-gray-300 font-sans overflow-hidden ${opaqueMode ? 'bg-[#0D1117]' : 'bg-[#0D1117]/90'}`}>
+        <div className={`flex h-screen text-gray-300 font-sans overflow-hidden ${opaqueMode ? 'bg-surface-code' : 'bg-surface-code/90'}`}>
             {/* Sidebar / Controls */}
-            <div className="w-80 bg-[#161B22] border-r border-white/10 flex flex-col">
+            <div className="w-80 bg-surface-code-raised border-r border-white/10 flex flex-col">
                 <div className="p-4 border-b border-white/10 flex items-center justify-between">
                     <h2 className="font-semibold text-white flex items-center gap-2">
                         <Activity className="w-4 h-4 text-blue-400" />
@@ -236,7 +236,7 @@ export const DebugLive: React.FC = () => {
                                 type="text"
                                 value={modelName}
                                 onChange={(e) => setModelName(e.target.value)}
-                                className="w-full bg-[#0D1117] border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                className="w-full bg-surface-code border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
                             />
                         </div>
 
@@ -247,7 +247,7 @@ export const DebugLive: React.FC = () => {
                                 value={apiKeyOverride}
                                 onChange={(e) => setApiKeyOverride(e.target.value)}
                                 placeholder="Leave empty to use saved key"
-                                className="w-full bg-[#0D1117] border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none placeholder:text-gray-600"
+                                className="w-full bg-surface-code border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none placeholder:text-gray-600"
                             />
                         </div>
 
@@ -258,7 +258,7 @@ export const DebugLive: React.FC = () => {
                                     onClick={() => setAudioSource('system')}
                                     className={`flex items-center justify-center gap-2 py-2 rounded text-xs border ${audioSource === 'system'
                                         ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                                        : 'bg-[#0D1117] border-white/10 hover:border-white/20'
+                                        : 'bg-surface-code border-white/10 hover:border-white/20'
                                         }`}
                                 >
                                     <Monitor className="w-3 h-3" /> System
@@ -267,7 +267,7 @@ export const DebugLive: React.FC = () => {
                                     onClick={() => setAudioSource('microphone')}
                                     className={`flex items-center justify-center gap-2 py-2 rounded text-xs border ${audioSource === 'microphone'
                                         ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                                        : 'bg-[#0D1117] border-white/10 hover:border-white/20'
+                                        : 'bg-surface-code border-white/10 hover:border-white/20'
                                         }`}
                                 >
                                     <Mic className="w-3 h-3" /> Mic
@@ -289,7 +289,7 @@ export const DebugLive: React.FC = () => {
                                         onClick={() => setSpokenLanguage(lang.code)}
                                         className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs border ${spokenLanguage === lang.code
                                             ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                                            : 'bg-[#0D1117] border-white/10 hover:border-white/20'
+                                            : 'bg-surface-code border-white/10 hover:border-white/20'
                                             }`}
                                     >
                                         {lang.label}
@@ -339,7 +339,7 @@ export const DebugLive: React.FC = () => {
                                 <span>Audio Level</span>
                                 <span>{(status.audioLevel * 100).toFixed(0)}%</span>
                             </div>
-                            <div className="h-2 bg-[#0D1117] rounded-full overflow-hidden">
+                            <div className="h-2 bg-surface-code rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-green-500 transition-all duration-75"
                                     style={{ width: `${Math.min(100, status.audioLevel * 500)}%` }} // Amplify for visibility
@@ -379,13 +379,13 @@ export const DebugLive: React.FC = () => {
 
                     <div className="flex-1 grid grid-cols-2 gap-4 h-full">
                         {/* User Transcript */}
-                        <div className="bg-[#161B22] rounded-lg border border-white/10 p-4 overflow-y-auto">
+                        <div className="bg-surface-code-raised rounded-lg border border-white/10 p-4 overflow-y-auto">
                             <h3 className="text-xs font-bold text-blue-400 mb-2 uppercase tracking-wider">Input (Transcript)</h3>
                             <p className="text-gray-300 whitespace-pre-wrap">{status.transcript || <span className="text-gray-600 italic">Waiting for speech...</span>}</p>
                         </div>
 
                         {/* Model Response */}
-                        <div className="bg-[#161B22] rounded-lg border border-white/10 p-4 overflow-y-auto">
+                        <div className="bg-surface-code-raised rounded-lg border border-white/10 p-4 overflow-y-auto">
                             <h3 className="text-xs font-bold text-purple-400 mb-2 uppercase tracking-wider">Output (Model)</h3>
                             <p className="text-gray-300 whitespace-pre-wrap">{status.response || <span className="text-gray-600 italic">Waiting for response...</span>}</p>
                         </div>

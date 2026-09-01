@@ -498,7 +498,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
               {isTooltipVisible && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full mt-1 w-52 py-1 rounded-lg border border-white/10 bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl z-50"
+                  className="absolute right-0 top-full mt-1 w-52 py-1 rounded-lg border border-white/10 bg-surface-raised/95 backdrop-blur-xl shadow-2xl z-50"
                   onMouseLeave={() => setIsTooltipVisible(false)}
                 >
                   {/* Shortcuts */}

@@ -5,6 +5,18 @@
   --color-ring: rgba(255, 255, 255, 0.95);
   --color-focus-halo: rgba(0, 0, 0, 0.9);
 
+  /*
+    Opaque surfaces. This block is the only place in the project where a colour
+    value is written; the .ts and .tsx sources under src are gated to contain
+    none. Declare every token inside `@theme` and nowhere else — a copy in a
+    plain top-level block is unlayered and silently outranks the layered value
+    here, which is the bug that made the focus ring render the wrong colour.
+  */
+  --color-surface-base: #0a0a0a;
+  --color-surface-raised: #1a1a1a;
+  --color-surface-code: #0d1117;
+  --color-surface-code-raised: #161b22;
+
   --animate-in: in 0.2s ease-out;
   --animate-out: out 0.2s ease-in;
   --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
@@ -151,7 +163,7 @@ select {
 }
 
 option {
-  background-color: #1a1a1a !important;
+  background-color: var(--color-surface-raised) !important;
   color: white !important;
   padding: 8px !important;
 }

@@ -184,7 +184,7 @@ const DiffViewer = ({
   }, [originalCode, newCode])
 
   return (
-    <div className="font-mono text-[12px] leading-relaxed bg-[#0d1117]/95 rounded-md p-3 overflow-x-auto border border-white/10 max-h-[500px]">
+    <div className="font-mono text-[12px] leading-relaxed bg-surface-code/95 rounded-md p-3 overflow-x-auto border border-white/10 max-h-[500px]">
       <div className="text-[11px] text-white/40 pb-2 border-b border-white/10 mb-2 flex items-center justify-between">
         <span>Line changes comparison</span>
         <div className="flex items-center gap-3">

@@ -451,7 +451,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-surface-base border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {content}
       </div>
     </div>

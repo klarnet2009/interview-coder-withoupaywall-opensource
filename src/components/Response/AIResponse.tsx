@@ -152,7 +152,7 @@ export const AIResponse: React.FC<AIResponseProps> = ({
 
   if (isLoading) {
     return (
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6">
+      <div className="bg-surface-base border border-white/10 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
             <RefreshCw className="w-4 h-4 text-white/60 animate-spin" />
@@ -173,7 +173,7 @@ export const AIResponse: React.FC<AIResponseProps> = ({
 
   if (!response || !structured) {
     return (
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-8 text-center">
+      <div className="bg-surface-base border border-white/10 rounded-xl p-8 text-center">
         <Lightbulb className="w-12 h-12 text-white/10 mx-auto mb-3" />
         <p className="text-sm text-white/40">No response yet</p>
         <p className="text-xs text-white/30 mt-1">
@@ -186,7 +186,7 @@ export const AIResponse: React.FC<AIResponseProps> = ({
   const visibleActions = showAllActions ? QUICK_ACTIONS : QUICK_ACTIONS.slice(0, 4)
 
   return (
-    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden">
+    <div className="bg-surface-base border border-white/10 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/[0.02]">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
