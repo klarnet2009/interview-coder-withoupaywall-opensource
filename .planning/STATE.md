@@ -108,9 +108,10 @@ Recent decisions affecting current work:
 | 260827-rzp | Update Gemini model IDs to current generation and centralize them into a single constants module | 2026-08-27 | 2f461f1 | Needs Review | [260827-rzp-update-gemini-model-ids-to-current-gener](./quick/260827-rzp-update-gemini-model-ids-to-current-gener/) |
 | 260827-tlv | Fix audio phrase clipping: tune Live API VAD thresholds, remove dead local endTurn machinery, buffer PCM chunks, add anti-aliasing low-pass | 2026-08-27 | 7c8124c | Needs Review | [260827-tlv-fix-audio-phrase-clipping-tune-live-api-](./quick/260827-tlv-fix-audio-phrase-clipping-tune-live-api-/) |
 | 260831-wf4 | Fix UX blockers: separate Quit from Save, confirm destructive actions, escape the no-API-key dead end, fix WelcomeScreen overlap | 2026-08-31 | 603ea2b | Needs Review | [260831-wf4-fix-ux-blockers-separate-quit-from-save-](./quick/260831-wf4-fix-ux-blockers-separate-quit-from-save-/) |
+| 260831-xan | Accessibility pass: label icon buttons, announce live regions, restore focus rings, enable keyboard navigation | 2026-09-01 | f114a05 | Needs Review | [260831-xan-accessibility-pass-label-icon-buttons-an](./quick/260831-xan-accessibility-pass-label-icon-buttons-an/) |
 
 ## Session Continuity
 
 Last session: 2026-08-31T21:00:00Z
-Stopped at: UX/UI audit underway — quick task 260831-wf4 (UX blockers) complete; accessibility, design tokens and functional gaps still to do; Phase 04 plans still pending
+Stopped at: UX/UI audit underway — 260831-wf4 (UX blockers) and 260831-xan (accessibility) complete; design tokens and functional gaps still to do; Phase 04 plans still pending
 Resume file: None
