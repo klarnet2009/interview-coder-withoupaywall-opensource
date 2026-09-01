@@ -118,7 +118,6 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-white/70 hover:text-white hover:bg-white/10"
             onClick={onOpenSettings}
             title="Settings"
           >
@@ -129,7 +128,7 @@ export function Header({ currentLanguage, setLanguage, onOpenSettings }: HeaderP
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-2 text-red-400/80 hover:text-red-400 hover:bg-white/10"
+            className="text-red-400/80 hover:text-red-400"
             onClick={handleLogout}
             title="Log Out"
           >

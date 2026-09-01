@@ -17,6 +17,20 @@
   --color-surface-code: #0d1117;
   --color-surface-code-raised: #161b22;
 
+  /*
+    The white-opacity scale, named. `--opacity-*` feeds the colour opacity
+    modifier as well as the `opacity-*` utility, so `bg-white/glass` compiles
+    to the same declaration as `bg-white/10`. Naming a step therefore costs no
+    migration: the ~1,200 numeric applications across the app stay valid and
+    stay equivalent, and two roles that share a number today can diverge later
+    without a rename. Same single-declaration rule as above.
+  */
+  --opacity-glass-subtle: 5%;
+  --opacity-glass: 10%;
+  --opacity-glass-hover: 20%;
+  --opacity-ink-secondary: 70%;
+  --opacity-solid-hover: 90%;
+
   --animate-in: in 0.2s ease-out;
   --animate-out: out 0.2s ease-in;
   --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

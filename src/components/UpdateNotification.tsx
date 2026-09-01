@@ -79,25 +79,15 @@ export const UpdateNotification: React.FC = () => {
             <Button
               variant="ghost"
               onClick={handleDismiss}
-              className="text-xs text-white/50 hover:text-white hover:bg-white/10"
             >
               Remind Me Later
             </Button>
             {updateDownloaded ? (
-              <Button
-                variant="outline"
-                onClick={handleInstallUpdate}
-                className="text-xs bg-white text-black hover:bg-white/90 border-transparent font-medium"
-              >
+              <Button onClick={handleInstallUpdate}>
                 Restart & Install
               </Button>
             ) : (
-              <Button
-                variant="outline"
-                onClick={handleStartUpdate}
-                disabled={isDownloading}
-                className="text-xs bg-white text-black hover:bg-white/90 border-transparent disabled:opacity-50 font-medium"
-              >
+              <Button onClick={handleStartUpdate} disabled={isDownloading}>
                 {isDownloading ? "Downloading..." : "Download Update"}
               </Button>
             )}

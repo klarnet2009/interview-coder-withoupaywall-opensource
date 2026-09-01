@@ -8,6 +8,7 @@ import {
     DialogDescription,
     DialogFooter
 } from "./dialog"
+import { Button } from "./button"
 import { cn } from "../../lib/utils"
 
 interface ConfirmDialogProps {
@@ -76,33 +77,30 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="gap-2 sm:gap-0">
-                    <button
+                    <Button
                         ref={cancelRef}
                         type="button"
+                        variant="ghost"
                         onClick={() => onOpenChange(false)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-white/50 hover:text-white/80 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        className="gap-2"
                     >
                         {t("confirm.cancel")}
                         <kbd className={cn(KBD_CLASS, "text-white/50")}>{t("confirm.keyEscape")}</kbd>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
+                        variant={destructive ? "destructive" : "default"}
                         onClick={() => {
                             onConfirm()
                             onOpenChange(false)
                         }}
-                        className={cn(
-                            "inline-flex items-center gap-2 px-4 py-1.5 text-xs font-medium rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
-                            destructive
-                                ? "bg-red-500/15 text-red-300 border border-red-500/30 hover:bg-red-500/25"
-                                : "bg-white text-black hover:bg-white/90"
-                        )}
+                        className="gap-2 px-4"
                     >
                         {confirmLabel}
                         <kbd className={cn(KBD_CLASS, destructive ? "text-red-200/70" : "text-black/50")}>
                             {t("confirm.keyEnter")}
                         </kbd>
-                    </button>
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

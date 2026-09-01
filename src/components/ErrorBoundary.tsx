@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react';
+import { Button } from './ui/button';
 
 interface Props {
     children: ReactNode;
@@ -92,27 +93,29 @@ export class ErrorBoundary extends Component<Props, State> {
                         )}
 
                         <div className="flex flex-col sm:flex-row gap-2">
-                            <button
+                            <Button
                                 type="button"
+                                variant="secondary"
                                 onClick={this.handleRetry}
-                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors border border-white/10"
+                                className="flex-1"
                             >
                                 Try Again
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
+                                variant="secondary"
                                 onClick={this.handleClearCacheAndReload}
-                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-amber-300 text-xs font-medium py-2 px-3 rounded-lg transition-colors border border-amber-500/20"
+                                className="flex-1 border border-amber-500/20 text-amber-300"
                             >
                                 Clear Cache & Reload
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                                 type="button"
                                 onClick={() => window.location.reload()}
-                                className="flex-1 bg-white hover:bg-white/90 text-black text-xs font-medium py-2 px-3 rounded-lg transition-colors"
+                                className="flex-1"
                             >
                                 Reload App
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>

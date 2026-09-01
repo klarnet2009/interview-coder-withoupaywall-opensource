@@ -90,7 +90,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
             {t('welcome.gettingStartedDesc')}
           </p>
           <Button
-            className="w-full py-2.5 bg-white text-black rounded-lg font-medium text-[13px] hover:bg-white/90 transition-all active:scale-[0.98]"
+            className="w-full active:scale-[0.98]"
             onClick={onOpenSettings}
           >
             {t('welcome.openSettings')}
