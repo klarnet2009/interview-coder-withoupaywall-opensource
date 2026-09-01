@@ -353,7 +353,7 @@ describe('the button primitive emits real CSS', () => {
 
 describe('every declared token is load-bearing', () => {
     /**
-     * The property `src/styles/design-system.ts` lacked: 403 lines, 13 exports
+     * The property the deleted standalone token module lacked: 403 lines, 13 exports
      * and not one importer anywhere in the shipped code. It would have failed
      * this gate on all thirteen. A second unconsumed token layer is the one
      * outcome quick-260901-jav must not produce.
