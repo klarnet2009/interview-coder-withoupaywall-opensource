@@ -2,14 +2,34 @@ import { globalShortcut, app } from "electron"
 import { IShortcutsHelperDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
 import { createScopedLogger } from "./logger"
+import { initQuitGuard, type QuitGuard } from "./quitGuard"
 
 const runtimeLogger = createScopedLogger("shortcuts")
 
 export class ShortcutsHelper {
   private deps: IShortcutsHelperDeps
+  private quitGuard: QuitGuard
 
   constructor(deps: IShortcutsHelperDeps) {
     this.deps = deps
+    this.quitGuard = initQuitGuard({
+      hasWindow: () => {
+        const mainWindow = this.deps.getMainWindow()
+        return !!mainWindow && !mainWindow.isDestroyed()
+      },
+      isWindowVisible: () => this.deps.isVisible(),
+      // Only ever called when the window is hidden, so the toggle is unambiguous.
+      revealWindow: () => this.deps.toggleMainWindow(),
+      sendQuitRequest: () => {
+        const mainWindow = this.deps.getMainWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("quit-requested")
+        }
+      },
+      quit: () => app.quit(),
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+    })
   }
 
   private adjustOpacity(delta: number): void {
@@ -124,8 +144,10 @@ export class ShortcutsHelper {
     })
 
     globalShortcut.register("CommandOrControl+Q", () => {
-      runtimeLogger.debug("Command/Ctrl + Q pressed. Quitting application.")
-      app.quit()
+      runtimeLogger.debug("Command/Ctrl + Q pressed. Requesting quit confirmation.")
+      // Never terminate directly here: a live interview session is the thing being
+      // protected. All quit decisions go through the guard.
+      this.quitGuard.requestQuit()
     })
 
     // Adjust opacity shortcuts with Alt modifier

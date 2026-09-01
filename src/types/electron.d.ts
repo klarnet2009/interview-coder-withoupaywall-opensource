@@ -180,6 +180,13 @@ export interface ElectronAPI {
 
   // Window management extras
   quitApp: () => Promise<void>;
+
+  // Quit confirmation round trip. acknowledgeQuitPrompt must be called from inside the
+  // onQuitRequested listener: it tells the main process the renderer is alive, not
+  // that the user has answered.
+  onQuitRequested: (callback: () => void) => () => void;
+  acknowledgeQuitPrompt: () => Promise<void>;
+  cancelQuit: () => Promise<void>;
   resetWindowSize: () => Promise<void>;
 
   // Dev mode utilities

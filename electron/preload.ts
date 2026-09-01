@@ -305,6 +305,21 @@ const electronAPI = {
     }
   },
 
+  // Quit confirmation round trip. onQuitRequested fires on Ctrl+Q; the renderer must
+  // call acknowledgeQuitPrompt() from inside that listener, which is what tells the
+  // main process the renderer is alive rather than that the user has answered.
+  onQuitRequested: (callback: () => void) => {
+    const subscription = () => callback()
+    ipcRenderer.on("quit-requested", subscription)
+    return () => {
+      ipcRenderer.removeListener("quit-requested", subscription)
+    }
+  },
+  acknowledgeQuitPrompt: () =>
+    ipcRenderer.invoke("quit-prompt-shown"),
+  cancelQuit: () =>
+    ipcRenderer.invoke("quit-cancelled"),
+
   // Quit application
   quitApp: () => ipcRenderer.invoke("quit-app"),
 

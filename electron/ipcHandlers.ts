@@ -6,6 +6,7 @@ import { configHelper } from "./ConfigHelper"
 import { validateConfigUpdate, validateString, validateEnum, validateUrl, validateFilePath } from "./validation"
 import { getAudioProcessor } from "./AudioProcessor"
 import { logger } from "./logger"
+import { getQuitGuard } from "./quitGuard"
 import {
   clearStoreData,
   clearSessionHistory,
@@ -83,6 +84,8 @@ const REQUIRED_PRELOAD_INVOKE_CHANNELS = [
   "live-interview-send-text",
   "live-interview-send-audio",
   "quit-app",
+  "quit-prompt-shown",
+  "quit-cancelled",
   "is-dev",
   "toggle-stealth",
   "set-always-on-top",
@@ -545,9 +548,27 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     return { success: false, error: "Main window not available" };
   })
 
-  // Quit application handler
+  // Quit application handler. Routed through the guard so the Settings Quit button
+  // and Ctrl+Q converge on one terminal path and neither leaves a watchdog armed.
   registerHandle("quit-app", () => {
+    const guard = getQuitGuard();
+    if (guard) {
+      guard.confirmQuit();
+      return;
+    }
+    // No guard yet — ShortcutsHelper has not been constructed. Fall back to what this
+    // handler already did before the guard existed.
     app.quit();
+  })
+
+  // The renderer's quit-requested listener ran. Disarms the ack watchdog; the wait for
+  // the user's answer becomes unbounded from here.
+  registerHandle("quit-prompt-shown", () => {
+    getQuitGuard()?.acknowledgePrompt();
+  })
+
+  registerHandle("quit-cancelled", () => {
+    getQuitGuard()?.cancelQuit();
   })
 
   // Window management handlers

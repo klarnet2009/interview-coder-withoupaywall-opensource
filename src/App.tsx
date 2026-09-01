@@ -9,7 +9,7 @@ import {
   QueryClient,
   QueryClientProvider
 } from "@tanstack/react-query"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useTranslation } from "react-i18next"
 import {
   Toast,
@@ -21,6 +21,7 @@ import {
 import { ToastContext } from "./contexts/toast"
 import { WelcomeScreen } from "./components/WelcomeScreen"
 import { SettingsPage } from "./components/Settings/SettingsPage"
+import { ConfirmDialog } from "./components/ui/confirm-dialog"
 import { AppConfig, WizardMode } from "./types"
 
 interface ProcessingStatusState {
@@ -60,6 +61,12 @@ function App() {
   const [currentLanguage, setCurrentLanguage] = useState<string>("python")
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasApiKey, setHasApiKey] = useState(false)
+
+  // Ctrl+Q confirmation. The ref distinguishes "the dialog closed because the user
+  // confirmed" from "the dialog closed because the user cancelled"; see
+  // handleQuitOpenChange.
+  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false)
+  const quitConfirmedRef = useRef(false)
   const [processingStatus, setProcessingStatus] = useState<ProcessingStatusState>({
     visible: false,
     message: "",
@@ -194,6 +201,20 @@ function App() {
 
     return () => {
       unsubscribeSettings();
+    };
+  }, []);
+
+  // Ctrl+Q. The acknowledgement is sent from inside the listener rather than from a
+  // dialog mount effect, which keeps it tied to "the renderer is processing events" —
+  // exactly what the main-process watchdog is discriminating on.
+  useEffect(() => {
+    const unsubscribeQuit = window.electronAPI.onQuitRequested(() => {
+      setQuitConfirmOpen(true);
+      void window.electronAPI.acknowledgeQuitPrompt();
+    });
+
+    return () => {
+      unsubscribeQuit();
     };
   }, []);
 
@@ -348,6 +369,24 @@ function App() {
     setShowWizard(true);
   }, []);
 
+  const handleQuitConfirm = useCallback(() => {
+    // ConfirmDialog calls onConfirm() and THEN onOpenChange(false), so without this
+    // flag the close handler below would fire the cancel IPC straight after the
+    // confirm IPC and the app would be told to stand down as it was quitting.
+    quitConfirmedRef.current = true;
+    void window.electronAPI.quitApp();
+  }, []);
+
+  const handleQuitOpenChange = useCallback((open: boolean) => {
+    setQuitConfirmOpen(open);
+    if (open) return;
+    if (quitConfirmedRef.current) {
+      quitConfirmedRef.current = false;
+      return;
+    }
+    void window.electronAPI.cancelQuit();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -420,6 +459,20 @@ function App() {
               <ToastDescription>{toast.description}</ToastDescription>
             </Toast>
           ))}
+          {/*
+            * Sibling of the toast list, inside the context provider but outside
+            * <Routes>, so the confirmation is mounted on every screen — the settings
+            * dialog, the wizard, the welcome screen and /debug-live included.
+            * Reuses the existing confirm.quit.* strings unchanged.
+            */}
+          <ConfirmDialog
+            open={quitConfirmOpen}
+            onOpenChange={handleQuitOpenChange}
+            title={t('confirm.quit.title')}
+            description={t('confirm.quit.description')}
+            confirmLabel={t('confirm.quit.confirmLabel')}
+            onConfirm={handleQuitConfirm}
+          />
           <ToastViewport />
         </ToastContext.Provider>
       </ToastProvider>
