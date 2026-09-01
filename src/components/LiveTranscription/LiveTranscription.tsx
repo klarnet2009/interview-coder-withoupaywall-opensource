@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Volume2, Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface LiveTranscriptionProps {
     isActive: boolean;
@@ -7,6 +8,7 @@ interface LiveTranscriptionProps {
 }
 
 export function LiveTranscription({ isActive, onToggle }: LiveTranscriptionProps) {
+    const { t } = useTranslation();
     const [audioLevel, setAudioLevel] = useState(0);
     const [transcript, setTranscript] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -162,6 +164,10 @@ export function LiveTranscription({ isActive, onToggle }: LiveTranscriptionProps
             <div className="flex items-center gap-3 p-3 bg-black/20 border-b border-white/10">
                 <button
                     onClick={onToggle}
+                    aria-label={isActive
+                        ? t('a11y.label.stopListening')
+                        : t('a11y.label.startListening')}
+                    aria-pressed={isActive}
                     className={`p-2 rounded-lg transition-all ${isActive
                             ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                             : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'

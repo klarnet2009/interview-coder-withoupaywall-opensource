@@ -1,5 +1,6 @@
 import React from 'react';
 import { GripHorizontal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface DragHandleProps {
   className?: string;
@@ -56,6 +57,8 @@ export const DragHeader: React.FC<DragHeaderProps> = ({
   onMinimize,
   className = ''
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div
       className={`
@@ -88,6 +91,7 @@ export const DragHeader: React.FC<DragHeaderProps> = ({
         {onMinimize && (
           <button
             onClick={onMinimize}
+            aria-label={t('a11y.label.minimizeWindow')}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-white/40 hover:text-white/60 transition-colors"
             title="Minimize"
           >
@@ -99,6 +103,7 @@ export const DragHeader: React.FC<DragHeaderProps> = ({
         {onClose && (
           <button
             onClick={onClose}
+            aria-label={t('a11y.label.closeWindow')}
             className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
             title="Close"
           >

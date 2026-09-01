@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Zap
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { AnswerStyle } from "../../types"
 
 interface AIResponseProps {
@@ -131,6 +132,7 @@ export const AIResponse: React.FC<AIResponseProps> = ({
   onChangeStyle,
   currentStyle
 }) => {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const [expanded, setExpanded] = useState(true)
   const [showAllActions, setShowAllActions] = useState(false)
@@ -214,6 +216,7 @@ export const AIResponse: React.FC<AIResponseProps> = ({
 
           <button
             onClick={handleCopy}
+            aria-label={t('a11y.label.copyResponse')}
             className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
             title="Copy response"
           >
@@ -222,6 +225,8 @@ export const AIResponse: React.FC<AIResponseProps> = ({
 
           <button
             onClick={() => setExpanded(!expanded)}
+            aria-label={t('a11y.label.toggleResponseLength')}
+            aria-expanded={expanded}
             className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
           >
             {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}

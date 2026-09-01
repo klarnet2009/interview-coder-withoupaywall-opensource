@@ -359,7 +359,39 @@
     },
     "a11y": {
         "label": {
-            "openSettings": "Open settings"
+            "openSettings": "Open settings",
+            "openDebug": "Open debug and test tools",
+            "openDevTools": "Open developer tools",
+            "chooseCaptureSource": "Choose what to capture",
+            "refreshCaptureSources": "Refresh capture source list",
+            "refreshAudioSources": "Refresh application list",
+            "refreshWindows": "Refresh window list",
+            "minimizeWindow": "Minimize window",
+            "closeWindow": "Close window",
+            "closeSettings": "Close settings",
+            "hideWindow": "Hide window",
+            "closeHotkeys": "Close keyboard shortcuts",
+            "startListening": "Start listening",
+            "stopListening": "Stop listening",
+            "removeScreenshot": "Remove screenshot",
+            "copyResponse": "Copy response",
+            "toggleResponseLength": "Expand or collapse the response",
+            "deleteScreenshot": "Delete screenshot",
+            "screenshotPreview": "Screenshot preview",
+            "closePreview": "Close preview",
+            "backToSessions": "Back to session list",
+            "closeSessionHistory": "Close session history",
+            "deleteSession": "Delete session",
+            "closeWizard": "Close setup wizard",
+            "closeProfileManager": "Close profile manager",
+            "setActiveProfile": "Set as active profile",
+            "editProfile": "Edit profile",
+            "deleteProfile": "Delete profile",
+            "closeDebugView": "Close debug view",
+            "pasteApiKey": "Paste API key from clipboard",
+            "showApiKey": "Show API key",
+            "hideApiKey": "Hide API key",
+            "opaqueMode": "Opaque mode"
         }
     }
 }

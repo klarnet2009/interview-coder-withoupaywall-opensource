@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Mic, Monitor, Headphones, Check, Volume2, Search, RefreshCw, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StepProps } from '../../../types';
 
 interface StepAudioProps extends StepProps {
@@ -41,6 +42,7 @@ export const StepAudio: React.FC<StepAudioProps> = ({
   onUpdate,
   setCanProceed
 }) => {
+  const { t } = useTranslation();
   const [selectedSource, setSelectedSource] = useState(data.audioConfig?.source || 'system');
   const [selectedApp, setSelectedApp] = useState(data.audioConfig?.applicationName || '');
   const [autoStart, setAutoStart] = useState(data.audioConfig?.autoStart ?? true);
@@ -244,6 +246,7 @@ export const StepAudio: React.FC<StepAudioProps> = ({
             <button
               onClick={fetchAudioSources}
               disabled={isLoadingWindows}
+              aria-label={t('a11y.label.refreshWindows')}
               className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"
               title="Refresh list"
             >

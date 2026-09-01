@@ -561,6 +561,9 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                   setShowCaptureDropdown(next);
                   if (next) fetchCaptureSources();
                 }}
+                aria-label={t('a11y.label.chooseCaptureSource')}
+                aria-haspopup="listbox"
+                aria-expanded={showCaptureDropdown}
                 className={`w-8 rounded-r-lg border border-white/15 transition-colors flex items-center justify-center ${showCaptureDropdown
                   ? "bg-white/15 text-white"
                   : "bg-white/5 hover:bg-white/10 text-white/60"
@@ -609,6 +612,7 @@ export const UnifiedPanel: React.FC<UnifiedPanelProps> = ({
                       e.stopPropagation();
                       fetchCaptureSources();
                     }}
+                    aria-label={t('a11y.label.refreshCaptureSources')}
                     className="p-1 text-white/30 hover:text-white/70 transition-colors"
                     title="Refresh list"
                   >

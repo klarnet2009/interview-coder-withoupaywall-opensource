@@ -359,7 +359,39 @@
     },
     "a11y": {
         "label": {
-            "openSettings": "Открыть настройки"
+            "openSettings": "Открыть настройки",
+            "openDebug": "Открыть отладку и тесты",
+            "openDevTools": "Открыть инструменты разработчика",
+            "chooseCaptureSource": "Выбрать источник захвата",
+            "refreshCaptureSources": "Обновить список источников захвата",
+            "refreshAudioSources": "Обновить список приложений",
+            "refreshWindows": "Обновить список окон",
+            "minimizeWindow": "Свернуть окно",
+            "closeWindow": "Закрыть окно",
+            "closeSettings": "Закрыть настройки",
+            "hideWindow": "Скрыть окно",
+            "closeHotkeys": "Закрыть список горячих клавиш",
+            "startListening": "Начать прослушивание",
+            "stopListening": "Остановить прослушивание",
+            "removeScreenshot": "Убрать снимок экрана",
+            "copyResponse": "Скопировать ответ",
+            "toggleResponseLength": "Развернуть или свернуть ответ",
+            "deleteScreenshot": "Удалить снимок экрана",
+            "screenshotPreview": "Просмотр снимка экрана",
+            "closePreview": "Закрыть просмотр",
+            "backToSessions": "Назад к списку сессий",
+            "closeSessionHistory": "Закрыть историю сессий",
+            "deleteSession": "Удалить сессию",
+            "closeWizard": "Закрыть мастер настройки",
+            "closeProfileManager": "Закрыть менеджер профилей",
+            "setActiveProfile": "Сделать профиль активным",
+            "editProfile": "Изменить профиль",
+            "deleteProfile": "Удалить профиль",
+            "closeDebugView": "Закрыть окно отладки",
+            "pasteApiKey": "Вставить ключ API из буфера обмена",
+            "showApiKey": "Показать ключ API",
+            "hideApiKey": "Скрыть ключ API",
+            "opaqueMode": "Непрозрачный режим"
         }
     }
 }

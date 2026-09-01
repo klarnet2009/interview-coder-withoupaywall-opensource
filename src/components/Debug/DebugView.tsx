@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { PipelineStep, DebugLog } from '../../types';
 
 interface DebugViewProps {
@@ -49,6 +50,7 @@ export const DebugView: React.FC<DebugViewProps> = ({
   provider,
   model
 }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<DebugTab>('test');
   const [testInput, setTestInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'coding' | 'behavioral' | 'system_design'>('coding');
@@ -197,6 +199,7 @@ export const DebugView: React.FC<DebugViewProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label={t('a11y.label.closeDebugView')}
               className="p-1.5 text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />

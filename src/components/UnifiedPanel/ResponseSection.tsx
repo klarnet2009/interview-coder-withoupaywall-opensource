@@ -41,6 +41,7 @@ export const ResponseSection: React.FC<ResponseSectionProps> = React.memo(({
     <div className="border-t border-white/5">
       <button
         onClick={onToggleCollapse}
+        aria-expanded={!isResponseCollapsed}
         className="flex items-center justify-between w-full px-3 py-2.5 hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-1.5">

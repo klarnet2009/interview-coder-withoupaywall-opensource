@@ -14,6 +14,7 @@ import {
   X,
   Command
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ConnectionStatus, ProcessingStatus, APIProvider } from '../../types';
 
 interface StatusBarProps {
@@ -58,6 +59,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   onTogglePause,
   onOpenSettings
 }) => {
+  const { t } = useTranslation();
   const [showHotkeys, setShowHotkeys] = useState(false);
 
   const getConnectionIcon = () => {
@@ -211,6 +213,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           {/* Settings button */}
           <button
             onClick={onOpenSettings}
+            aria-label={t('a11y.label.openSettings')}
             className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
             title="Settings"
           >
@@ -231,6 +234,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
               </div>
               <button
                 onClick={() => setShowHotkeys(false)}
+                aria-label={t('a11y.label.closeHotkeys')}
                 className="p-1.5 text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />

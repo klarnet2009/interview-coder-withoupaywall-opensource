@@ -45,6 +45,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
       >
         <div className="flex gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
+            aria-label={t('a11y.label.hideWindow')}
             className="w-3 h-3 rounded-full bg-white/20 hover:bg-red-500 transition-colors"
             onClick={() => window.electronAPI?.toggleMainWindow()}
             title="Hide"

@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { UserProfile } from '../../types';
 
 export interface ProfileManagerProps {
@@ -44,6 +45,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   onSetActiveProfile,
   embedded = false
 }) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [editingProfile, setEditingProfile] = useState<UserProfile | null>(null);
   const [formData, setFormData] = useState<{
@@ -174,6 +176,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           {!embedded && onClose && (
             <button
               onClick={onClose}
+              aria-label={t('a11y.label.closeProfileManager')}
               className="p-1.5 text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
@@ -405,6 +408,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         {!isActive && (
                           <button
                             onClick={() => onSetActiveProfile(profile.id)}
+                            aria-label={t('a11y.label.setActiveProfile')}
                             className="p-1.5 text-white/40 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
                             title="Set as active profile"
                           >
@@ -413,6 +417,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         )}
                         <button
                           onClick={() => handleEdit(profile)}
+                          aria-label={t('a11y.label.editProfile')}
                           className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                           title="Edit profile"
                         >
@@ -421,6 +426,7 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         {profiles.length > 1 && (
                           <button
                             onClick={() => onDeleteProfile(profile.id)}
+                            aria-label={t('a11y.label.deleteProfile')}
                             className="p-1.5 text-red-400/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                             title="Delete profile"
                           >

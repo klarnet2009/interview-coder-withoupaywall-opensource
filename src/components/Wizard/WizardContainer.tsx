@@ -130,6 +130,7 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
           </div>
           <button
             onClick={onSkip}
+            aria-label={t('a11y.label.closeWizard')}
             className="text-white/40 hover:text-white/70 transition-colors p-1"
             title={t('wizard.skipWizard')}
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}

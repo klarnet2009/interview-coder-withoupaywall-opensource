@@ -8,6 +8,7 @@ import {
   Check,
   Sparkles
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface Screenshot {
   path: string;
@@ -50,6 +51,7 @@ export const UnifiedInput: React.FC<UnifiedInputProps> = ({
   className = "",
   defaultTab
 }) => {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const [activeTab, setActiveTab] = useState<'screenshot' | 'text'>(
     defaultTab || (screenshots.length > 0 ? 'screenshot' : 'text')
@@ -202,6 +204,7 @@ export const UnifiedInput: React.FC<UnifiedInputProps> = ({
                       {onDeleteScreenshot && (
                         <button
                           onClick={() => onDeleteScreenshot(index)}
+                          aria-label={t('a11y.label.removeScreenshot')}
                           className="p-1.5 bg-rose-500/80 text-white rounded-md hover:bg-rose-500 transition-colors shadow-lg"
                           title="Remove screenshot"
                         >

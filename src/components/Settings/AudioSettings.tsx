@@ -231,6 +231,7 @@ export function AudioSettings({
                         <button
                             onClick={fetchAudioSources}
                             disabled={isLoadingWindows}
+                            aria-label={t('a11y.label.refreshWindows')}
                             className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"
                             title={t('settings.audio.refreshList')}
                         >

@@ -1,6 +1,7 @@
 // src/components/Queue/ScreenshotItem.tsx
 import React, { useState, useEffect } from "react"
 import { X, ZoomIn } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 interface Screenshot {
   path: string
@@ -20,6 +21,7 @@ const ScreenshotItem: React.FC<ScreenshotItemProps> = ({
   index,
   isLoading
 }) => {
+  const { t } = useTranslation()
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -89,7 +91,7 @@ const ScreenshotItem: React.FC<ScreenshotItemProps> = ({
           <button
             onClick={handleDelete}
             className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 hover:bg-red-500/80 text-white/80 hover:text-white opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
-            aria-label="Delete screenshot"
+            aria-label={t('a11y.label.deleteScreenshot')}
             title="Delete screenshot"
           >
             <X size={14} />
@@ -101,7 +103,7 @@ const ScreenshotItem: React.FC<ScreenshotItemProps> = ({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Screenshot preview"
+          aria-label={t('a11y.label.screenshotPreview')}
           onClick={handleCloseLightbox}
           className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
         >
@@ -117,7 +119,7 @@ const ScreenshotItem: React.FC<ScreenshotItemProps> = ({
             <button
               onClick={handleCloseLightbox}
               className="absolute -top-3 -right-3 p-1.5 rounded-full bg-black/80 hover:bg-white/20 text-white border border-white/20 shadow-lg transition-colors cursor-pointer"
-              aria-label="Close preview"
+              aria-label={t('a11y.label.closePreview')}
               title="Close preview (Esc)"
             >
               <X size={18} />

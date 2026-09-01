@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Code
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { AnswerStyle, InterviewMode } from '../../types';
 
 interface ControlBarProps {
@@ -49,6 +50,8 @@ export const ControlBar: React.FC<ControlBarProps> = ({
   onChangeMode,
   canClear
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-sm border-t border-white/10">
       {/* Left section - Main controls */}
@@ -142,6 +145,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         {/* Debug */}
         <button
           onClick={onOpenDebug}
+          aria-label={t('a11y.label.openDebug')}
           className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
           title="Debug & Test"
         >
@@ -151,6 +155,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
         {/* Settings */}
         <button
           onClick={onOpenSettings}
+          aria-label={t('a11y.label.openSettings')}
           className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
           title="Settings"
         >

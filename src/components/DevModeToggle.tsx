@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bug, Eye, EyeOff, Terminal } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Floating debug mode toggle — only visible in development (npm run dev).
@@ -8,6 +9,7 @@ import { Bug, Eye, EyeOff, Terminal } from 'lucide-react';
  *  - Stealth:    toggles window invisibility for screenshots
  */
 export const DevModeToggle: React.FC = () => {
+    const { t } = useTranslation();
     const [isDev, setIsDev] = useState(false);
     const [stealth, setStealth] = useState(false);
     const [debugMode, setDebugMode] = useState(false);
@@ -44,6 +46,7 @@ export const DevModeToggle: React.FC = () => {
             {/* Main bug icon */}
             <button
                 onClick={() => setExpanded(!expanded)}
+                aria-label={t('a11y.label.openDevTools')}
                 className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-200 ${expanded
                     ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                     : 'bg-white/5 text-white/30 hover:text-white/50 border border-white/5 hover:border-white/10'

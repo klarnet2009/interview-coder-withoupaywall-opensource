@@ -938,6 +938,9 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
                         await window.electronAPI.setAlwaysOnTop(next);
                         setAlwaysOnTop(next);
                     }}
+                    role="switch"
+                    aria-checked={alwaysOnTop}
+                    aria-label={t("settings.window.alwaysOnTop")}
                     className={`relative w-9 h-5 rounded-full transition-colors ${alwaysOnTop ? 'bg-white/30' : 'bg-white/10'
                         }`}
                 >
@@ -958,6 +961,9 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
                         await window.electronAPI.setStealthMode(next);
                         setStealthMode(next);
                     }}
+                    role="switch"
+                    aria-checked={stealthMode}
+                    aria-label={t("settings.window.stealthMode")}
                     className={`relative w-9 h-5 rounded-full transition-colors ${stealthMode ? 'bg-white/30' : 'bg-white/10'
                         }`}
                 >
@@ -1094,6 +1100,7 @@ export function SettingsPage({ onClose, onOpenWizard }: SettingsPageProps) {
                 <span className="text-xs text-white/40 font-medium">{t("settings.title")}</span>
                 <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
                     <button
+                        aria-label={t('a11y.label.closeSettings')}
                         className="w-3 h-3 rounded-full bg-white/20 hover:bg-red-500 transition-colors"
                         onClick={onClose}
                         title="Close"

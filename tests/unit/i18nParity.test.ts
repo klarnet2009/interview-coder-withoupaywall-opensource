@@ -14,10 +14,11 @@ import ru from '../../src/i18n/locales/ru.json'
 
 /**
  * Minimum key count. 262 keys existed before the quick-260831-wf4 confirmation
- * work; that task added 16. The threshold is deliberately the post-task number
+ * work; that task added 16, reaching 278. quick-260831-xan then added 33
+ * accessible-name labels. The threshold is deliberately the post-task number
  * so deleting the new keys from BOTH files cannot quietly pass this gate.
  */
-const MIN_KEYS = 279
+const MIN_KEYS = 311
 
 /** Keys introduced by quick-260831-wf4. Asserted explicitly in both locales. */
 const WF4_KEYS = [
@@ -37,6 +38,47 @@ const WF4_KEYS = [
     'settings.apiKeyRequired.heading',
     'settings.apiKeyRequired.body',
     'settings.apiKeyRequired.getKey'
+]
+
+/**
+ * Accessible-name keys introduced by quick-260831-xan. Every one of these is
+ * spoken text, so a missing Russian value is a user-facing regression rather
+ * than a cosmetic one.
+ */
+const XAN_LABEL_KEYS = [
+    'a11y.label.openSettings',
+    'a11y.label.openDebug',
+    'a11y.label.openDevTools',
+    'a11y.label.chooseCaptureSource',
+    'a11y.label.refreshCaptureSources',
+    'a11y.label.refreshAudioSources',
+    'a11y.label.refreshWindows',
+    'a11y.label.minimizeWindow',
+    'a11y.label.closeWindow',
+    'a11y.label.closeSettings',
+    'a11y.label.hideWindow',
+    'a11y.label.closeHotkeys',
+    'a11y.label.startListening',
+    'a11y.label.stopListening',
+    'a11y.label.removeScreenshot',
+    'a11y.label.copyResponse',
+    'a11y.label.toggleResponseLength',
+    'a11y.label.deleteScreenshot',
+    'a11y.label.screenshotPreview',
+    'a11y.label.closePreview',
+    'a11y.label.backToSessions',
+    'a11y.label.closeSessionHistory',
+    'a11y.label.deleteSession',
+    'a11y.label.closeWizard',
+    'a11y.label.closeProfileManager',
+    'a11y.label.setActiveProfile',
+    'a11y.label.editProfile',
+    'a11y.label.deleteProfile',
+    'a11y.label.closeDebugView',
+    'a11y.label.pasteApiKey',
+    'a11y.label.showApiKey',
+    'a11y.label.hideApiKey',
+    'a11y.label.opaqueMode'
 ]
 
 function flatten(value: unknown, prefix = ''): string[] {
@@ -77,6 +119,14 @@ describe('i18n locale parity', () => {
     })
 
     it.each(WF4_KEYS)('ru.json defines %s', (key) => {
+        expect(ruKeys).toContain(key)
+    })
+
+    it.each(XAN_LABEL_KEYS)('en.json defines %s', (key) => {
+        expect(enKeys).toContain(key)
+    })
+
+    it.each(XAN_LABEL_KEYS)('ru.json defines %s', (key) => {
         expect(ruKeys).toContain(key)
     })
 

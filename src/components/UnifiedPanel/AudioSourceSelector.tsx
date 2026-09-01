@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Search
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { AudioAppSource, AudioSourceType } from "./types"
 
 interface AudioSourceSelectorProps {
@@ -45,6 +46,8 @@ export const AudioSourceSelector: React.FC<AudioSourceSelectorProps> = ({
   setAppSearchQuery,
   handleSourceSelect
 }) => {
+  const { t } = useTranslation()
+
   return (
     <div className="relative" ref={audioDropdownRef}>
       <button
@@ -53,6 +56,8 @@ export const AudioSourceSelector: React.FC<AudioSourceSelectorProps> = ({
           setShowAudioDropdown(next)
           if (next) fetchAudioApps()
         }}
+        aria-haspopup="listbox"
+        aria-expanded={showAudioDropdown}
         className={`w-full h-11 rounded-lg border transition-colors text-[13px] font-medium flex items-center justify-center gap-1.5 px-2 ${
           isCapturing || isActive
             ? localAudioLevel > 0.01
@@ -148,6 +153,7 @@ export const AudioSourceSelector: React.FC<AudioSourceSelectorProps> = ({
                 e.stopPropagation()
                 fetchAudioApps()
               }}
+              aria-label={t('a11y.label.refreshAudioSources')}
               className="p-1 text-white/30 hover:text-white/70 transition-colors"
               title="Refresh list"
             >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, Check, X, Loader2, ExternalLink, AlertCircle, Clipboard } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StepProps, APIProvider, PROVIDERS } from '../../../types';
 
 interface StepApiKeyProps extends StepProps {
@@ -13,6 +14,7 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
   onUpdate,
   setCanProceed
 }) => {
+  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState(data.apiKey || '');
   const [showKey, setShowKey] = useState(false);
   const [testStatus, setTestStatus] = useState<TestStatus>('idle');
@@ -166,6 +168,7 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
             <button
               type="button"
               onClick={handlePaste}
+              aria-label={t('a11y.label.pasteApiKey')}
               className="p-1.5 text-white/40 hover:text-white/70 transition-colors"
               title="Paste from clipboard"
             >
@@ -175,6 +178,10 @@ export const StepApiKey: React.FC<StepApiKeyProps> = ({
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
+                aria-label={showKey
+                  ? t('a11y.label.hideApiKey')
+                  : t('a11y.label.showApiKey')}
+                aria-pressed={showKey}
                 className="p-1.5 text-white/40 hover:text-white/70 transition-colors"
                 title={showKey ? 'Hide key' : 'Show key'}
               >

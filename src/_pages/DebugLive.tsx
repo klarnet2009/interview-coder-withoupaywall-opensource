@@ -4,6 +4,7 @@ import {
     Settings, Monitor, Terminal, Activity, ArrowRight, Eye, EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { GEMINI_MODELS } from '../../electron/constants/geminiModels';
 
 type ListeningState =
@@ -41,6 +42,7 @@ interface LogEntry {
 const DEFAULT_MODEL: string = GEMINI_MODELS.LIVE;
 
 export const DebugLive: React.FC = () => {
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const [isActive, setIsActive] = useState(false);
     const [status, setStatus] = useState<LiveInterviewStatus>({
@@ -310,6 +312,9 @@ export const DebugLive: React.FC = () => {
                                     setOpaqueMode(newOpaque);
                                     window.electronAPI.setWindowOpacity(newOpaque ? 1.0 : 0.85);
                                 }}
+                                role="switch"
+                                aria-checked={opaqueMode}
+                                aria-label={t('a11y.label.opaqueMode')}
                                 className={`relative w-10 h-5 rounded-full transition-colors ${opaqueMode ? 'bg-blue-500' : 'bg-gray-600'
                                     }`}
                             >

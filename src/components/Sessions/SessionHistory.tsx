@@ -12,6 +12,7 @@ import {
   Check,
   Download
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Session, SavedSnippet } from '../../types';
 
 interface SessionHistoryProps {
@@ -37,6 +38,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
   onClearHistory,
   onRefresh
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
             {view === 'detail' ? (
               <button
                 onClick={handleBack}
+                aria-label={t('a11y.label.backToSessions')}
                 className="p-1.5 text-white/40 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
               >
                 <ChevronRight className="w-5 h-5 rotate-180" />
@@ -134,6 +137,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
             )}
             <button
               onClick={onClose}
+              aria-label={t('a11y.label.closeSessionHistory')}
               className="p-1.5 text-white/40 hover:text-white/70 hover:bg-white/5 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
@@ -218,6 +222,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
                               e.stopPropagation();
                               onDeleteSession(session.id);
                             }}
+                            aria-label={t('a11y.label.deleteSession')}
                             className="p-2 text-red-400/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                             title="Delete"
                           >
