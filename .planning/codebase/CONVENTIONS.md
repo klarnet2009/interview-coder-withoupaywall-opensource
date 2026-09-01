@@ -524,18 +524,28 @@ export { StepProvider } from './WizardSteps/StepProvider'
 - Custom theme defined in `src/index.css` with `@theme` directive
 - Global styles in `src/index.css` (animations, custom keyframes)
 
-### Design System
+### Design Tokens
 
-`src/styles/design-system.ts` exports a comprehensive design token system:
+The `@theme` block in `src/index.css` is the token layer, and the only file in the
+project where a colour value is written — the `.ts` and `.tsx` sources under `src`
+are gated to contain no hex literal.
 
-```typescript
-export const colors = { background: { primary: '#000000', ... }, ... }
-export const typography = { fontFamily: { ... }, sizes: { ... }, weights: { ... } }
-export const spacing = { 0: '0', 1: '0.25rem', ... }
-export const borderRadius = { sm: '0.375rem', DEFAULT: '0.5rem', ... }
+```css
+@theme {
+  --color-surface-base: ...;   /* opaque panel and modal surfaces */
+  --opacity-glass: 10%;        /* a named step on the white-veil scale */
+}
 ```
 
-**Usage:** Components reference these tokens directly in style objects or Tailwind classes.
+- **The white-opacity scale is twelve steps** — 3, 5, 10, 15, 20, 30, 40, 50, 60,
+  70, 80, 90 — across roughly 1,200 applications. A named `--opacity-*` step
+  compiles to the same declaration as the number it aliases (`bg-white/glass` and
+  `bg-white/10` are equivalent), so both notations are valid and the scale is held
+  by a ratchet rather than a rename.
+- **A token is declared only when a consumer is wired to it** in the same change.
+- Declare tokens inside `@theme` and nowhere else; an unlayered copy at top level
+  silently outranks the layered one.
+- Gates live in `tests/unit/designSystem.test.ts`.
 
 ### Utility Function
 
@@ -556,14 +566,19 @@ export function cn(...inputs: ClassValue[]) {
 - **class-variance-authority (cva)** for button/variant styling
 - **Dark theme only** — no light mode, all backgrounds shades of black
 
+The button primitive speaks the app's dark-glass language rather than stock
+shadcn's, and every one of its classes is gated to emit real CSS against this
+project's own `src/index.css` — a colour utility whose theme key is undeclared
+generates no rule and paints nothing.
+
 ```typescript
 // Button variant pattern (src/components/ui/button.tsx)
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium...",
+  "inline-flex items-center justify-center rounded-lg font-medium...",
   {
     variants: {
-      variant: { default: "bg-primary...", destructive: "bg-destructive...", ... },
-      size: { default: "h-9 px-4 py-2", sm: "h-8 rounded-md px-3 text-xs", ... }
+      variant: { default: "bg-white text-black...", ghost: "text-white/ink-secondary...", ... },
+      size: { default: "h-8 px-3 py-1.5 text-xs", sm: "h-7 px-2.5 py-1 text-xs", ... }
     },
     defaultVariants: { variant: "default", size: "default" }
   }

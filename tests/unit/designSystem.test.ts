@@ -388,3 +388,222 @@ describe('every declared token is load-bearing', () => {
         ).toEqual([])
     })
 })
+
+// ---------------------------------------------------------------------------
+// The white-opacity scale, ratcheted
+// ---------------------------------------------------------------------------
+
+/**
+ * The scale the app has in fact been using for a year, written down.
+ *
+ * `15` is included despite being a minor step: it has 24 uses and documented
+ * intent — the deleted token module recorded it as the "selected" state — so
+ * it is vocabulary rather than drift. 8, 25, 35, 45, 75, 85, 2, 6 and 4 are
+ * excluded as drift.
+ */
+const SANCTIONED_STEPS = [3, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90]
+
+/**
+ * Applications already off the scale when quick-260901-jav landed: 59 numeric
+ * plus 16 arbitrary, concentrated in UnifiedPanel (21), SettingsPage (10) and
+ * AudioSourceSelector (8). They are GRANDFATHERED, not approved. Snapping each
+ * one is a real sub-perceptual visual change that no test can adjudicate, so it
+ * needs a human comparing before and after per site. This number pins the debt
+ * so it cannot grow while that pass is outstanding; it may go down freely.
+ */
+const OFF_SCALE_BUDGET = 75
+
+/**
+ * Anti-attrition floor, so deleting half the app cannot satisfy the budget
+ * above by making the off-scale sites vanish along with everything else.
+ *
+ * The plan measured 1,218 applications and proposed a floor of 1,200. That
+ * figure predates its own migration: routing eleven call sites through the
+ * button primitive removed 27 numeric applications, leaving 1,191. The floor is
+ * therefore set at 1,100 — comfortably under today's count, deliberately loose
+ * enough to survive the remaining 153-button migration, and nowhere near low
+ * enough for mass deletion to slip past.
+ */
+const POPULATION_FLOOR = 1100
+
+interface OpacityUse {
+    file: string
+    value: number
+    written: string
+}
+
+/**
+ * Every white-opacity application, in BOTH notations the codebase uses.
+ *
+ * The audit saw only the numeric form. `bg-white/[0.03]` compiles identically
+ * to `bg-white/3`, so the arbitrary form is the same scale written a second
+ * way; a gate reading only `\d+` would leave 56 sites free to drift in a
+ * notation it cannot see.
+ */
+function whiteOpacityUses(): OpacityUse[] {
+    const uses: OpacityUse[] = []
+    for (const file of sourceFiles()) {
+        const text = fs.readFileSync(file, 'utf8')
+        const rel = path.relative(ROOT, file)
+        for (const m of text.matchAll(/white\/(\d+)(?![\d.[])/g)) {
+            uses.push({ file: rel, value: Number(m[1]), written: `white/${m[1]}` })
+        }
+        for (const m of text.matchAll(/white\/\[(\d*\.?\d+)\]/g)) {
+            // Multiplied by a hundred so both notations land on one scale.
+            uses.push({ file: rel, value: Number(m[1]) * 100, written: `white/[${m[1]}]` })
+        }
+    }
+    return uses
+}
+
+describe('the white-opacity scale', () => {
+    it('has not grown its off-scale population', () => {
+        const uses = whiteOpacityUses()
+        const offScale = uses.filter((u) => !SANCTIONED_STEPS.includes(u.value))
+
+        expect(
+            uses.length,
+            `Only ${uses.length} white-opacity applications were found, below the floor of ` +
+                `${POPULATION_FLOOR}. The off-scale budget below is an absolute count, so a ` +
+                'large deletion could otherwise satisfy it by attrition rather than by fixing ' +
+                'anything. If the drop is legitimate, lower this floor deliberately.'
+        ).toBeGreaterThanOrEqual(POPULATION_FLOOR)
+
+        const listed = [...new Set(offScale.map((u) => `${u.file}: ${u.written}`))].sort()
+        expect(
+            offScale.length,
+            `${offScale.length} white-opacity applications sit off the sanctioned scale, above ` +
+                `the grandfathered budget of ${OFF_SCALE_BUDGET}.\n\n` +
+                `The scale is a written twelve steps: ${SANCTIONED_STEPS.join(', ')}. ` +
+                'It covers both notations — `white/5` and `white/[0.05]` compile to the same ' +
+                'declaration and are counted together.\n\n' +
+                `The existing ${OFF_SCALE_BUDGET} are GRANDFATHERED, not approved; snapping them ` +
+                'is a separate human-reviewed pass. What is not allowed is adding more.\n\n' +
+                listed.join('\n')
+        ).toBeLessThanOrEqual(OFF_SCALE_BUDGET)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Button adoption, ratcheted
+// ---------------------------------------------------------------------------
+
+/**
+ * Eleven usages across five files is 6.7% of the app's 164 buttons. This does
+ * not migrate the app; it proves the primitive is adoptable and pins the number
+ * so the next person starts from 11 rather than from the 6 that existed while
+ * the variants emitted nothing.
+ */
+const MIN_BUTTON_USAGES = 11
+const MIN_IMPORTING_FILES = 5
+
+describe('button primitive adoption', () => {
+    it('keeps at least eleven call sites across at least five files', () => {
+        // Imports and usages are counted independently, so deleting a call site
+        // cannot be masked by adding one elsewhere in an already-counted file.
+        const importing: string[] = []
+        let usages = 0
+
+        for (const file of sourceFiles()) {
+            if (path.resolve(file) === path.resolve(BUTTON)) continue
+            const text = fs.readFileSync(file, 'utf8')
+            if (/import\s*\{[^}]*\bButton\b[^}]*\}\s*from\s*["'][^"']*\/button["']/.test(text)) {
+                importing.push(path.relative(ROOT, file))
+            }
+            usages += (text.match(/<Button[\s/>]/g) ?? []).length
+        }
+
+        expect(
+            usages,
+            `Only ${usages} <Button> call sites remain, below the ratchet of ` +
+                `${MIN_BUTTON_USAGES}. Removing one is a regression in adoption, not a cleanup.`
+        ).toBeGreaterThanOrEqual(MIN_BUTTON_USAGES)
+
+        expect(
+            importing.length,
+            `Only ${importing.length} files import the primitive (${importing.join(', ')}), ` +
+                `below the ratchet of ${MIN_IMPORTING_FILES}.`
+        ).toBeGreaterThanOrEqual(MIN_IMPORTING_FILES)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Cascade invariants
+// ---------------------------------------------------------------------------
+
+/** Brace depth at each index where `needle` occurs, comments already stripped. */
+function depthsOf(css: string, needle: string): number[] {
+    const depths: number[] = []
+    let depth = 0
+    for (let i = 0; i < css.length; i += 1) {
+        if (css[i] === '{') depth += 1
+        else if (css[i] === '}') depth -= 1
+        else if (css.startsWith(needle, i)) depths.push(depth)
+    }
+    return depths
+}
+
+describe('cascade invariants in src/index.css', () => {
+    const stylesheetWithoutComments = (): string =>
+        readStylesheet().replace(/\/\*[\s\S]*?\*\//g, '')
+
+    it('keeps exactly one focus-visible rule, unlayered at brace depth zero', () => {
+        const depths = depthsOf(stylesheetWithoutComments(), 'focus-visible')
+
+        expect(
+            depths.length,
+            depths.length === 0
+                ? 'The global *:focus-visible rule is gone. quick-260831-xan added it to reach ' +
+                  'the ~20 inputs that suppress their own outline, and the button primitive ' +
+                  'deliberately carries no ring classes of its own, so without it every ' +
+                  'migrated button loses its focus ring entirely.'
+                : `There are ${depths.length} focus-visible rules. A second one re-creates the ` +
+                  'duplication quick-260831-xan removed; the survivor is decided by source ' +
+                  'order rather than intent.'
+        ).toBe(1)
+
+        expect(
+            depths[0],
+            'The focus-visible rule is nested inside an at-rule block again. Tailwind orders ' +
+                '`base` before `utilities` and layer order beats specificity outright, so a ' +
+                'layered rule loses to every focus:outline-none and focus-visible:ring-* ' +
+                'utility in the app. It must stay at brace depth zero.'
+        ).toBe(0)
+    })
+
+    it('declares every custom property inside @theme and nowhere else', () => {
+        const css = stylesheetWithoutComments()
+        // Positions rather than names, so the check does not depend on @theme
+        // happening to be the first block in the file.
+        const themeStart = css.indexOf('{', css.indexOf('@theme'))
+        const themeEnd = themeStart + themeBlock(css).length
+
+        const strays = [...css.matchAll(/(--[a-z0-9-]+)\s*:/g)]
+            .filter((m) => (m.index ?? 0) < themeStart || (m.index ?? 0) > themeEnd)
+            .map((m) => m[1])
+
+        expect(
+            strays,
+            `${strays.length} custom property declarations sit outside @theme (${strays.join(', ')}). ` +
+                'A plain top-level block is UNLAYERED, and an unlayered declaration outranks the ' +
+                'layered @theme copy regardless of order — that is precisely what made ' +
+                '--color-ring render the wrong value until quick-260831-xan removed the ' +
+                'duplicate. Move the declaration into @theme.'
+        ).toEqual([])
+    })
+
+    it('declares no custom property twice', () => {
+        const names = [...stylesheetWithoutComments().matchAll(/(--[a-z0-9-]+)\s*:/g)].map(
+            (m) => m[1]
+        )
+        const duplicates = [...new Set(names.filter((n, i) => names.indexOf(n) !== i))]
+
+        expect(
+            duplicates,
+            `These custom properties are declared more than once: ${duplicates.join(', ')}. ` +
+                'Nine tokens were added to @theme by quick-260901-jav, which is nine chances to ' +
+                'repeat the --color-ring shadowing bug. Each colour and opacity value is stated ' +
+                'exactly once.'
+        ).toEqual([])
+    })
+})
