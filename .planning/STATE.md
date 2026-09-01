@@ -110,9 +110,10 @@ Recent decisions affecting current work:
 | 260831-wf4 | Fix UX blockers: separate Quit from Save, confirm destructive actions, escape the no-API-key dead end, fix WelcomeScreen overlap | 2026-08-31 | 603ea2b | Needs Review | [260831-wf4-fix-ux-blockers-separate-quit-from-save-](./quick/260831-wf4-fix-ux-blockers-separate-quit-from-save-/) |
 | 260831-xan | Accessibility pass: label icon buttons, announce live regions, restore focus rings, enable keyboard navigation | 2026-09-01 | f114a05 | Needs Review | [260831-xan-accessibility-pass-label-icon-buttons-an](./quick/260831-xan-accessibility-pass-label-icon-buttons-an/) |
 | 260901-jav | Design system: name the de-facto opacity scale as tokens, adopt the Button primitive, remove stray hex colors | 2026-09-01 | 3b90801 | Needs Review | [260901-jav-design-system-name-the-de-facto-opacity-](./quick/260901-jav-design-system-name-the-de-facto-opacity-/) |
+| 260901-ubp | Functional gaps: fix the non-existent Gemini Pro model id, make the per-app audio promise honest, confirm Ctrl+Q | 2026-09-01 | c72cc15 | Needs Review | [260901-ubp-functional-gaps-fix-the-non-existent-gem](./quick/260901-ubp-functional-gaps-fix-the-non-existent-gem/) |
 
 ## Session Continuity
 
 Last session: 2026-08-31T21:00:00Z
-Stopped at: UX/UI audit underway — 260831-wf4 (UX blockers) and 260831-xan (accessibility) complete; functional gaps still to do; Phase 04 plans still pending
+Stopped at: UX/UI/a11y/functional audit complete — four quick tasks landed (wf4, xan, jav, ubp); 34 human-verification items outstanding across them; Phase 04 plans still pending execution
 Resume file: None
