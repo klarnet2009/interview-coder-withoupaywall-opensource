@@ -12,6 +12,7 @@ import log from 'electron-log';
 import https from 'https';
 import { ClientRequest, IncomingMessage } from 'http';
 import { GEMINI_MODELS } from '../constants/geminiModels';
+import { modeBlockFor, styleBlockFor } from './hintPrompt';
 
 const HINT_MODEL: string = GEMINI_MODELS.HINT;
 const API_BASE_HOST = 'generativelanguage.googleapis.com';
@@ -93,53 +94,8 @@ export class HintGenerationService extends EventEmitter {
     }
 
     private getDefaultSystemInstruction(): string {
-        // Build mode-specific instructions
-        let modeInstruction = '';
-        switch (this.interviewMode) {
-            case 'behavioral':
-            case 'general':
-                modeInstruction = 'This is a behavioral/general interview. Focus on soft skills, STAR method examples, and interpersonal scenarios.';
-                break;
-            case 'system_design':
-                modeInstruction = 'This is a system design interview. Focus on architecture, scalability, trade-offs, and design patterns.';
-                break;
-            case 'coding':
-            case 'programming':
-            default:
-                modeInstruction = 'This is a coding/programming interview. Focus on algorithms, data structures, code solutions, and time/space complexity.';
-                break;
-        }
-
-        // Build style-specific instructions
-        let styleInstruction = '';
-        switch (this.answerStyle) {
-            case 'hints':
-                styleInstruction = 'Give ONLY hints and directions. Do NOT give the actual answer. Help the candidate think through the problem themselves. Use 1-3 short hints like "Think about using a hash map" or "Consider edge cases with empty input".';
-                break;
-            case 'full':
-                styleInstruction = 'Provide a complete, structured answer the candidate can read and paraphrase. Include the reasoning, approach, and a clear solution. Use paragraphs and bullet points for readability.';
-                break;
-            case 'bullets':
-                styleInstruction = 'Give key points as bullet points only. No fluff, no long explanations. 3-5 crisp bullet points that cover the essential answer.';
-                break;
-            case 'echo':
-                styleInstruction = 'Write the answer in FIRST PERSON as if YOU are the candidate speaking naturally in a real interview. Use conversational tone — the candidate should be able to read your response WORD FOR WORD out loud. Include natural speech patterns like "So, the way I would approach this is...", "In my experience...", "What I think is important here is...". Do NOT use bullet points or headers — write flowing speech. Keep it concise (3-6 sentences) so it sounds natural, not rehearsed.';
-                break;
-            // Legacy values for backward compatibility
-            case 'concise':
-                styleInstruction = 'Be extremely brief. Give 1-2 bullet points maximum. No explanations, just key points.';
-                break;
-            case 'detailed':
-                styleInstruction = 'Provide detailed, comprehensive answers with explanations, examples, and reasoning.';
-                break;
-            case 'star':
-                styleInstruction = 'Structure answers using the STAR method: Situation, Task, Action, Result.';
-                break;
-            case 'structured':
-            default:
-                styleInstruction = 'Give structured answers with 3-4 bullet points. Balance brevity with clarity.';
-                break;
-        }
+        const modeInstruction = modeBlockFor(this.interviewMode);
+        const styleInstruction = styleBlockFor(this.answerStyle);
 
         let basePrompt = `You are an AI interview assistant helping a candidate during a technical interview.
 
