@@ -28,7 +28,11 @@ export const STYLE_BLOCKS: Record<AnswerStyleKey, string> = {
 
     bullets: 'Give key points as bullet points only. No fluff, no long explanations. 3-5 crisp bullet points that cover the essential answer.',
 
-    echo: 'Write the answer in FIRST PERSON as if YOU are the candidate speaking naturally in a real interview. Use conversational tone — the candidate should be able to read your response WORD FOR WORD out loud. Include natural speech patterns like "So, the way I would approach this is...", "In my experience...", "What I think is important here is...". Do NOT use bullet points or headers — write flowing speech. Keep it concise (3-6 sentences) so it sounds natural, not rehearsed.',
+    echo: `Write the answer in first person, as the candidate saying it out loud in the room. They read it word for word, so it has to work as speech rather than as written prose read aloud: no bullet points, no headings, no code blocks, no stage directions or bracketed asides. Three to six sentences.
+
+Let it sound like someone thinking in real time. Use one or two of these per answer, never more: open in rough, abstract terms before you get precise ("the shape of this is really just a sliding window - so concretely, I'd keep two pointers and move the left one whenever the window goes invalid"); hedge on the one part that genuinely is uncertain ("I'd want to check the exact number, but it's linear in the number of keys"); say plainly that you don't know, where the candidate honestly wouldn't, and in the same breath say how you'd find out; correct yourself once mid-sentence ("I'd cache it at the edge - well, at the edge for reads, the writes still have to go through"); or let one closing thought trail off on a dash instead of tying it into a neat conclusion.
+
+The substance still has to be right, and it still has to land. Hedge the detail you are actually unsure of, never the main claim, and never manufacture doubt about something you do know. Keep the sentence that carries the answer whole - the unfinished thought is an aside, never the point. One hesitation reads as human; three in a row reads as someone who did not prepare. No stacked fillers ("um, like, you know"), and write any hesitation in the language you are speaking, not in English.`,
 
     concise: 'Be extremely brief. Give 1-2 bullet points maximum. No explanations, just key points.',
 
