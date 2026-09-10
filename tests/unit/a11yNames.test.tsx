@@ -303,27 +303,52 @@ describe('a11y key resolution', () => {
      * quick-260831-xan introduced 33 label keys and this floor guarded all of them.
      * quick-260901-ubp removed per-application audio capture, which deleted the only
      * two controls those labels named — the audio-source refresh button and the
-     * Settings window-list refresh button. 31 is therefore the correct floor now.
+     * Settings window-list refresh button — taking the floor to 31.
      *
-     * The count alone would let any future label deletion hide behind this drop, so
-     * the departed keys are named below: the floor may only fall for controls that
-     * genuinely no longer exist, and a reviewer can see which ones those were.
+     * The dead-component sweep then deleted ControlBar, Response/AIResponse and
+     * StatusBar: three renderer components that kept no importer anywhere once
+     * UnifiedPanel became the sole working-mode UI. Four more labels went with
+     * them, so 27 is the correct floor now.
+     *
+     * The count alone would let any future label deletion hide behind these drops,
+     * so the departed keys are named below: the floor may only fall for controls
+     * that genuinely no longer exist, and a reviewer can see which ones those were.
      */
     const REMOVED_WITH_APPLICATION_AUDIO = [
         'a11y.label.refreshAudioSources',
         'a11y.label.refreshWindows'
     ]
 
-    it('still references at least the 31 label keys whose controls still exist', () => {
+    /**
+     * `a11y.label.openSettings` is deliberately NOT listed here. ControlBar and
+     * StatusBar each named a settings gear with it, but UnifiedPanel still does,
+     * so the key keeps a live referencing control and asserting it gone would be
+     * wrong. Only keys whose every referencing control died belong in this list.
+     */
+    const REMOVED_WITH_DEAD_COMPONENTS = [
+        'a11y.label.openDebug',
+        'a11y.label.copyResponse',
+        'a11y.label.toggleResponseLength',
+        'a11y.label.closeHotkeys'
+    ]
+
+    it('still references at least the 27 label keys whose controls still exist', () => {
         const labelKeys = referencedA11yKeys().filter((key) =>
             key.startsWith('a11y.label.')
         )
-        expect(labelKeys.length).toBeGreaterThanOrEqual(31)
+        expect(labelKeys.length).toBeGreaterThanOrEqual(27)
     })
 
     it('lost exactly the two labels whose controls the audio removal deleted', () => {
         const labelKeys = referencedA11yKeys()
         for (const key of REMOVED_WITH_APPLICATION_AUDIO) {
+            expect(labelKeys, `${key} should have no referencing control left`).not.toContain(key)
+        }
+    })
+
+    it('lost exactly the four labels the dead-component sweep deleted', () => {
+        const labelKeys = referencedA11yKeys()
+        for (const key of REMOVED_WITH_DEAD_COMPONENTS) {
             expect(labelKeys, `${key} should have no referencing control left`).not.toContain(key)
         }
     })

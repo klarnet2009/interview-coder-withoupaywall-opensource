@@ -419,12 +419,20 @@ const OFF_SCALE_BUDGET = 75
  *
  * The plan measured 1,218 applications and proposed a floor of 1,200. That
  * figure predates its own migration: routing eleven call sites through the
- * button primitive removed 27 numeric applications, leaving 1,191. The floor is
- * therefore set at 1,100 — comfortably under today's count, deliberately loose
- * enough to survive the remaining 153-button migration, and nowhere near low
- * enough for mass deletion to slip past.
+ * button primitive removed 27 numeric applications, leaving 1,191, and the
+ * floor was set at 1,100 to stay loose enough for the remaining button
+ * migration without letting mass deletion slip past.
+ *
+ * The dead-component sweep then deleted ControlBar, Response/AIResponse and
+ * StatusBar — no importer anywhere once UnifiedPanel became the sole
+ * working-mode UI — which took 91 applications with them and left 1,034. This
+ * is exactly the "legitimate drop" the assertion message anticipates, so the
+ * floor is lowered deliberately rather than by attrition: 950 keeps roughly
+ * the same absolute slack under the live count (84) that 1,100 kept under
+ * 1,191 (91), and the off-scale budget above fell 69 -> 65 in the same pass,
+ * so the debt this pair guards did not grow.
  */
-const POPULATION_FLOOR = 1100
+const POPULATION_FLOOR = 950
 
 interface OpacityUse {
     file: string
