@@ -97,21 +97,23 @@ export class HintGenerationService extends EventEmitter {
         const modeInstruction = modeBlockFor(this.interviewMode);
         const styleInstruction = styleBlockFor(this.answerStyle);
 
+        // Depth and voice are the style block's job and nothing else's. Do not
+        // reintroduce a global "be brief" or "don't give away the solution"
+        // rule below: either one silently overrides the chosen style, and the
+        // styles that must hand over a full answer (`full`, `echo`) lose.
         let basePrompt = `You are an AI interview assistant helping a candidate during a technical interview.
 
 ${modeInstruction}
 
 Your role:
 - Analyze the interviewer's questions (provided as transcript)
-- Provide concise, helpful hints and answers
+- Answer the interviewer's question at the depth and in the voice the ANSWER STYLE section sets
 - ALWAYS respond in the SAME LANGUAGE as the interviewer's question. If the question is in Russian, respond in Russian. If in English, respond in English. Match the language exactly.
-- ${styleInstruction}
-- Be brief - the candidate needs to respond quickly
-- If the question is about code, provide pseudocode or key concepts only
 - You have full context of the interview so far — use it to give better, non-repetitive answers
 - Reference previous questions if relevant to build a coherent picture
 
-Be helpful but don't give away complete solutions - guide the candidate.`;
+== ANSWER STYLE ==
+${styleInstruction}`;
 
         // Inject user profile personalization
         if (this.userProfile) {
